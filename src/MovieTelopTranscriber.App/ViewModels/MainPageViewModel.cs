@@ -10,6 +10,8 @@ namespace MovieTelopTranscriber.App.ViewModels;
 public partial class MainPageViewModel : ObservableObject
 {
     private readonly OpenCvVideoProcessingService _videoProcessingService = new();
+    private readonly TelopFrameAnalysisService _frameAnalysisService = new();
+    private IReadOnlyList<FrameAnalysisResult> _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
 
     public MainPageViewModel()
     {
@@ -76,6 +78,9 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string WorkDirectoryText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string OcrEngineText { get; set; } = "-";
 
     [ObservableProperty]
     public partial TimelineSegment? SelectedTimelineSegment { get; set; }
@@ -148,27 +153,69 @@ public partial class MainPageViewModel : ObservableObject
         try
         {
             var metadata = await _videoProcessingService.ReadMetadataAsync(VideoPath);
-            var progress = new Progress<double>(value => ProgressValue = value);
+            var progress = new Progress<double>(value => ProgressValue = value * 0.6d);
             var intervalSeconds = ParseFrameIntervalSeconds();
             var result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress);
 
-            WorkDirectoryText = result.FramesDirectory;
+            WorkDirectoryText = result.RunDirectory;
+            OcrEngineText = _frameAnalysisService.EngineName;
+            PreviewState = "Running OCR";
+            ActivityMessage = "OCR worker is processing extracted frames.";
+
+            var ocrProgress = new Progress<double>(value => ProgressValue = 60d + (value * 0.4d));
+            _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
+
             TimelineSegments.Clear();
             ResultRows.Clear();
 
-            foreach (var frame in result.Frames)
+            var detectionCount = 0;
+            var errorCount = 0;
+            foreach (var analysis in _latestFrameAnalyses)
             {
-                var timeLabel = FormatTimestamp(frame.TimestampMs);
-                TimelineSegments.Add(new TimelineSegment(timeLabel, $"Frame {frame.FrameIndex:D6}", Path.GetFileName(frame.ImagePath)));
-                ResultRows.Add(new ResultRow(timeLabel, "Frame", Path.GetFileName(frame.ImagePath), frame.ImagePath));
+                var timeLabel = FormatTimestamp(analysis.Frame.TimestampMs);
+                if (analysis.Ocr.Status == "error")
+                {
+                    errorCount++;
+                    TimelineSegments.Add(new TimelineSegment(timeLabel, $"Frame {analysis.Frame.FrameIndex:D6}", "OCR error"));
+                    ResultRows.Add(new ResultRow(
+                        timeLabel,
+                        "Error",
+                        analysis.Ocr.Error?.Code ?? "OCR_PROCESS_FAILED",
+                        analysis.Ocr.Error?.Message ?? "OCR worker failed."));
+                    continue;
+                }
+
+                if (analysis.Attributes.Detections.Count == 0)
+                {
+                    TimelineSegments.Add(new TimelineSegment(timeLabel, $"Frame {analysis.Frame.FrameIndex:D6}", "No telop detected"));
+                    ResultRows.Add(new ResultRow(
+                        timeLabel,
+                        "OCR",
+                        "No text detected",
+                        Path.GetFileName(analysis.Frame.ImagePath)));
+                    continue;
+                }
+
+                foreach (var detection in analysis.Attributes.Detections)
+                {
+                    detectionCount++;
+                    TimelineSegments.Add(new TimelineSegment(timeLabel, detection.Text, FormatStyleSummary(detection)));
+                    ResultRows.Add(new ResultRow(
+                        timeLabel,
+                        detection.TextType,
+                        detection.Text,
+                        FormatDetectionDetail(detection)));
+                }
             }
 
             SelectedTimelineSegment = TimelineSegments.FirstOrDefault();
-            PreviewState = result.Frames.Count > 0 ? $"Extracted {result.Frames.Count} frames" : "No frames extracted";
-            ActivityMessage = $"Saved {result.Frames.Count} frames to {result.FramesDirectory}.";
-            StatusMessage = $"Frame extraction completed. Run ID: {result.RunId}";
+            PreviewState = result.Frames.Count > 0 ? $"Analyzed {result.Frames.Count} frames" : "No frames extracted";
+            ActivityMessage = $"Saved {result.Frames.Count} frames and {detectionCount} detections under {result.RunDirectory}.";
+            StatusMessage = errorCount == 0
+                ? $"Frame extraction and OCR completed. Run ID: {result.RunId}"
+                : $"Frame extraction completed with {errorCount} OCR error(s). Run ID: {result.RunId}";
 
-            RefreshInfoCards(metadata, result.Frames.Count);
+            RefreshInfoCards(metadata, result.Frames.Count, detectionCount);
         }
         catch (Exception ex)
         {
@@ -210,11 +257,13 @@ public partial class MainPageViewModel : ObservableObject
             FpsText = $"{metadata.Fps:F3}";
             CodecText = metadata.Codec;
             WorkDirectoryText = "-";
+            OcrEngineText = _frameAnalysisService.EngineName;
+            _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
             PreviewState = "Ready";
             StatusMessage = $"Loaded {metadata.FileName}";
             ActivityMessage = "Metadata loaded. You can now run frame extraction.";
 
-            RefreshInfoCards(metadata, 0);
+            RefreshInfoCards(metadata, 0, 0);
             TimelineSegments.Clear();
             ResultRows.Clear();
             TimelineSegments.Add(new TimelineSegment("preview", metadata.FileName, "metadata loaded"));
@@ -237,13 +286,14 @@ public partial class MainPageViewModel : ObservableObject
     {
         SettingItems.Clear();
         SettingItems.Add(new SettingItem("Frame interval", $"{ParseFrameIntervalSeconds():F1} sec", "Default extraction interval."));
-        SettingItems.Add(new SettingItem("OCR engine", "PaddleOCR", "Reserved for the next implementation task."));
-        SettingItems.Add(new SettingItem("Output", "work/runs/<run_id>/frames", "Frames are saved under the per-run work directory."));
+        SettingItems.Add(new SettingItem("OCR engine", _frameAnalysisService.EngineName, "Set MOVIE_TELOP_OCR_WORKER to use an external JSON worker."));
+        SettingItems.Add(new SettingItem("Output", "work/runs/<run_id>", "Frames, OCR responses, and attributes are saved under the per-run work directory."));
     }
 
     private void ResetDynamicCollections()
     {
-        RefreshInfoCards(null, 0);
+        OcrEngineText = _frameAnalysisService.EngineName;
+        RefreshInfoCards(null, 0, 0);
         TimelineSegments.Clear();
         ResultRows.Clear();
         TimelineSegments.Add(new TimelineSegment("timeline", "No frames yet", "load a video to begin"));
@@ -251,12 +301,32 @@ public partial class MainPageViewModel : ObservableObject
         SelectedTimelineSegment = TimelineSegments[0];
     }
 
-    private void RefreshInfoCards(VideoMetadata? metadata, int frameCount)
+    private void RefreshInfoCards(VideoMetadata? metadata, int frameCount, int detectionCount)
     {
         InfoCards.Clear();
         InfoCards.Add(new InfoCardItem("Video", metadata?.FileName ?? "Not selected", "Current source video"));
         InfoCards.Add(new InfoCardItem("Frames", frameCount.ToString(), "Extracted frame count"));
+        InfoCards.Add(new InfoCardItem("OCR", $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem("Work", WorkDirectoryText, "Current output directory"));
+    }
+
+    private static string FormatStyleSummary(TelopAttributeRecord detection)
+    {
+        var fontSize = detection.FontSize is null ? "size unknown" : $"{detection.FontSize:F1}{detection.FontSizeUnit}";
+        return $"{detection.TextType} / {fontSize}";
+    }
+
+    private static string FormatDetectionDetail(TelopAttributeRecord detection)
+    {
+        var confidence = detection.Confidence is null ? "confidence unknown" : $"confidence {detection.Confidence:P1}";
+        var colors = string.Join(
+            " / ",
+            new[] { detection.TextColor, detection.StrokeColor, detection.BackgroundColor }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return string.IsNullOrWhiteSpace(colors)
+            ? confidence
+            : $"{confidence} / {colors}";
     }
 
     private static string FormatTimestamp(long timestampMs)

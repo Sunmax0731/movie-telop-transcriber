@@ -57,7 +57,9 @@ public sealed class OpenCvVideoProcessingService
             }
 
             var runId = CreateRunId();
-            var framesDirectory = CreateFramesDirectory(runId);
+            var runDirectory = CreateRunDirectory(runId);
+            var framesDirectory = Path.Combine(runDirectory, "frames");
+            Directory.CreateDirectory(framesDirectory);
 
             var durationMs = metadata.DurationMs > 0 ? metadata.DurationMs : EstimateDurationMs(capture);
             var timestamps = BuildCaptureTimestamps(durationMs, intervalSeconds);
@@ -84,7 +86,7 @@ public sealed class OpenCvVideoProcessingService
                 progress?.Report(((double)(i + 1) / timestamps.Count) * 100d);
             }
 
-            return new FrameExtractionResult(runId, framesDirectory, frames);
+            return new FrameExtractionResult(runId, runDirectory, framesDirectory, frames);
         }, cancellationToken);
     }
 
@@ -119,12 +121,12 @@ public sealed class OpenCvVideoProcessingService
         return timestamps;
     }
 
-    private static string CreateFramesDirectory(string runId)
+    private static string CreateRunDirectory(string runId)
     {
         var projectRoot = ResolveProjectRoot();
-        var framesDirectory = Path.Combine(projectRoot, "work", "runs", runId, "frames");
-        Directory.CreateDirectory(framesDirectory);
-        return framesDirectory;
+        var runDirectory = Path.Combine(projectRoot, "work", "runs", runId);
+        Directory.CreateDirectory(runDirectory);
+        return runDirectory;
     }
 
     private static string ResolveProjectRoot()
