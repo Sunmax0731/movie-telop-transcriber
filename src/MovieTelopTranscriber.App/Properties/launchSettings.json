@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MovieTelopTranscriber.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MovieTelopTranscriber.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
