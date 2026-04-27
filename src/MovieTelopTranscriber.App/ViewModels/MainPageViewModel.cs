@@ -37,6 +37,10 @@ public partial class MainPageViewModel : ObservableObject
 
     public ObservableCollection<ResultRow> ResultRows { get; }
 
+    public event EventHandler? SettingsWindowRequested;
+
+    public event EventHandler? ExportWindowRequested;
+
     [ObservableProperty]
     public partial string WindowDescription { get; set; } = "WinUI 3 desktop shell for video input, frame extraction, and timeline-linked review.";
 
@@ -89,6 +93,15 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string ExportDirectoryText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string JsonOutputPathText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string SegmentsCsvOutputPathText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string FramesCsvOutputPathText { get; set; } = "-";
 
     [ObservableProperty]
     public partial TimelineSegment? SelectedTimelineSegment { get; set; }
@@ -195,6 +208,9 @@ public partial class MainPageViewModel : ObservableObject
                 warningCount,
                 errorCount);
             ExportDirectoryText = _latestExport.OutputDirectory;
+            JsonOutputPathText = _latestExport.JsonPath;
+            SegmentsCsvOutputPathText = _latestExport.SegmentsCsvPath;
+            FramesCsvOutputPathText = _latestExport.FramesCsvPath;
 
             SelectedTimelineSegment = TimelineSegments.FirstOrDefault();
             PreviewState = _latestSegments.Count > 0 ? $"Created {_latestSegments.Count} segments" : "No telop segments";
@@ -220,15 +236,17 @@ public partial class MainPageViewModel : ObservableObject
     [RelayCommand]
     private void OpenSettings()
     {
-        StatusMessage = "Settings window will be implemented later as a non-modal child window.";
+        SettingsWindowRequested?.Invoke(this, EventArgs.Empty);
+        StatusMessage = "Settings window is open.";
     }
 
     [RelayCommand]
     private void OpenExport()
     {
+        ExportWindowRequested?.Invoke(this, EventArgs.Empty);
         StatusMessage = _latestExport is null
-            ? "Run analysis before opening export details."
-            : $"Latest export: {_latestExport.JsonPath}";
+            ? "Export window is open. Run analysis to populate output paths."
+            : $"Export window is open. Latest export: {_latestExport.JsonPath}";
     }
 
     private async Task LoadVideoAsync(string path)
@@ -249,6 +267,9 @@ public partial class MainPageViewModel : ObservableObject
             WorkDirectoryText = "-";
             OcrEngineText = _frameAnalysisService.EngineName;
             ExportDirectoryText = "-";
+            JsonOutputPathText = "-";
+            SegmentsCsvOutputPathText = "-";
+            FramesCsvOutputPathText = "-";
             _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
             _latestSegments = Array.Empty<SegmentRecord>();
             _latestExport = null;
@@ -287,6 +308,9 @@ public partial class MainPageViewModel : ObservableObject
     {
         OcrEngineText = _frameAnalysisService.EngineName;
         ExportDirectoryText = "-";
+        JsonOutputPathText = "-";
+        SegmentsCsvOutputPathText = "-";
+        FramesCsvOutputPathText = "-";
         RefreshInfoCards(null, 0, 0, 0);
         TimelineSegments.Clear();
         ResultRows.Clear();
