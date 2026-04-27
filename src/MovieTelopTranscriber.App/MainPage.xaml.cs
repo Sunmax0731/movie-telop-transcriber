@@ -11,10 +11,37 @@ namespace MovieTelopTranscriber.App;
 /// </summary>
 public sealed partial class MainPage : Page
 {
+    private SettingsWindow? _settingsWindow;
+    private ExportWindow? _exportWindow;
+
     public MainPageViewModel ViewModel { get; } = new();
 
     public MainPage()
     {
         InitializeComponent();
+        ViewModel.SettingsWindowRequested += OnSettingsWindowRequested;
+        ViewModel.ExportWindowRequested += OnExportWindowRequested;
+    }
+
+    private void OnSettingsWindowRequested(object? sender, EventArgs e)
+    {
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new SettingsWindow(ViewModel);
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        }
+
+        _settingsWindow.Activate();
+    }
+
+    private void OnExportWindowRequested(object? sender, EventArgs e)
+    {
+        if (_exportWindow is null)
+        {
+            _exportWindow = new ExportWindow(ViewModel);
+            _exportWindow.Closed += (_, _) => _exportWindow = null;
+        }
+
+        _exportWindow.Activate();
     }
 }
