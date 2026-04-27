@@ -59,3 +59,4 @@
 - 外部 OCR ワーカーは `MOVIE_TELOP_OCR_WORKER` 環境変数で指定する。
 - 未指定時はフレーム同名の `.ocr.json` サイドカーを読み込み、サイドカーがない場合は空検出として処理を継続する。
 - 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。
+- 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv` として保存する。
