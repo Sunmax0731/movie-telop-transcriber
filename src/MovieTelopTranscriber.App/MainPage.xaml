@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="MovieTelopTranscriber.App.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:models="using:MovieTelopTranscriber.App.Models"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Grid Padding="20" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Padding="16"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <Grid ColumnSpacing="12" RowSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Movie Telop Transcriber" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.WindowDescription, Mode=OneWay}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
+
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+                    <Button Command="{x:Bind ViewModel.OpenSettingsCommand}" Content="Settings" />
+                    <Button Command="{x:Bind ViewModel.OpenExportCommand}" Content="Export" />
+                </StackPanel>
+
+                <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <AutoSuggestBox
+                        Grid.Column="0"
+                        PlaceholderText="Select a video file or enter a path"
+                        Text="{x:Bind ViewModel.VideoPath, Mode=TwoWay}" />
+                    <Button Grid.Column="1" Command="{x:Bind ViewModel.SelectVideoCommand}" Content="Browse" />
+                    <Button Grid.Column="2" Command="{x:Bind ViewModel.StartAnalysisCommand}" Content="Run" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="360" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                Grid.Column="0"
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid RowSpacing="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Input" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Supported formats" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.SupportedFormats, Mode=OneWay}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Spacing="12">
+                        <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:SettingItem">
+                                    <Grid Margin="0,0,0,10" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{x:Bind Label}" />
+                                            <TextBlock
+                                                Text="{x:Bind Description}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Style="{StaticResource BodyTextBlockStyle}"
+                                                TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Text="{x:Bind Value}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Spacing="12">
+                        <TextBlock Text="Status" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.InfoCards, Mode=OneWay}">
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:InfoCardItem">
+                                    <Border
+                                        Margin="0,0,0,10"
+                                        Padding="12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="6">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <TextBlock
+                                                Text="{x:Bind Value}"
+                                                Style="{StaticResource TitleTextBlockStyle}" />
+                                            <TextBlock
+                                                Text="{x:Bind Description}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1" RowSpacing="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="220" />
+                </Grid.RowDefinitions>
+
+                <Border
+                    Padding="16"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid RowSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Preview" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <ToggleButton
+                                Grid.Column="1"
+                                IsChecked="{x:Bind ViewModel.ShowTimelineSelection, Mode=TwoWay}"
+                                Content="Sync timeline" />
+                        </Grid>
+
+                        <Border
+                            Grid.Row="1"
+                            MinHeight="320"
+                            Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
+                            CornerRadius="6">
+                            <StackPanel
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="8">
+                                <FontIcon Glyph="&#xE714;" FontSize="40" />
+                                <TextBlock Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}" />
+                                <TextBlock
+                                    Text="Selected frame preview area"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Row="2" Spacing="6">
+                            <TextBlock Text="Selected telop" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
+                                TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border
+                    Grid.Row="1"
+                    Padding="16"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid RowSpacing="12">
+                        <TextBlock Text="Timeline" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <ListView
+                            Margin="0,32,0,0"
+                            ItemsSource="{x:Bind ViewModel.TimelineSegments, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedTimelineSegment, Mode=TwoWay}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:TimelineSegment">
+                                    <Grid Padding="0,8" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="150" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind RangeLabel}" />
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="2"
+                                            HorizontalAlignment="Right"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind StyleSummary}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border
+                Grid.Column="2"
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid RowSpacing="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid>
+                        <TextBlock Text="Results" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <ListView
+                            Margin="0,32,0,0"
+                            ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:ResultRow">
+                                    <Border Margin="0,0,0,10" Padding="12" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6">
+                                        <StackPanel Spacing="6">
+                                            <Grid ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock Grid.Column="1" Text="{x:Bind Category}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            </Grid>
+                                            <TextBlock Text="{x:Bind Text}" TextWrapping="WrapWholeWords" />
+                                            <TextBlock
+                                                Text="{x:Bind Detail}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+
+                    <StackPanel Grid.Row="1" Spacing="8">
+                        <TextBlock Text="Activity" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" />
+                        <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <InfoBar
+            Grid.Row="2"
+            IsOpen="True"
+            IsClosable="False"
+            Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+            Severity="Informational" />
+    </Grid>
+</Page>
