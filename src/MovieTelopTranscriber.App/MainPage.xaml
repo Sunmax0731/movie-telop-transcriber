@@ -59,7 +59,7 @@
                         PlaceholderText="Select a video file or enter a path"
                         Text="{x:Bind ViewModel.VideoPath, Mode=TwoWay}" />
                     <Button Grid.Column="1" Command="{x:Bind ViewModel.SelectVideoCommand}" Content="Browse" />
-                    <Button Grid.Column="2" Command="{x:Bind ViewModel.StartAnalysisCommand}" Content="Run" />
+                    <Button Grid.Column="2" Command="{x:Bind ViewModel.StartAnalysisCommand}" Content="Extract" />
                 </Grid>
             </Grid>
         </Border>
@@ -98,6 +98,10 @@
 
                     <StackPanel Grid.Row="1" Spacing="12">
                         <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Frame interval (sec)" />
+                            <TextBox Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay}" />
+                        </StackPanel>
                         <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SettingItem">
@@ -195,13 +199,13 @@
                                 <FontIcon Glyph="&#xE714;" FontSize="40" />
                                 <TextBlock Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}" />
                                 <TextBlock
-                                    Text="Selected frame preview area"
+                                    Text="Frame extraction shell"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6">
-                            <TextBlock Text="Selected telop" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="Selected item" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <TextBlock
                                 Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
