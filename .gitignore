@@ -1,0 +1,11 @@
+.vs/
+bin/
+obj/
+out/
+dist/
+work/
+temp/
+__pycache__/
+*.pyc
+*.pyo
+*.log
