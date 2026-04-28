@@ -74,7 +74,7 @@
 - Windows 標準 OCR を使う baseline worker は `src/MovieTelopTranscriber.Ocr.Windows/` に実装済み。
 - PaddleOCR PP-OCRv5 worker は `tools/ocr/paddle_ocr_worker.py` と `PaddleOcrWorkerClient` で実装済み。`MOVIE_TELOP_OCR_ENGINE=paddleocr` で利用する。
 - PaddleOCR worker は日本語 OCR 結果で通常サイズとして認識された小書き仮名を保守的に補正する。
-- PaddleOCR worker はフルフレームの自動前処理、検出閾値、文字方向分類、文書ゆがみ補正を設定画面から調整できる。
+- PaddleOCR worker はフルフレームの自動前処理を行う。拡大率は `1.0` 固定とし、コントラスト、シャープ化、検出閾値、文字方向分類、文書ゆがみ補正を設定画面から調整できる。
 - セグメント統合は、近接フレーム内の類似文字列を同一テロップ候補として扱い、代表文字列を confidence と出現回数で選択する。
 - Windows OCR の手動検証では日本語テロップの認識精度が不足したため、#72 では PaddleOCR PP-OCRv5 worker を採用する。
 - 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。

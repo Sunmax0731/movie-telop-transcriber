@@ -18,6 +18,7 @@ public partial class MainPageViewModel : ObservableObject
         Export
     }
 
+    private const string FixedPaddleUpscale = "1";
     private const string PaddlePreprocessEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PREPROCESS";
     private const string PaddleUpscaleEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_UPSCALE";
     private const string PaddleContrastEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_CONTRAST";
@@ -126,9 +127,6 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool PaddlePreprocessEnabled { get; set; } = ReadBoolEnvironment(PaddlePreprocessEnvironmentVariable, true);
-
-    [ObservableProperty]
-    public partial string PaddleUpscaleText { get; set; } = ReadEnvironment(PaddleUpscaleEnvironmentVariable, "1.5");
 
     [ObservableProperty]
     public partial string PaddleContrastText { get; set; } = ReadEnvironment(PaddleContrastEnvironmentVariable, "1.1");
@@ -256,11 +254,6 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     partial void OnPaddlePreprocessEnabledChanged(bool value)
-    {
-        RefreshStaticCollections();
-    }
-
-    partial void OnPaddleUpscaleTextChanged(string value)
     {
         RefreshStaticCollections();
     }
@@ -586,7 +579,7 @@ public partial class MainPageViewModel : ObservableObject
         SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} sec", UiText.FrameIntervalSettingDescription));
         SettingItems.Add(new SettingItem(UiText.Language, SelectedLanguageOption.DisplayName, UiText.LanguageSettingDescription));
         SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
-        SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを自動で拡大、コントラスト補正、シャープ化してから OCR に渡します。"));
+        SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。"));
         SettingItems.Add(new SettingItem("PaddleOCR 検出", FormatPaddleDetectionSummary(), "検出閾値や向き補正を設定できます。空欄の値は PaddleOCR の既定値を使います。"));
         SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, "work/runs/<run_id>", UiText.OutputSettingDescription));
     }
@@ -1005,7 +998,7 @@ public partial class MainPageViewModel : ObservableObject
     private void ApplyPaddleOcrEnvironment()
     {
         SetEnvironment(PaddlePreprocessEnvironmentVariable, PaddlePreprocessEnabled ? "true" : "false");
-        SetDoubleEnvironment(PaddleUpscaleEnvironmentVariable, PaddleUpscaleText, 1.0d, 4.0d);
+        SetEnvironment(PaddleUpscaleEnvironmentVariable, FixedPaddleUpscale);
         SetDoubleEnvironment(PaddleContrastEnvironmentVariable, PaddleContrastText, 0.1d, 4.0d);
         SetEnvironment(PaddleSharpenEnvironmentVariable, PaddleSharpenEnabled ? "true" : "false");
         SetDoubleEnvironment(PaddleTextDetThreshEnvironmentVariable, PaddleTextDetThreshText, 0.0d, 1.0d);
@@ -1020,7 +1013,7 @@ public partial class MainPageViewModel : ObservableObject
     {
         var enabled = PaddlePreprocessEnabled ? "ON" : "OFF";
         var sharpen = PaddleSharpenEnabled ? "sharp ON" : "sharp OFF";
-        return $"{enabled} / scale {FormatSettingValue(PaddleUpscaleText)} / contrast {FormatSettingValue(PaddleContrastText)} / {sharpen}";
+        return $"{enabled} / scale {FixedPaddleUpscale} / contrast {FormatSettingValue(PaddleContrastText)} / {sharpen}";
     }
 
     private string FormatPaddleDetectionSummary()
