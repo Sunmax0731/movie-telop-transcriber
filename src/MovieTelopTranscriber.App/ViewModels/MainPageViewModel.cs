@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.Services;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 
 namespace MovieTelopTranscriber.App.ViewModels;
@@ -113,6 +114,9 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial double ProgressValue { get; set; }
+
+    [ObservableProperty]
+    public partial string ProgressDetailText { get; set; } = "-";
 
     [ObservableProperty]
     public partial bool ShowTimelineSelection { get; set; } = true;
@@ -359,6 +363,51 @@ public partial class MainPageViewModel : ObservableObject
         await RunAnalysisAsync(AnalysisStartStage.Export);
     }
 
+    [RelayCommand]
+    private void CopyPath(string? path)
+    {
+        var normalizedPath = NormalizeActionPath(path);
+        if (normalizedPath is null)
+        {
+            StatusMessage = "No path is available to copy.";
+            return;
+        }
+
+        var package = new DataPackage();
+        package.SetText(normalizedPath);
+        Clipboard.SetContent(package);
+        StatusMessage = $"Copied path: {normalizedPath}";
+    }
+
+    [RelayCommand]
+    private void OpenPathLocation(string? path)
+    {
+        var normalizedPath = NormalizeActionPath(path);
+        if (normalizedPath is null)
+        {
+            StatusMessage = "No path is available to open.";
+            return;
+        }
+
+        var targetPath = ResolveExistingPath(normalizedPath);
+        if (targetPath is null)
+        {
+            StatusMessage = $"Path does not exist: {normalizedPath}";
+            return;
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            UseShellExecute = true,
+            Arguments = File.Exists(targetPath)
+                ? $"/select,\"{targetPath}\""
+                : $"\"{targetPath}\""
+        };
+        Process.Start(startInfo);
+        StatusMessage = $"Opened path: {targetPath}";
+    }
+
     private async Task RunAnalysisAsync(AnalysisStartStage startStage)
     {
         if (IsBusy)
@@ -390,6 +439,7 @@ public partial class MainPageViewModel : ObservableObject
         ClearPipelineFailure();
         IsBusy = true;
         ProgressValue = 0;
+        ProgressDetailText = "0%";
         PreviewState = startStage == AnalysisStartStage.Export ? "Exporting results" : "Running analysis";
         StatusMessage = CreateStartStatus(startStage);
         ActivityMessage = "Pipeline stage is running.";
@@ -413,7 +463,12 @@ public partial class MainPageViewModel : ObservableObject
                 _latestFrameIntervalSeconds = intervalSeconds;
 
                 currentStage = "Frame extraction";
-                var progress = new Progress<double>(value => ProgressValue = value * 0.6d);
+                var expectedFrames = EstimateExtractionStepCount(metadata.DurationMs, intervalSeconds);
+                var progress = new Progress<double>(value =>
+                {
+                    ProgressValue = value * 0.6d;
+                    ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames);
+                });
                 result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress);
                 _latestFrameExtractionResult = result;
             }
@@ -422,6 +477,9 @@ public partial class MainPageViewModel : ObservableObject
                 metadata = _latestMetadata!;
                 result = _latestFrameExtractionResult!;
                 ProgressValue = startStage == AnalysisStartStage.Ocr ? 10d : 70d;
+                ProgressDetailText = startStage == AnalysisStartStage.Ocr
+                    ? $"OCR: 0 / {result.Frames.Count} frames (0%)"
+                    : $"Output: preparing {result.Frames.Count} analyzed frames.";
             }
 
             WorkDirectoryText = result.RunDirectory;
@@ -432,10 +490,15 @@ public partial class MainPageViewModel : ObservableObject
                 currentStage = "OCR";
                 PreviewState = "Running OCR";
                 ActivityMessage = "OCR worker is processing extracted frames.";
-                var ocrProgress = new Progress<double>(value => ProgressValue = 60d + (value * 0.3d));
+                var ocrProgress = new Progress<double>(value =>
+                {
+                    ProgressValue = 60d + (value * 0.3d);
+                    ProgressDetailText = FormatFrameProgress("OCR", value, result.Frames.Count);
+                });
                 _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
 
                 currentStage = "Attribute analysis";
+                ProgressDetailText = $"Attribute analysis: {_latestFrameAnalyses.Count} frames analyzed.";
                 _latestSegments = _segmentMerger.Merge(_latestFrameAnalyses, intervalSeconds);
             }
 
@@ -448,6 +511,7 @@ public partial class MainPageViewModel : ObservableObject
             PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
 
             currentStage = "Output";
+            ProgressDetailText = $"Output: writing JSON/CSV for {result.Frames.Count} frames.";
             stopwatch.Stop();
             _latestExport = await _exportPackageWriter.WriteAsync(
                 metadata,
@@ -465,6 +529,7 @@ public partial class MainPageViewModel : ObservableObject
             FramesCsvOutputPathText = _latestExport.FramesCsvPath;
 
             currentStage = "Logging";
+            ProgressDetailText = $"Logging: writing run summary for {result.Frames.Count} frames.";
             var logWriteResult = await _runLogWriter.WriteSuccessAsync(
                 result,
                 metadata,
@@ -482,6 +547,7 @@ public partial class MainPageViewModel : ObservableObject
             RunLogPathText = logWriteResult.LogPath;
             RunSummaryPathText = logWriteResult.SummaryPath;
             ProgressValue = 100d;
+            ProgressDetailText = $"Completed: {result.Frames.Count} frames, {detectionCount} detections, {_latestSegments.Count} segments.";
 
             SelectFirstPreviewSelection();
             if (PreviewImagePath is null)
@@ -501,6 +567,7 @@ public partial class MainPageViewModel : ObservableObject
             SetPipelineFailure(currentStage, "PIPELINE_STAGE_FAILED", ex.Message);
             PreviewState = "Analysis failed";
             ActivityMessage = ex.Message;
+            ProgressDetailText = $"Failed at {currentStage}.";
             StatusMessage = $"Pipeline failed at {currentStage}.";
         }
         finally
@@ -522,6 +589,7 @@ public partial class MainPageViewModel : ObservableObject
     {
         IsBusy = true;
         ProgressValue = 0;
+        ProgressDetailText = "Metadata: reading source video.";
         PreviewState = "Loading metadata";
         ActivityMessage = "Reading video metadata.";
 
@@ -552,6 +620,7 @@ public partial class MainPageViewModel : ObservableObject
             PreviewState = "Ready";
             StatusMessage = $"Loaded {metadata.FileName}";
             ActivityMessage = "Metadata loaded. You can now run frame extraction.";
+            ProgressDetailText = "Metadata loaded.";
 
             RefreshInfoCards(metadata, 0, 0, 0);
             TimelineSegments.Clear();
@@ -565,6 +634,7 @@ public partial class MainPageViewModel : ObservableObject
         {
             StatusMessage = "Failed to load video metadata.";
             ActivityMessage = ex.Message;
+            ProgressDetailText = "Metadata load failed.";
             PreviewState = "Load failed";
         }
         finally
@@ -595,6 +665,7 @@ public partial class MainPageViewModel : ObservableObject
         RunLogPathText = "-";
         RunSummaryPathText = "-";
         ClearPipelineFailure();
+        ProgressDetailText = "-";
         RefreshInfoCards(null, 0, 0, 0);
         TimelineSegments.Clear();
         ResultRows.Clear();
@@ -611,9 +682,59 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem(UiText.FramesInfoTitle, frameCount.ToString(), UiText.FramesInfoDescription));
         InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.LogInfoTitle, LogDirectoryText, UiText.LogInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.WorkInfoTitle, WorkDirectoryText, UiText.WorkInfoDescription));
+        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText)));
+        InfoCards.Add(new InfoCardItem(UiText.LogInfoTitle, LogDirectoryText, UiText.LogInfoDescription, IsActionablePath(LogDirectoryText)));
+        InfoCards.Add(new InfoCardItem(UiText.WorkInfoTitle, WorkDirectoryText, UiText.WorkInfoDescription, IsActionablePath(WorkDirectoryText)));
+    }
+
+    private static bool IsActionablePath(string? path)
+    {
+        return NormalizeActionPath(path) is not null;
+    }
+
+    private static string? NormalizeActionPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.Trim() == "-")
+        {
+            return null;
+        }
+
+        return path.Trim();
+    }
+
+    private static string? ResolveExistingPath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        if (File.Exists(fullPath) || Directory.Exists(fullPath))
+        {
+            return fullPath;
+        }
+
+        var parent = Path.GetDirectoryName(fullPath);
+        return string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent)
+            ? null
+            : parent;
+    }
+
+    private static int EstimateExtractionStepCount(long durationMs, double intervalSeconds)
+    {
+        if (durationMs <= 0 || intervalSeconds <= 0)
+        {
+            return 1;
+        }
+
+        var intervalMs = Math.Max(1d, intervalSeconds * 1000d);
+        var baseCount = (int)Math.Floor(durationMs / intervalMs) + 1;
+        var lastTimestampMs = (long)Math.Floor(durationMs / intervalMs) * intervalMs;
+        return Math.Abs(lastTimestampMs - durationMs) < 0.5d ? baseCount : baseCount + 1;
+    }
+
+    private static string FormatFrameProgress(string stage, double percent, int totalFrames)
+    {
+        var normalizedPercent = Math.Clamp(percent, 0d, 100d);
+        var total = Math.Max(1, totalFrames);
+        var completed = Math.Clamp((int)Math.Ceiling(total * normalizedPercent / 100d), 0, total);
+        return $"{stage}: {completed} / {total} frames ({normalizedPercent:F0}%)";
     }
 
     private static string CreateStartStatus(AnalysisStartStage startStage)
@@ -640,6 +761,7 @@ public partial class MainPageViewModel : ObservableObject
         LastErrorCodeText = code;
         LastErrorMessageText = message;
         ActivityMessage = message;
+        ProgressDetailText = $"Failed at {stage}.";
         StatusMessage = $"{stage} failed: {message}";
     }
 
@@ -649,27 +771,51 @@ public partial class MainPageViewModel : ObservableObject
     {
         if (segments.Count > 0)
         {
-            foreach (var segment in segments)
+            var rows = segments
+                .Select(segment =>
+                {
+                    var rangeLabel = $"{FormatTimestamp(segment.StartTimestampMs)} - {FormatTimestamp(segment.EndTimestampMs)}";
+                    var previewAnalysis = FindPreviewAnalysisForSegment(segment, frameAnalyses);
+                    var previewDetection = previewAnalysis is null ? null : FindDetectionForText(previewAnalysis, segment.Text);
+                    var frameIndex = previewAnalysis?.Frame.FrameIndex;
+                    var timestampMs = previewAnalysis?.Frame.TimestampMs;
+                    var timelineRow = new TimelineSegment(
+                        rangeLabel,
+                        segment.Text,
+                        FormatSegmentStyleSummary(segment),
+                        segment.TextType,
+                        FormatSegmentDetail(segment),
+                        segment.Confidence,
+                        frameIndex,
+                        timestampMs,
+                        segment.SegmentId,
+                        previewDetection?.DetectionId);
+                    var resultRow = new ResultRow(
+                        rangeLabel,
+                        segment.TextType,
+                        segment.Text,
+                        FormatSegmentDetail(segment),
+                        frameIndex,
+                        timestampMs,
+                        segment.SegmentId,
+                        previewDetection?.DetectionId);
+
+                    return new
+                    {
+                        Segment = segment,
+                        TopY = GetTopY(previewDetection),
+                        TimelineRow = timelineRow,
+                        ResultRow = resultRow
+                    };
+                })
+                .OrderBy(row => row.Segment.StartTimestampMs)
+                .ThenBy(row => row.TopY)
+                .ToArray();
+
+            foreach (var row in rows)
             {
-                var rangeLabel = $"{FormatTimestamp(segment.StartTimestampMs)} - {FormatTimestamp(segment.EndTimestampMs)}";
-                var previewAnalysis = FindPreviewAnalysisForSegment(segment, frameAnalyses);
-                var frameIndex = previewAnalysis?.Frame.FrameIndex;
-                var timestampMs = previewAnalysis?.Frame.TimestampMs;
-                TimelineSegments.Add(new TimelineSegment(
-                    rangeLabel,
-                    segment.Text,
-                    FormatSegmentStyleSummary(segment),
-                    frameIndex,
-                    timestampMs,
-                    segment.SegmentId));
-                ResultRows.Add(new ResultRow(
-                    rangeLabel,
-                    segment.TextType,
-                    segment.Text,
-                    FormatSegmentDetail(segment),
-                    frameIndex,
-                    timestampMs,
-                    segment.SegmentId));
+                TimelineSegments.Add(row.TimelineRow);
+                ResultRows.Add(row.ResultRow);
             }
 
             return;
@@ -684,6 +830,9 @@ public partial class MainPageViewModel : ObservableObject
                     timeLabel,
                     $"Frame {analysis.Frame.FrameIndex:D6}",
                     "OCR error",
+                    "Error",
+                    analysis.Ocr.Error?.Message ?? "OCR worker failed.",
+                    null,
                     analysis.Frame.FrameIndex,
                     analysis.Frame.TimestampMs));
                 ResultRows.Add(new ResultRow(
@@ -696,10 +845,41 @@ public partial class MainPageViewModel : ObservableObject
                 continue;
             }
 
+            if (analysis.Ocr.Detections.Count > 0)
+            {
+                foreach (var detection in analysis.Ocr.Detections.OrderBy(GetTopY))
+                {
+                    var detail = FormatDetectionDetail(detection, analysis.Frame.ImagePath);
+                    TimelineSegments.Add(new TimelineSegment(
+                        timeLabel,
+                        detection.Text,
+                        detail,
+                        "OCR",
+                        detail,
+                        detection.Confidence,
+                        analysis.Frame.FrameIndex,
+                        analysis.Frame.TimestampMs,
+                        DetectionId: detection.DetectionId));
+                    ResultRows.Add(new ResultRow(
+                        timeLabel,
+                        "OCR",
+                        detection.Text,
+                        detail,
+                        analysis.Frame.FrameIndex,
+                        analysis.Frame.TimestampMs,
+                        DetectionId: detection.DetectionId));
+                }
+
+                continue;
+            }
+
             TimelineSegments.Add(new TimelineSegment(
                 timeLabel,
                 $"Frame {analysis.Frame.FrameIndex:D6}",
                 "No telop detected",
+                "OCR",
+                Path.GetFileName(analysis.Frame.ImagePath),
+                null,
                 analysis.Frame.FrameIndex,
                 analysis.Frame.TimestampMs));
             ResultRows.Add(new ResultRow(
@@ -741,7 +921,8 @@ public partial class MainPageViewModel : ObservableObject
             selection.FrameIndex,
             selection.TimestampMs,
             selection.SegmentId,
-            selection.Text);
+            selection.Text,
+            selection.DetectionId);
     }
 
     private void UpdatePreviewFromResultSelection(ResultRow? selection)
@@ -767,9 +948,11 @@ public partial class MainPageViewModel : ObservableObject
             selection.FrameIndex,
             selection.TimestampMs,
             selection.SegmentId,
+            selection.DetectionId,
             row.FrameIndex,
             row.TimestampMs,
-            row.SegmentId));
+            row.SegmentId,
+            row.DetectionId));
         if (match is null || ReferenceEquals(match, SelectedResultRow))
         {
             return;
@@ -792,9 +975,11 @@ public partial class MainPageViewModel : ObservableObject
             selection.FrameIndex,
             selection.TimestampMs,
             selection.SegmentId,
+            selection.DetectionId,
             row.FrameIndex,
             row.TimestampMs,
-            row.SegmentId));
+            row.SegmentId,
+            row.DetectionId));
         if (match is null || ReferenceEquals(match, SelectedTimelineSegment))
         {
             return;
@@ -815,13 +1000,20 @@ public partial class MainPageViewModel : ObservableObject
         int? leftFrameIndex,
         long? leftTimestampMs,
         string? leftSegmentId,
+        string? leftDetectionId,
         int? rightFrameIndex,
         long? rightTimestampMs,
-        string? rightSegmentId)
+        string? rightSegmentId,
+        string? rightDetectionId)
     {
         if (!string.IsNullOrWhiteSpace(leftSegmentId) || !string.IsNullOrWhiteSpace(rightSegmentId))
         {
             return string.Equals(leftSegmentId, rightSegmentId, StringComparison.Ordinal);
+        }
+
+        if (!string.IsNullOrWhiteSpace(leftDetectionId) || !string.IsNullOrWhiteSpace(rightDetectionId))
+        {
+            return string.Equals(leftDetectionId, rightDetectionId, StringComparison.Ordinal);
         }
 
         return leftFrameIndex == rightFrameIndex && leftTimestampMs == rightTimestampMs;
@@ -980,6 +1172,30 @@ public partial class MainPageViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(colors)
             ? confidence
             : $"{confidence} / {colors}";
+    }
+
+    private static string FormatDetectionDetail(OcrDetectionRecord detection, string imagePath)
+    {
+        var confidence = detection.Confidence is null ? "confidence unknown" : $"confidence {detection.Confidence:P1}";
+        return $"{confidence} / {Path.GetFileName(imagePath)}";
+    }
+
+    private static OcrDetectionRecord? FindDetectionForText(FrameAnalysisResult analysis, string text)
+    {
+        return analysis.Ocr.Detections
+            .Where(detection => TextsMatch(detection.Text, text))
+            .OrderBy(GetTopY)
+            .FirstOrDefault()
+            ?? analysis.Ocr.Detections
+                .OrderBy(GetTopY)
+                .FirstOrDefault();
+    }
+
+    private static double GetTopY(OcrDetectionRecord? detection)
+    {
+        return detection is null || detection.BoundingBox.Count == 0
+            ? double.MaxValue
+            : detection.BoundingBox.Min(point => point.Y);
     }
 
     private static string FormatTimestamp(long timestampMs)

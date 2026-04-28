@@ -32,67 +32,21 @@
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
-                    <StackPanel Spacing="14">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{x:Bind ViewModel.UiText.SettingsSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.FrameInterval, Mode=OneWay}"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.FrameIntervalSettingDescription, Mode=OneWay}" />
-
-                            <ComboBox
-                                Header="{x:Bind ViewModel.UiText.Language, Mode=OneWay}"
-                                HorizontalAlignment="Stretch"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
-                                SelectedItem="{x:Bind ViewModel.SelectedLanguageOption, Mode=TwoWay}"
-                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.LanguageSettingDescription, Mode=OneWay}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:LanguageOption">
-                                        <TextBlock Text="{x:Bind DisplayName}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.OcrEngine, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.OcrEngineText, Mode=OneWay}" />
-
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.CurrentVideo, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.VideoPath, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.WorkDirectory, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.WorkDirectoryText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="{x:Bind ViewModel.UiText.CurrentSettingSummary, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
-                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate x:DataType="models:SettingItem">
-                                        <Border
-                                            Margin="0,0,0,8"
-                                            Padding="10"
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                            CornerRadius="6"
-                                            ToolTipService.ToolTip="{x:Bind Description}">
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Text="{x:Bind Label}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                                <TextBlock Text="{x:Bind Value}" Style="{StaticResource AppMetaValueTextStyle}" TextWrapping="WrapWholeWords" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </StackPanel>
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{x:Bind ViewModel.UiText.SettingsSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
+                        <ComboBox
+                            Header="{x:Bind ViewModel.UiText.Language, Mode=OneWay}"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedLanguageOption, Mode=TwoWay}"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.LanguageSettingDescription, Mode=OneWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:LanguageOption">
+                                    <TextBlock Text="{x:Bind DisplayName}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </StackPanel>
                 </Border>
 
@@ -193,67 +147,98 @@
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
-                    <StackPanel Spacing="14">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{x:Bind ViewModel.UiText.ExportInfoTitle, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{x:Bind ViewModel.UiText.ExportInfoTitle, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.OutputDirectory, Mode=OneWay}"
                                 IsReadOnly="True"
                                 Text="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}"
                                 TextWrapping="Wrap" />
+                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}" Content="Copy" />
+                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}" Content="Open" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.JsonOutput, Mode=OneWay}"
                                 IsReadOnly="True"
                                 Text="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}"
                                 TextWrapping="Wrap" />
+                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}" Content="Copy" />
+                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}" Content="Open" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.SegmentsCsv, Mode=OneWay}"
                                 IsReadOnly="True"
                                 Text="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}"
                                 TextWrapping="Wrap" />
+                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}" Content="Copy" />
+                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}" Content="Open" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.FramesCsv, Mode=OneWay}"
                                 IsReadOnly="True"
                                 Text="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}"
                                 TextWrapping="Wrap" />
+                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}" Content="Copy" />
+                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}" Content="Open" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.RunLog, Mode=OneWay}"
                                 IsReadOnly="True"
                                 Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
                                 TextWrapping="Wrap" />
+                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}" Content="Copy" />
+                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}" Content="Open" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.RunSummary, Mode=OneWay}"
                                 IsReadOnly="True"
                                 Text="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}"
                                 TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="{x:Bind ViewModel.UiText.LatestResultList, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
-                            <ListView
-                                MaxHeight="260"
-                                ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:ResultRow">
-                                        <Border
-                                            Margin="0,0,0,8"
-                                            Padding="10"
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                            CornerRadius="6">
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                                <TextBlock Text="{x:Bind Category}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                <TextBlock Text="{x:Bind Text}" TextWrapping="WrapWholeWords" />
-                                                <TextBlock
-                                                    Text="{x:Bind Detail}"
-                                                    Style="{StaticResource AppSecondaryTextStyle}"
-                                                    TextWrapping="WrapWholeWords" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </StackPanel>
+                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}" Content="Copy" />
+                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}" Content="Open" />
+                        </Grid>
                     </StackPanel>
                 </Border>
             </Grid>

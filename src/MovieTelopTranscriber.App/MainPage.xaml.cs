@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
@@ -20,9 +21,56 @@ namespace MovieTelopTranscriber.App;
 /// </summary>
 public sealed partial class MainPage : Page
 {
+    public static readonly DependencyProperty TimelineTimeColumnWidthProperty =
+        DependencyProperty.Register(nameof(TimelineTimeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(118)));
+
+    public static readonly DependencyProperty TimelineFrameColumnWidthProperty =
+        DependencyProperty.Register(nameof(TimelineFrameColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(118)));
+
+    public static readonly DependencyProperty TimelineTextColumnWidthProperty =
+        DependencyProperty.Register(nameof(TimelineTextColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(260)));
+
+    public static readonly DependencyProperty TimelineDetailColumnWidthProperty =
+        DependencyProperty.Register(nameof(TimelineDetailColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(190)));
+
+    public static readonly DependencyProperty TimelineConfidenceColumnWidthProperty =
+        DependencyProperty.Register(nameof(TimelineConfidenceColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(130)));
+
     private SettingsWindow? _settingsWindow;
+    private string? _activeTimelineColumnResize;
+    private double _lastTimelineResizeX;
 
     public MainPageViewModel ViewModel { get; } = new();
+
+    public GridLength TimelineTimeColumnWidth
+    {
+        get => (GridLength)GetValue(TimelineTimeColumnWidthProperty);
+        set => SetValue(TimelineTimeColumnWidthProperty, value);
+    }
+
+    public GridLength TimelineFrameColumnWidth
+    {
+        get => (GridLength)GetValue(TimelineFrameColumnWidthProperty);
+        set => SetValue(TimelineFrameColumnWidthProperty, value);
+    }
+
+    public GridLength TimelineTextColumnWidth
+    {
+        get => (GridLength)GetValue(TimelineTextColumnWidthProperty);
+        set => SetValue(TimelineTextColumnWidthProperty, value);
+    }
+
+    public GridLength TimelineDetailColumnWidth
+    {
+        get => (GridLength)GetValue(TimelineDetailColumnWidthProperty);
+        set => SetValue(TimelineDetailColumnWidthProperty, value);
+    }
+
+    public GridLength TimelineConfidenceColumnWidth
+    {
+        get => (GridLength)GetValue(TimelineConfidenceColumnWidthProperty);
+        set => SetValue(TimelineConfidenceColumnWidthProperty, value);
+    }
 
     public MainPage()
     {
@@ -79,6 +127,75 @@ public sealed partial class MainPage : Page
         PreviewOverlayCanvas.Children.Clear();
         PreviewFrameImage.Source = null;
         UpdatePreviewVisibility(hasImage: false);
+    }
+
+    private void OnTimelineColumnSplitterPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not string columnKey)
+        {
+            return;
+        }
+
+        _activeTimelineColumnResize = columnKey;
+        _lastTimelineResizeX = e.GetCurrentPoint(this).Position.X;
+        element.CapturePointer(e.Pointer);
+    }
+
+    private void OnTimelineColumnSplitterPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_activeTimelineColumnResize is null || sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        var currentX = e.GetCurrentPoint(this).Position.X;
+        var delta = currentX - _lastTimelineResizeX;
+        _lastTimelineResizeX = currentX;
+        ResizeTimelineColumn(_activeTimelineColumnResize, delta);
+        e.Handled = true;
+    }
+
+    private void OnTimelineColumnSplitterPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element)
+        {
+            element.ReleasePointerCapture(e.Pointer);
+        }
+
+        _activeTimelineColumnResize = null;
+    }
+
+    private void ResizeTimelineColumn(string columnKey, double delta)
+    {
+        switch (columnKey)
+        {
+            case "time":
+                TimelineTimeColumnWidth = ResizeGridLength(TimelineTimeColumnWidth, delta, 90);
+                break;
+            case "frame":
+                TimelineFrameColumnWidth = ResizeGridLength(TimelineFrameColumnWidth, delta, 90);
+                break;
+            case "text":
+                TimelineTextColumnWidth = ResizeGridLength(TimelineTextColumnWidth, delta, 180);
+                break;
+            case "detail":
+                TimelineDetailColumnWidth = ResizeGridLength(TimelineDetailColumnWidth, delta, 130);
+                break;
+        }
+    }
+
+    private void OnInfoCardCopyClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string path })
+        {
+            ViewModel.CopyPathCommand.Execute(path);
+        }
+    }
+
+    private static GridLength ResizeGridLength(GridLength current, double delta, double minimum)
+    {
+        var currentValue = current.IsAbsolute ? current.Value : minimum;
+        return new GridLength(Math.Max(minimum, currentValue + delta));
     }
 
     private void UpdatePreviewImage()
