@@ -46,6 +46,6 @@ Get-FileHash -LiteralPath dist\movie-telop-transcriber-win-x64-v0.1.0.zip -Algor
 | zip | `dist/movie-telop-transcriber-win-x64-v0.1.0.zip` |
 | checksum | `dist/movie-telop-transcriber-win-x64-v0.1.0.zip.sha256` |
 | 展開後ファイル数 | 1,096 |
-| 展開後サイズ | 634,670,703 bytes |
-| zip サイズ | 246,779,347 bytes |
-| SHA-256 | `021800d51d3af388862c5ca0a7ed2349781b05eeac0e2bac121554f44e43b372` |
+| 展開後サイズ | 634,670,867 bytes |
+| zip サイズ | 246,779,389 bytes |
+| SHA-256 | `98eb0692ddc907b65cec727c81a2e4c5bab2da454e91266fa39a40d25f8be18a` |
