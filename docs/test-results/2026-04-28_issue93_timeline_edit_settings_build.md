@@ -23,6 +23,17 @@
 - 失敗はランディレクトリ作成または出力先解決の前段で発生した可能性があるため、解析開始前に出力先フォルダを絶対パス化し、作成とテスト書き込みを行う事前検証を追加した。
 - 事前検証に失敗した場合は `OUTPUT_ROOT_UNAVAILABLE` として GUI の処理状況に表示する。
 
+追記:
+- `work/runs/20260428_231345_badd` と `C:\Users\gkkjh\OneDrive\デスクトップ\test\20260428_231633_3038` を確認した。
+- どちらもランディレクトリ、`output`、`logs`、`segments.json`、`segments.csv`、`frames.csv` は生成済みだった。
+- 共通して `frame_count=185`、`detection_count=0`、`error_count=185` であり、出力先フォルダの書き込み失敗ではなく OCR worker 側の失敗だった。
+- OCR response の詳細は `ModuleNotFoundError: No module named 'paddleocr'` で、`MOVIE_TELOP_OCR_ENGINE=paddleocr` だけを指定して起動し、PaddleOCR を導入した Python を `MOVIE_TELOP_PADDLEOCR_PYTHON` で指定していなかったことが原因。
+- `temp\ocr-eval\.venv\Scripts\python.exe` では `paddleocr 3.5.0` の import を確認済み。
+
+## 設定画面サイズ調整
+- 固定サイズを `1360 x 760` から `1680 x 960` へ変更した。
+- 目的は、設定画面に縦横スクロールバーが表示されない横長レイアウトにすること。
+
 ## 自動検証
 実行コマンド:
 
