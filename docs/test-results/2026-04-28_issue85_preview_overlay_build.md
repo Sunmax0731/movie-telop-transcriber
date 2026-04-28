@@ -9,6 +9,7 @@
 - 中央プレビュー領域に抽出フレーム画像を表示する実装を追加した。
 - OCR detection の bounding box と認識文字ラベルを overlay `Canvas` へ描画する実装を追加した。
 - タイムライン選択と結果一覧選択からプレビュー対象フレームを同期する実装を追加した。
+- `icon.png` から `Assets/AppIcon.ico` と主要 PNG アセットを生成し、exe の `ApplicationIcon` に設定した。
 - 設計書、詳細設計、実装メモ、テスト計画へ反映した。
 
 ## 検証コマンド
