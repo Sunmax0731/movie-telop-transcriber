@@ -65,13 +65,18 @@ public sealed partial class MainPage : Page
         DependencyProperty.Register(nameof(TimelineDetailSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
 
     public static readonly DependencyProperty RightPaneWidthProperty =
-        DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(560)));
+        DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(1, GridUnitType.Star)));
+
+    public static readonly DependencyProperty ActivityPaneHeightProperty =
+        DependencyProperty.Register(nameof(ActivityPaneHeight), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(160)));
 
     private SettingsWindow? _settingsWindow;
     private string? _activeTimelineColumnResize;
     private double _lastTimelineResizeX;
     private bool _isResizingRightPane;
     private double _lastRightPaneResizeX;
+    private bool _isResizingActivityPane;
+    private double _lastActivityPaneResizeY;
     private readonly DispatcherTimer _previewPlaybackTimer = new() { Interval = TimeSpan.FromMilliseconds(650) };
     private bool _isPreviewPlaying;
     private bool _showTimelineTimeColumn = true;
@@ -170,6 +175,12 @@ public sealed partial class MainPage : Page
     {
         get => (GridLength)GetValue(RightPaneWidthProperty);
         set => SetValue(RightPaneWidthProperty, value);
+    }
+
+    public GridLength ActivityPaneHeight
+    {
+        get => (GridLength)GetValue(ActivityPaneHeightProperty);
+        set => SetValue(ActivityPaneHeightProperty, value);
     }
 
     public MainPage()
@@ -295,7 +306,7 @@ public sealed partial class MainPage : Page
         var currentX = e.GetCurrentPoint(this).Position.X;
         var delta = currentX - _lastRightPaneResizeX;
         _lastRightPaneResizeX = currentX;
-        RightPaneWidth = ResizeGridLength(RightPaneWidth, -delta, 360);
+        RightPaneWidth = ResizeGridLength(RightPaneWidth, -delta, 360, RightPaneHost.ActualWidth);
         e.Handled = true;
     }
 
@@ -307,6 +318,42 @@ public sealed partial class MainPage : Page
         }
 
         _isResizingRightPane = false;
+    }
+
+    private void OnActivityPaneSplitterPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        _isResizingActivityPane = true;
+        _lastActivityPaneResizeY = e.GetCurrentPoint(this).Position.Y;
+        element.CapturePointer(e.Pointer);
+    }
+
+    private void OnActivityPaneSplitterPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_isResizingActivityPane)
+        {
+            return;
+        }
+
+        var currentY = e.GetCurrentPoint(this).Position.Y;
+        var delta = currentY - _lastActivityPaneResizeY;
+        _lastActivityPaneResizeY = currentY;
+        ActivityPaneHeight = ResizeGridLength(ActivityPaneHeight, -delta, 150);
+        e.Handled = true;
+    }
+
+    private void OnActivityPaneSplitterPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element)
+        {
+            element.ReleasePointerCapture(e.Pointer);
+        }
+
+        _isResizingActivityPane = false;
     }
 
     private void ResizeTimelineColumn(string columnKey, double delta)
@@ -518,6 +565,12 @@ public sealed partial class MainPage : Page
     private static GridLength ResizeGridLength(GridLength current, double delta, double minimum)
     {
         var currentValue = current.IsAbsolute ? current.Value : minimum;
+        return new GridLength(Math.Max(minimum, currentValue + delta));
+    }
+
+    private static GridLength ResizeGridLength(GridLength current, double delta, double minimum, double fallbackActual)
+    {
+        var currentValue = current.IsAbsolute ? current.Value : Math.Max(minimum, fallbackActual);
         return new GridLength(Math.Max(minimum, currentValue + delta));
     }
 

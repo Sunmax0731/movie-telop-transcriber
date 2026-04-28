@@ -148,13 +148,15 @@
                 </ScrollViewer>
             </Border>
 
-            <Grid Grid.Column="1" RowSpacing="16">
+            <Grid Grid.Column="1" RowSpacing="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="160" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="{Binding ActivityPaneHeight, ElementName=RootPage}" />
                 </Grid.RowDefinitions>
 
                 <Border
+                    Margin="0,0,0,4"
                     Padding="16"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -255,6 +257,20 @@
 
                 <Border
                     Grid.Row="1"
+                    Background="Transparent"
+                    PointerMoved="OnActivityPaneSplitterPointerMoved"
+                    PointerPressed="OnActivityPaneSplitterPointerPressed"
+                    PointerReleased="OnActivityPaneSplitterPointerReleased">
+                    <Border
+                        Height="2"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource CardStrokeColorDefaultBrush}"
+                        CornerRadius="1" />
+                </Border>
+
+                <Border
+                    Grid.Row="2"
+                    Margin="0,4,0,0"
                     Padding="12"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -302,6 +318,7 @@
             </Border>
 
             <Border
+                x:Name="RightPaneHost"
                 Grid.Column="3"
                 Padding="16"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
