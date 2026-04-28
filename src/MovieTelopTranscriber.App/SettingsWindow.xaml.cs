@@ -13,7 +13,7 @@ public sealed partial class SettingsWindow : Window
 
         Title = "Settings & Output - Movie Telop Transcriber";
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Resize(new SizeInt32(740, 760));
+        AppWindow.Resize(new SizeInt32(1360, 760));
     }
 
     public MainPageViewModel ViewModel { get; }
