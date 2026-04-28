@@ -10,6 +10,26 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
     private const string PythonEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PYTHON";
     private const string ScriptEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_SCRIPT";
     private const int MaxStoredErrorLines = 40;
+    private static readonly string[] WorkerSettingsEnvironmentVariables =
+    [
+        PythonEnvironmentVariable,
+        ScriptEnvironmentVariable,
+        "MOVIE_TELOP_PADDLEOCR_VERSION",
+        "MOVIE_TELOP_PADDLEOCR_DEVICE",
+        "MOVIE_TELOP_PADDLEOCR_LANG",
+        "MOVIE_TELOP_PADDLEOCR_MIN_SCORE",
+        "MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA",
+        "MOVIE_TELOP_PADDLEOCR_PREPROCESS",
+        "MOVIE_TELOP_PADDLEOCR_UPSCALE",
+        "MOVIE_TELOP_PADDLEOCR_CONTRAST",
+        "MOVIE_TELOP_PADDLEOCR_SHARPEN",
+        "MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH",
+        "MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH",
+        "MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO",
+        "MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN",
+        "MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION",
+        "MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING"
+    ];
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConcurrentQueue<string> _stderrLines = new();
@@ -18,6 +38,7 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
     private StreamWriter? _stdin;
     private StreamReader? _stdout;
     private Task? _stderrPump;
+    private string? _workerSettingsSignature;
 
     public string EngineName => "paddleocr";
 
@@ -153,9 +174,15 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
 
     private OcrWorkerResponse? EnsureWorkerStarted(OcrWorkerRequest request)
     {
+        var settingsSignature = CreateWorkerSettingsSignature();
         if (_process is { HasExited: false } && _stdin is not null && _stdout is not null)
         {
-            return null;
+            if (string.Equals(_workerSettingsSignature, settingsSignature, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            ResetWorker();
         }
 
         ResetWorker();
@@ -207,6 +234,7 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
             _stdin = _process.StandardInput;
             _stdout = _process.StandardOutput;
             _stderrPump = Task.Run(async () => await PumpStandardErrorAsync(_process));
+            _workerSettingsSignature = settingsSignature;
             return null;
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
@@ -219,6 +247,14 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
                 $"{pythonPath}: {ex.Message}",
                 true);
         }
+    }
+
+    private static string CreateWorkerSettingsSignature()
+    {
+        return string.Join(
+            "\n",
+            WorkerSettingsEnvironmentVariables.Select(
+                name => $"{name}={Environment.GetEnvironmentVariable(name) ?? string.Empty}"));
     }
 
     private static string? ResolveScriptPath()
@@ -302,6 +338,7 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
         _stdout = null;
         _process = null;
         _stderrPump = null;
+        _workerSettingsSignature = null;
     }
 
     private static async Task<OcrWorkerResponse> ReadResponseAsync(

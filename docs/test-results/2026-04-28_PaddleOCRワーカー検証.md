@@ -14,6 +14,9 @@ PaddleOCR PP-OCRv5 worker をアプリ本体の OCR worker として接続し、
 - `PaddleOcrWorkerClient` は `tools/ocr/paddle_ocr_worker.py` を stdio で常駐起動する。
 - Python worker は PaddleOCR モデルを 1 回だけ読み込み、フレームごとの request/response JSON を処理する。
 - `paddle_ocr_worker.py` は Release build 時にアプリ出力の `tools/ocr/` へコピーされる。
+- worker は手動クロップを使わず、フルフレームの自動前処理として拡大、コントラスト補正、シャープ化を適用できる。
+- 設定画面から前処理、検出閾値、文字方向分類、文書ゆがみ補正を調整できる。
+- 複数フレームのセグメント統合は、完全一致ではなく近接フレーム内の類似文字列を許容する。
 
 ## 4. 検証環境
 - Python: `Python 3.10.6`
@@ -76,6 +79,46 @@ temp\ocr-eval\.venv\Scripts\python.exe tools\ocr\paddle_ocr_worker.py `
 | --- | --- |
 | `ちよつと何ですか` | `ちょっと何ですか` |
 | `急に入つてきて` | `急に入ってきて` |
+
+### 5.5 OCR 品質調整
+前処理 ON の Release 出力 worker で単体検証した。
+
+```powershell
+$env:MOVIE_TELOP_PADDLEOCR_PREPROCESS = "true"
+$env:MOVIE_TELOP_PADDLEOCR_UPSCALE = "1.5"
+$env:MOVIE_TELOP_PADDLEOCR_CONTRAST = "1.1"
+$env:MOVIE_TELOP_PADDLEOCR_SHARPEN = "true"
+$env:MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA = "true"
+
+temp\ocr-eval\.venv\Scripts\python.exe `
+  src\MovieTelopTranscriber.App\bin\x64\Release\net10.0-windows10.0.26100.0\tools\ocr\paddle_ocr_worker.py `
+  work\runs\20260428_180845_b571\ocr\ocr-000031-00001000ms.request.json `
+  temp\ocr-quality-180845-000031-preprocess.response.json
+```
+
+結果:
+- status: `success`
+- detections:
+  - `隠語で脅してくる奴` / `0.9891274571418762`
+  - `VS` / `0.8761959075927734`
+  - `単語知らないママ` / `0.9836950302124023`
+
+小書き仮名補正対象フレームでも、前処理 ON のまま以下を確認した。
+
+| 出力テキスト | confidence |
+| --- | --- |
+| `ちょっと何ですか` | `0.8848315477371216` |
+| `急に入ってきて` | `0.8752691149711609` |
+
+Release build は以下で再確認した。
+
+```powershell
+dotnet build src\MovieTelopTranscriber.sln -c Release -p:Platform=x64
+```
+
+結果:
+- 警告: 0
+- エラー: 0
 
 ## 6. 残確認
 GUI から動画を選択し、抽出からセグメント生成、出力、ログ作成まで手動確認する。手動確認が通過したら #72 を close できる。

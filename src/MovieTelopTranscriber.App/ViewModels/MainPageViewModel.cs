@@ -18,6 +18,17 @@ public partial class MainPageViewModel : ObservableObject
         Export
     }
 
+    private const string PaddlePreprocessEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PREPROCESS";
+    private const string PaddleUpscaleEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_UPSCALE";
+    private const string PaddleContrastEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_CONTRAST";
+    private const string PaddleSharpenEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_SHARPEN";
+    private const string PaddleTextDetThreshEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH";
+    private const string PaddleTextDetBoxThreshEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH";
+    private const string PaddleTextDetUnclipRatioEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO";
+    private const string PaddleTextDetLimitSideLenEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN";
+    private const string PaddleUseTextlineOrientationEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION";
+    private const string PaddleUseDocUnwarpingEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING";
+
     private readonly OpenCvVideoProcessingService _videoProcessingService = new();
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
     private readonly TelopSegmentMerger _segmentMerger = new();
@@ -48,6 +59,7 @@ public partial class MainPageViewModel : ObservableObject
 
         SelectedLanguageOption = ResolveDefaultLanguageOption();
         UiText = LocalizedUiText.ForLanguage(SelectedLanguageOption.Code);
+        ApplyPaddleOcrEnvironment();
         RefreshStaticCollections();
         ResetDynamicCollections();
     }
@@ -95,6 +107,36 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string FrameIntervalText { get; set; } = "1.0";
+
+    [ObservableProperty]
+    public partial bool PaddlePreprocessEnabled { get; set; } = ReadBoolEnvironment(PaddlePreprocessEnvironmentVariable, true);
+
+    [ObservableProperty]
+    public partial string PaddleUpscaleText { get; set; } = ReadEnvironment(PaddleUpscaleEnvironmentVariable, "1.5");
+
+    [ObservableProperty]
+    public partial string PaddleContrastText { get; set; } = ReadEnvironment(PaddleContrastEnvironmentVariable, "1.1");
+
+    [ObservableProperty]
+    public partial bool PaddleSharpenEnabled { get; set; } = ReadBoolEnvironment(PaddleSharpenEnvironmentVariable, true);
+
+    [ObservableProperty]
+    public partial string PaddleTextDetThreshText { get; set; } = ReadEnvironment(PaddleTextDetThreshEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial string PaddleTextDetBoxThreshText { get; set; } = ReadEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial string PaddleTextDetUnclipRatioText { get; set; } = ReadEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial string PaddleTextDetLimitSideLenText { get; set; } = ReadEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial bool PaddleUseTextlineOrientation { get; set; } = ReadBoolEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, false);
+
+    [ObservableProperty]
+    public partial bool PaddleUseDocUnwarping { get; set; } = ReadBoolEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, false);
 
     [ObservableProperty]
     public partial LanguageOption SelectedLanguageOption { get; set; } = SupportedLanguageOptions[1];
@@ -166,6 +208,56 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     partial void OnFrameIntervalTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddlePreprocessEnabledChanged(bool value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleUpscaleTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleContrastTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleSharpenEnabledChanged(bool value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetThreshTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetBoxThreshTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetUnclipRatioTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetLimitSideLenTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleUseTextlineOrientationChanged(bool value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleUseDocUnwarpingChanged(bool value)
     {
         RefreshStaticCollections();
     }
@@ -258,6 +350,7 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
+        ApplyPaddleOcrEnvironment();
         ClearPipelineFailure();
         IsBusy = true;
         ProgressValue = 0;
@@ -445,6 +538,8 @@ public partial class MainPageViewModel : ObservableObject
         SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} sec", UiText.FrameIntervalSettingDescription));
         SettingItems.Add(new SettingItem(UiText.Language, SelectedLanguageOption.DisplayName, UiText.LanguageSettingDescription));
         SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
+        SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを自動で拡大、コントラスト補正、シャープ化してから OCR に渡します。"));
+        SettingItems.Add(new SettingItem("PaddleOCR 検出", FormatPaddleDetectionSummary(), "検出閾値や向き補正を設定できます。空欄の値は PaddleOCR の既定値を使います。"));
         SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, "work/runs/<run_id>", UiText.OutputSettingDescription));
     }
 
@@ -575,6 +670,89 @@ public partial class MainPageViewModel : ObservableObject
         return double.TryParse(FrameIntervalText, out var seconds) && seconds > 0
             ? seconds
             : 1.0d;
+    }
+
+    private void ApplyPaddleOcrEnvironment()
+    {
+        SetEnvironment(PaddlePreprocessEnvironmentVariable, PaddlePreprocessEnabled ? "true" : "false");
+        SetDoubleEnvironment(PaddleUpscaleEnvironmentVariable, PaddleUpscaleText, 1.0d, 4.0d);
+        SetDoubleEnvironment(PaddleContrastEnvironmentVariable, PaddleContrastText, 0.1d, 4.0d);
+        SetEnvironment(PaddleSharpenEnvironmentVariable, PaddleSharpenEnabled ? "true" : "false");
+        SetDoubleEnvironment(PaddleTextDetThreshEnvironmentVariable, PaddleTextDetThreshText, 0.0d, 1.0d);
+        SetDoubleEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, PaddleTextDetBoxThreshText, 0.0d, 1.0d);
+        SetDoubleEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, PaddleTextDetUnclipRatioText, 0.1d, 10.0d);
+        SetIntEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, PaddleTextDetLimitSideLenText, 16, 4096);
+        SetEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, PaddleUseTextlineOrientation ? "true" : "false");
+        SetEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, PaddleUseDocUnwarping ? "true" : "false");
+    }
+
+    private string FormatPaddlePreprocessSummary()
+    {
+        var enabled = PaddlePreprocessEnabled ? "ON" : "OFF";
+        var sharpen = PaddleSharpenEnabled ? "sharp ON" : "sharp OFF";
+        return $"{enabled} / scale {FormatSettingValue(PaddleUpscaleText)} / contrast {FormatSettingValue(PaddleContrastText)} / {sharpen}";
+    }
+
+    private string FormatPaddleDetectionSummary()
+    {
+        var orientation = PaddleUseTextlineOrientation ? "orientation ON" : "orientation OFF";
+        var unwarping = PaddleUseDocUnwarping ? "unwarp ON" : "unwarp OFF";
+        return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / {orientation} / {unwarping}";
+    }
+
+    private static string FormatSettingValue(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "既定" : value.Trim();
+    }
+
+    private static string ReadEnvironment(string name, string defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
+    }
+
+    private static bool ReadBoolEnvironment(string name, bool defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "1" or "true" or "yes" or "on" => true,
+            "0" or "false" or "no" or "off" => false,
+            _ => defaultValue
+        };
+    }
+
+    private static void SetDoubleEnvironment(string name, string text, double minimum, double maximum)
+    {
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            SetEnvironment(name, null);
+            return;
+        }
+
+        var normalized = Math.Clamp(value, minimum, maximum).ToString(CultureInfo.InvariantCulture);
+        SetEnvironment(name, normalized);
+    }
+
+    private static void SetIntEnvironment(string name, string text, int minimum, int maximum)
+    {
+        if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            SetEnvironment(name, null);
+            return;
+        }
+
+        SetEnvironment(name, Math.Clamp(value, minimum, maximum).ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static void SetEnvironment(string name, string? value)
+    {
+        Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
     }
 
     private static LanguageOption ResolveDefaultLanguageOption()
