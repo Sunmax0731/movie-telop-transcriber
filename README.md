@@ -60,4 +60,5 @@
 - 未指定時はフレーム同名の `.ocr.json` サイドカーを読み込み、サイドカーがない場合は空検出として処理を継続する。
 - 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。
 - 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv` として保存する。
+- 実行ログは `work/runs/<run_id>/logs/run.log` と `summary.json` として保存する。
 - 設定画面と出力画面は非モーダル子ウィンドウとして開き、メイン画面と同じ状態を参照する。
