@@ -78,82 +78,86 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8">
-                <Grid RowSpacing="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+                <ScrollViewer
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <Grid RowSpacing="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Input" Style="{StaticResource SubtitleTextBlockStyle}" />
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Supported formats" />
-                            <TextBlock
-                                Text="{x:Bind ViewModel.SupportedFormats, Mode=OneWay}"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                TextWrapping="WrapWholeWords" />
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Input" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Supported formats" />
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.SupportedFormats, Mode=OneWay}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
 
-                    <StackPanel Grid.Row="1" Spacing="12">
-                        <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" />
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Frame interval (sec)" />
-                            <TextBox Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay}" />
+                        <StackPanel Grid.Row="1" Spacing="12">
+                            <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Frame interval (sec)" />
+                                <TextBox Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay}" />
+                            </StackPanel>
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="models:SettingItem">
+                                        <Grid Margin="0,0,0,10" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{x:Bind Label}" />
+                                                <TextBlock
+                                                    Text="{x:Bind Description}"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    Style="{StaticResource BodyTextBlockStyle}"
+                                                    TextWrapping="WrapWholeWords" />
+                                            </StackPanel>
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                Text="{x:Bind Value}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
                         </StackPanel>
-                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:SettingItem">
-                                    <Grid Margin="0,0,0,10" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Spacing="2">
-                                            <TextBlock Text="{x:Bind Label}" />
-                                            <TextBlock
-                                                Text="{x:Bind Description}"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                Style="{StaticResource BodyTextBlockStyle}"
-                                                TextWrapping="WrapWholeWords" />
-                                        </StackPanel>
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            VerticalAlignment="Center"
-                                            Text="{x:Bind Value}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
-                    </StackPanel>
 
-                    <StackPanel Grid.Row="2" Spacing="12">
-                        <TextBlock Text="Status" Style="{StaticResource SubtitleTextBlockStyle}" />
-                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.InfoCards, Mode=OneWay}">
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:InfoCardItem">
-                                    <Border
-                                        Margin="0,0,0,10"
-                                        Padding="12"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        CornerRadius="6">
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                                            <TextBlock
-                                                Text="{x:Bind Value}"
-                                                Style="{StaticResource TitleTextBlockStyle}" />
-                                            <TextBlock
-                                                Text="{x:Bind Description}"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                TextWrapping="WrapWholeWords" />
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
-                    </StackPanel>
-                </Grid>
+                        <StackPanel Grid.Row="2" Spacing="12">
+                            <TextBlock Text="Status" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.InfoCards, Mode=OneWay}">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="models:InfoCardItem">
+                                        <Border
+                                            Margin="0,0,0,10"
+                                            Padding="12"
+                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                            CornerRadius="6">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock
+                                                    Text="{x:Bind Value}"
+                                                    Style="{StaticResource TitleTextBlockStyle}" />
+                                                <TextBlock
+                                                    Text="{x:Bind Description}"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    TextWrapping="WrapWholeWords" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
             </Border>
 
             <Grid Grid.Column="1" RowSpacing="16">
