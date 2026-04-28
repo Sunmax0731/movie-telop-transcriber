@@ -1,8 +1,7 @@
 namespace MovieTelopTranscriber.App.Models;
 
 public sealed record LocalizedUiText(
-    string SettingsButton,
-    string ExportButton,
+    string SettingsOutputButton,
     string PathPlaceholder,
     string BrowseButton,
     string ExtractButton,
@@ -23,12 +22,11 @@ public sealed record LocalizedUiText(
     string RerunOcr,
     string ExportOnly,
     string LastFailure,
-    string SettingsWindowDescription,
+    string SettingsOutputWindowDescription,
     string OcrEngine,
     string CurrentVideo,
     string WorkDirectory,
     string CurrentSettingSummary,
-    string ExportWindowDescription,
     string OutputDirectory,
     string JsonOutput,
     string SegmentsCsv,
@@ -69,8 +67,7 @@ public sealed record LocalizedUiText(
     }
 
     public static LocalizedUiText English { get; } = new(
-        "Settings",
-        "Export",
+        "Settings & Output",
         "Select a video file or enter a path",
         "Browse",
         "Extract",
@@ -91,12 +88,11 @@ public sealed record LocalizedUiText(
         "Rerun OCR",
         "Export only",
         "Last failure",
-        "Main window remains available while this window is open.",
+        "Review settings and output paths in one window. The main window remains available.",
         "OCR engine",
         "Current video",
         "Work directory",
         "Current setting summary",
-        "Generated JSON and CSV output paths for the latest run.",
         "Output directory",
         "JSON",
         "Segments CSV",
@@ -127,8 +123,7 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Japanese { get; } = English with
     {
-        SettingsButton = "設定",
-        ExportButton = "出力",
+        SettingsOutputButton = "設定と出力",
         PathPlaceholder = "動画ファイルを選択またはパスを入力",
         BrowseButton = "参照",
         ExtractButton = "抽出",
@@ -149,12 +144,11 @@ public sealed record LocalizedUiText(
         RerunOcr = "OCR 再実行",
         ExportOnly = "出力のみ",
         LastFailure = "直近の失敗",
-        SettingsWindowDescription = "この画面を開いている間もメイン画面を操作できます。",
+        SettingsOutputWindowDescription = "設定と出力パスを1つの画面で確認できます。メイン画面は引き続き操作できます。",
         OcrEngine = "OCR エンジン",
         CurrentVideo = "現在の動画",
         WorkDirectory = "作業ディレクトリ",
         CurrentSettingSummary = "現在の設定サマリ",
-        ExportWindowDescription = "直近実行で生成された JSON / CSV 出力パスです。",
         OutputDirectory = "出力ディレクトリ",
         JsonOutput = "JSON",
         SegmentsCsv = "Segments CSV",
@@ -186,8 +180,7 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Chinese { get; } = English with
     {
-        SettingsButton = "设置",
-        ExportButton = "导出",
+        SettingsOutputButton = "设置和导出",
         PathPlaceholder = "选择视频文件或输入路径",
         BrowseButton = "浏览",
         ExtractButton = "提取",
@@ -208,12 +201,11 @@ public sealed record LocalizedUiText(
         RerunOcr = "重新执行 OCR",
         ExportOnly = "仅导出",
         LastFailure = "最近失败",
-        SettingsWindowDescription = "此窗口打开时，主窗口仍可操作。",
+        SettingsOutputWindowDescription = "在一个窗口中查看设置和输出路径。主窗口仍可操作。",
         OcrEngine = "OCR 引擎",
         CurrentVideo = "当前视频",
         WorkDirectory = "工作目录",
         CurrentSettingSummary = "当前设置摘要",
-        ExportWindowDescription = "最近一次运行生成的 JSON 和 CSV 输出路径。",
         OutputDirectory = "输出目录",
         SegmentsCsv = "Segments CSV",
         FramesCsv = "Frames CSV",
@@ -244,8 +236,7 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Korean { get; } = English with
     {
-        SettingsButton = "설정",
-        ExportButton = "내보내기",
+        SettingsOutputButton = "설정 및 출력",
         PathPlaceholder = "동영상 파일을 선택하거나 경로를 입력",
         BrowseButton = "찾아보기",
         ExtractButton = "추출",
@@ -266,12 +257,11 @@ public sealed record LocalizedUiText(
         RerunOcr = "OCR 재실행",
         ExportOnly = "내보내기만",
         LastFailure = "최근 실패",
-        SettingsWindowDescription = "이 창이 열려 있어도 메인 창을 계속 조작할 수 있습니다.",
+        SettingsOutputWindowDescription = "설정과 출력 경로를 하나의 창에서 확인합니다. 메인 창은 계속 조작할 수 있습니다.",
         OcrEngine = "OCR 엔진",
         CurrentVideo = "현재 동영상",
         WorkDirectory = "작업 디렉터리",
         CurrentSettingSummary = "현재 설정 요약",
-        ExportWindowDescription = "최근 실행에서 생성된 JSON 및 CSV 출력 경로입니다.",
         OutputDirectory = "출력 디렉터리",
         SegmentsCsv = "Segments CSV",
         FramesCsv = "Frames CSV",
