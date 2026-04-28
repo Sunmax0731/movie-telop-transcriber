@@ -1072,11 +1072,11 @@ public partial class MainPageViewModel : ObservableObject
     private void RefreshStaticCollections()
     {
         SettingItems.Clear();
-        SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} sec", UiText.FrameIntervalSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} {UiText.SettingSecondsUnit}", UiText.FrameIntervalSettingDescription));
         SettingItems.Add(new SettingItem(UiText.Language, SelectedLanguageOption.DisplayName, UiText.LanguageSettingDescription));
         SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
-        SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。"));
-        SettingItems.Add(new SettingItem("PaddleOCR 検出", FormatPaddleDetectionSummary(), "検出閾値や向き補正を設定できます。空欄の値は PaddleOCR の既定値を使います。"));
+        SettingItems.Add(new SettingItem(UiText.PaddlePreprocessSettingTitle, FormatPaddlePreprocessSummary(), UiText.PaddlePreprocessSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.PaddleDetectionSettingTitle, FormatPaddleDetectionSummary(), UiText.PaddleDetectionSettingDescription));
         SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, FormatOutputRootPreview(), UiText.OutputSettingDescription));
     }
 
@@ -1108,7 +1108,7 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem(UiText.FramesInfoTitle, frameCount.ToString(), UiText.FramesInfoDescription));
         InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText)));
+        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText), UiText.TimelineCopy));
     }
 
     private string FormatOutputRootPreview()
@@ -1800,9 +1800,9 @@ public partial class MainPageViewModel : ObservableObject
         return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / {orientation} / {unwarping}";
     }
 
-    private static string FormatSettingValue(string value)
+    private string FormatSettingValue(string value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "既定" : value.Trim();
+        return string.IsNullOrWhiteSpace(value) ? UiText.SettingDefaultValue : value.Trim();
     }
 
     private static string FormatSettingNumber(double value, string format)

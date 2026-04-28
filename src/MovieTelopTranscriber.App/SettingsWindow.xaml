@@ -87,15 +87,15 @@
                     <StackPanel Spacing="10">
                         <TextBlock Text="{x:Bind ViewModel.UiText.DetectionSettingsTitle, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <CheckBox
-                            Content="OCR 前処理を有効にする"
+                            Content="{x:Bind ViewModel.UiText.PaddlePreprocessLabel, Mode=OneWay}"
                             IsChecked="{x:Bind ViewModel.PaddlePreprocessEnabled, Mode=TwoWay}"
                             IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                            ToolTipService.ToolTip="フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。" />
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddlePreprocessDescription, Mode=OneWay}" />
                         <CheckBox
-                            Content="シャープ化"
+                            Content="{x:Bind ViewModel.UiText.PaddleSharpenLabel, Mode=OneWay}"
                             IsChecked="{x:Bind ViewModel.PaddleSharpenEnabled, Mode=TwoWay}"
                             IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                            ToolTipService.ToolTip="細い文字や小さい仮名を認識しやすくするために画像全体をシャープ化します。" />
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleSharpenDescription, Mode=OneWay}" />
 
                         <Grid ColumnSpacing="12" RowSpacing="8">
                             <Grid.ColumnDefinitions>
@@ -113,13 +113,13 @@
                                 Grid.Row="0"
                                 Grid.Column="0"
                                 Spacing="4"
-                                ToolTipService.ToolTip="OCR 前のコントラスト補正倍率です。1.0 が補正なしです。">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleContrastDescription, Mode=OneWay}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="コントラスト" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleContrastLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleContrastText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 </Grid>
                                 <Slider Minimum="0.1" Maximum="4" StepFrequency="0.1" TickFrequency="1" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" SnapsTo="StepValues" Value="{x:Bind ViewModel.PaddleContrastValue, Mode=TwoWay}" />
@@ -128,7 +128,7 @@
                                 Grid.Row="1"
                                 Grid.Column="0"
                                 Spacing="4"
-                                ToolTipService.ToolTip="PaddleOCR の文字検出閾値です。">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetThreshDescription, Mode=OneWay}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -143,7 +143,7 @@
                                 Grid.Row="1"
                                 Grid.Column="1"
                                 Spacing="4"
-                                ToolTipService.ToolTip="PaddleOCR の検出ボックス閾値です。">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetBoxThreshDescription, Mode=OneWay}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -158,7 +158,7 @@
                                 Grid.Row="2"
                                 Grid.Column="0"
                                 Spacing="4"
-                                ToolTipService.ToolTip="検出ボックスの広げ方を調整します。">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetUnclipRatioDescription, Mode=OneWay}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -173,7 +173,7 @@
                                 Grid.Row="2"
                                 Grid.Column="1"
                                 Spacing="4"
-                                ToolTipService.ToolTip="検出時の入力画像サイズ上限です。">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetLimitSideLenDescription, Mode=OneWay}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -187,17 +187,17 @@
                             <CheckBox
                                 Grid.Row="3"
                                 Grid.Column="0"
-                                Content="文字方向分類"
+                                Content="{x:Bind ViewModel.UiText.PaddleUseTextlineOrientationLabel, Mode=OneWay}"
                                 IsChecked="{x:Bind ViewModel.PaddleUseTextlineOrientation, Mode=TwoWay}"
                                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                ToolTipService.ToolTip="縦書きや回転した文字列が多い場合に試す設定です。" />
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleUseTextlineOrientationDescription, Mode=OneWay}" />
                             <CheckBox
                                 Grid.Row="3"
                                 Grid.Column="1"
-                                Content="文書ゆがみ補正"
+                                Content="{x:Bind ViewModel.UiText.PaddleUseDocUnwarpingLabel, Mode=OneWay}"
                                 IsChecked="{x:Bind ViewModel.PaddleUseDocUnwarping, Mode=TwoWay}"
                                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                ToolTipService.ToolTip="撮影文書向けのゆがみ補正です。通常の動画テロップでは OFF を既定にします。" />
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleUseDocUnwarpingDescription, Mode=OneWay}" />
                         </Grid>
                     </StackPanel>
                 </Border>

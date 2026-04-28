@@ -106,7 +106,7 @@
                                                     MinWidth="64"
                                                     VerticalAlignment="Center"
                                                     Click="OnInfoCardCopyClicked"
-                                                    Content="Copy"
+                                                    Content="{x:Bind CopyButtonText}"
                                                     IsEnabled="{x:Bind CanCopy}"
                                                     Tag="{x:Bind Value}"
                                                     Visibility="{x:Bind CopyButtonVisibility}" />
@@ -115,6 +115,24 @@
                                     </DataTemplate>
                                 </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
+                            <Border
+                                Padding="10"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="6">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
@@ -123,7 +141,7 @@
             <Grid Grid.Column="1" RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="300" />
+                    <RowDefinition Height="150" />
                 </Grid.RowDefinitions>
 
                 <Border
@@ -227,7 +245,7 @@
 
                 <Border
                     Grid.Row="1"
-                    Padding="16"
+                    Padding="12"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
@@ -237,7 +255,7 @@
                         HorizontalScrollMode="Disabled"
                         VerticalScrollBarVisibility="Disabled"
                         VerticalScrollMode="Disabled">
-                        <StackPanel Spacing="8">
+                        <StackPanel Spacing="5">
                             <TextBlock Text="{x:Bind ViewModel.UiText.Activity, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                             <TextBlock
@@ -245,35 +263,15 @@
                                 Style="{StaticResource AppSecondaryTextStyle}"
                                 TextWrapping="WrapWholeWords" />
                             <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-                            <Grid ColumnSpacing="10">
+                            <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="0.9*" />
-                                    <ColumnDefinition Width="1.1*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Spacing="6">
-                                    <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                    <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                    <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                </StackPanel>
-                                <Border
-                                    Grid.Column="1"
-                                    Padding="10"
-                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="6">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                        <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
-                                        <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
-                                        <TextBlock
-                                            Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
-                                            Style="{StaticResource AppSecondaryTextStyle}"
-                                            TextWrapping="WrapWholeWords" />
-                                        <TextBlock
-                                            Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
-                                            Style="{StaticResource AppSecondaryTextStyle}"
-                                            TextWrapping="WrapWholeWords" />
-                                    </StackPanel>
-                                </Border>
+                                <Button Grid.Column="0" Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Grid.Column="1" Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Grid.Column="2" Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
                             </Grid>
                         </StackPanel>
                     </ScrollViewer>
@@ -412,13 +410,11 @@
                                                 TextWrapping="Wrap"
                                                 Visibility="{x:Bind TextEditVisibility, Mode=OneWay}" />
                                         </Grid>
-                                        <StackPanel Grid.Column="6" Spacing="2">
-                                            <TextBlock Text="{x:Bind Category}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                            <TextBlock
-                                                Text="{x:Bind Detail}"
-                                                Style="{StaticResource AppSecondaryTextStyle}"
-                                                TextWrapping="WrapWholeWords" />
-                                        </StackPanel>
+                                        <TextBlock
+                                            Grid.Column="6"
+                                            Text="{x:Bind DisplayAttributeLabel}"
+                                            Style="{StaticResource AppSecondaryTextStyle}"
+                                            TextWrapping="WrapWholeWords" />
                                         <StackPanel Grid.Column="8" Spacing="4">
                                             <TextBlock
                                                 HorizontalAlignment="Right"

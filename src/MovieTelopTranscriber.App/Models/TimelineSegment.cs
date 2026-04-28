@@ -48,6 +48,11 @@ public sealed class TimelineSegment : ObservableObject
 
     public string Detail { get; }
 
+    public string DisplayAttributeLabel =>
+        string.IsNullOrWhiteSpace(Detail) || Detail == "-"
+            ? Category
+            : Detail;
+
     public double? Confidence { get; }
 
     public int? FrameIndex { get; }
