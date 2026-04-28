@@ -77,7 +77,7 @@ class PaddleOcrWorker:
         )
         self._preprocess = parse_bool(os.environ.get("MOVIE_TELOP_PADDLEOCR_PREPROCESS"), True)
         self._preprocess_upscale = clamp_float(
-            parse_float(os.environ.get("MOVIE_TELOP_PADDLEOCR_UPSCALE"), 1.5),
+            parse_float(os.environ.get("MOVIE_TELOP_PADDLEOCR_UPSCALE"), 1.0),
             1.0,
             4.0,
         )

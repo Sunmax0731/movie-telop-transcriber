@@ -5,6 +5,7 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>MovieTelopTranscriber.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <AppxPackage>false</AppxPackage>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
