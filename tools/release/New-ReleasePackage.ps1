@@ -27,6 +27,7 @@ $stagingRoot = Join-Path $OutputRoot "staging"
 $packageRoot = Join-Path $stagingRoot $packageName
 $zipPath = Join-Path $OutputRoot "$packageName.zip"
 $checksumPath = "$zipPath.sha256"
+$packageTimestampUtc = [DateTimeOffset]::Parse("2026-04-29T00:00:00Z").UtcDateTime
 
 function Copy-RepoFile {
     param(
@@ -135,6 +136,13 @@ foreach ($relativePath in $requiredPackageFiles) {
 }
 Test-PackageFile -RelativePattern "docs\12_*.md"
 Test-PackageFile -RelativePattern "docs\13_*.md"
+
+$packageItems = @((Get-Item -LiteralPath $packageRoot)) + @(Get-ChildItem -LiteralPath $packageRoot -Recurse -Force)
+$packageItems | ForEach-Object {
+    $_.CreationTimeUtc = $packageTimestampUtc
+    $_.LastAccessTimeUtc = $packageTimestampUtc
+    $_.LastWriteTimeUtc = $packageTimestampUtc
+}
 
 Compress-Archive -LiteralPath $packageRoot -DestinationPath $zipPath -CompressionLevel Optimal
 $hash = Get-FileHash -LiteralPath $zipPath -Algorithm SHA256
