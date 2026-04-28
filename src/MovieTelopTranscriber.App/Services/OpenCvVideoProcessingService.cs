@@ -39,6 +39,7 @@ public sealed class OpenCvVideoProcessingService
         VideoMetadata metadata,
         double intervalSeconds,
         IProgress<double>? progress = null,
+        string? runRootDirectory = null,
         CancellationToken cancellationToken = default)
     {
         return Task.Run(() =>
@@ -57,7 +58,7 @@ public sealed class OpenCvVideoProcessingService
             }
 
             var runId = CreateRunId();
-            var runDirectory = CreateRunDirectory(runId);
+            var runDirectory = CreateRunDirectory(runId, runRootDirectory);
             var framesDirectory = Path.Combine(runDirectory, "frames");
             Directory.CreateDirectory(framesDirectory);
 
@@ -121,12 +122,21 @@ public sealed class OpenCvVideoProcessingService
         return timestamps;
     }
 
-    private static string CreateRunDirectory(string runId)
+    private static string CreateRunDirectory(string runId, string? runRootDirectory)
     {
-        var projectRoot = ResolveProjectRoot();
-        var runDirectory = Path.Combine(projectRoot, "work", "runs", runId);
+        var rootDirectory = string.IsNullOrWhiteSpace(runRootDirectory)
+            ? ResolveDefaultRunsRootDirectory()
+            : Path.GetFullPath(runRootDirectory);
+        Directory.CreateDirectory(rootDirectory);
+
+        var runDirectory = Path.Combine(rootDirectory, runId);
         Directory.CreateDirectory(runDirectory);
         return runDirectory;
+    }
+
+    public static string ResolveDefaultRunsRootDirectory()
+    {
+        return Path.Combine(ResolveProjectRoot(), "work", "runs");
     }
 
     private static string ResolveProjectRoot()
