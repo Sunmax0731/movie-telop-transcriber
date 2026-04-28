@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Shapes;
 using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.ViewModels;
 using Windows.Foundation;
+using Windows.System;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -44,6 +45,8 @@ public sealed partial class MainPage : Page
     private double _lastTimelineResizeX;
     private bool _isResizingRightPane;
     private double _lastRightPaneResizeX;
+    private readonly DispatcherTimer _previewPlaybackTimer = new() { Interval = TimeSpan.FromMilliseconds(650) };
+    private bool _isPreviewPlaying;
 
     public MainPageViewModel ViewModel { get; } = new();
 
@@ -89,6 +92,7 @@ public sealed partial class MainPage : Page
         ViewModel.SettingsWindowRequested += OnSettingsWindowRequested;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.PreviewDetections.CollectionChanged += OnPreviewDetectionsChanged;
+        _previewPlaybackTimer.Tick += OnPreviewPlaybackTimerTick;
         UpdatePreviewImage();
     }
 
@@ -115,6 +119,12 @@ public sealed partial class MainPage : Page
             or nameof(MainPageViewModel.PreviewImageHeight))
         {
             RedrawPreviewOverlay();
+            return;
+        }
+
+        if (e.PropertyName is nameof(MainPageViewModel.UiText))
+        {
+            UpdatePreviewPlaybackButtonContent();
         }
     }
 
@@ -237,6 +247,118 @@ public sealed partial class MainPage : Page
         {
             ViewModel.CopyPathCommand.Execute(path);
         }
+    }
+
+    private void OnEditTimelineClicked(object sender, RoutedEventArgs e)
+    {
+        ViewModel.EditSelectedTimelineSegmentCommand.Execute(null);
+        DispatcherQueue.TryEnqueue(FocusTimelineEditingTextBox);
+    }
+
+    private async void OnDeleteTimelineClicked(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = ViewModel.UiText.DeleteTelopTitle,
+            Content = ViewModel.UiText.DeleteTelopMessage,
+            PrimaryButtonText = ViewModel.UiText.DeleteTelopPrimary,
+            CloseButtonText = ViewModel.UiText.DeleteTelopCancel,
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            ViewModel.DeleteSelectedTimelineSegmentCommand.Execute(null);
+        }
+    }
+
+    private void OnTimelineTextEditLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: TimelineSegment segment })
+        {
+            ViewModel.CommitTimelineTextEdit(segment);
+        }
+    }
+
+    private void OnTimelineTextEditKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter && sender is FrameworkElement { Tag: TimelineSegment segment })
+        {
+            ViewModel.CommitTimelineTextEdit(segment);
+            e.Handled = true;
+        }
+    }
+
+    private void OnPreviewPlaybackClicked(object sender, RoutedEventArgs e)
+    {
+        _isPreviewPlaying = !_isPreviewPlaying;
+        if (_isPreviewPlaying)
+        {
+            _previewPlaybackTimer.Start();
+            if (!ViewModel.AdvancePreviewFrame())
+            {
+                _isPreviewPlaying = false;
+                _previewPlaybackTimer.Stop();
+            }
+        }
+        else
+        {
+            _previewPlaybackTimer.Stop();
+        }
+
+        UpdatePreviewPlaybackButtonContent();
+    }
+
+    private void OnPreviewPlaybackTimerTick(object? sender, object e)
+    {
+        if (!ViewModel.AdvancePreviewFrame())
+        {
+            _isPreviewPlaying = false;
+            _previewPlaybackTimer.Stop();
+            UpdatePreviewPlaybackButtonContent();
+        }
+    }
+
+    private void UpdatePreviewPlaybackButtonContent()
+    {
+        PreviewPlaybackButton.Content = _isPreviewPlaying
+            ? ViewModel.UiText.PreviewPause
+            : ViewModel.UiText.PreviewPlay;
+    }
+
+    private void FocusTimelineEditingTextBox()
+    {
+        var textBox = FindTimelineEditingTextBox(TimelineListView);
+        if (textBox is null)
+        {
+            return;
+        }
+
+        textBox.Focus(FocusState.Programmatic);
+        textBox.SelectAll();
+    }
+
+    private static TextBox? FindTimelineEditingTextBox(DependencyObject parent)
+    {
+        var childCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (var i = 0; i < childCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is TextBox { Tag: TimelineSegment { IsEditing: true } } textBox)
+            {
+                return textBox;
+            }
+
+            var nested = FindTimelineEditingTextBox(child);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private static GridLength ResizeGridLength(GridLength current, double delta, double minimum)

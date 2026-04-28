@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml;
 using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.Services;
 using Windows.ApplicationModel.DataTransfer;
@@ -221,9 +222,13 @@ public partial class MainPageViewModel : ObservableObject
             ? "Nothing selected"
             : $"{SelectedTimelineSegment.RangeLabel} / {SelectedTimelineSegment.Text} / {SelectedTimelineSegment.StyleSummary}";
 
+    public Visibility TimelineSelectionActionsVisibility =>
+        SelectedTimelineSegment?.CanEdit == true ? Visibility.Visible : Visibility.Collapsed;
+
     partial void OnSelectedTimelineSegmentChanged(TimelineSegment? value)
     {
         OnPropertyChanged(nameof(SelectedSegmentSummary));
+        OnPropertyChanged(nameof(TimelineSelectionActionsVisibility));
         if (_isSynchronizingSelection)
         {
             return;
@@ -441,6 +446,219 @@ public partial class MainPageViewModel : ObservableObject
         StatusMessage = $"Opened path: {targetPath}";
     }
 
+    [RelayCommand]
+    private void EditSelectedTimelineSegment()
+    {
+        if (SelectedTimelineSegment?.CanEdit != true)
+        {
+            StatusMessage = "Select an editable telop row before editing.";
+            return;
+        }
+
+        foreach (var row in TimelineSegments)
+        {
+            row.IsEditing = ReferenceEquals(row, SelectedTimelineSegment);
+        }
+
+        StatusMessage = "Edit the selected telop text in the timeline.";
+    }
+
+    [RelayCommand]
+    private void DeleteSelectedTimelineSegment()
+    {
+        if (SelectedTimelineSegment?.CanEdit != true)
+        {
+            StatusMessage = "Select an editable telop row before deleting.";
+            return;
+        }
+
+        DeleteTimelineSegment(SelectedTimelineSegment);
+    }
+
+    public void CommitTimelineTextEdit(TimelineSegment? segment)
+    {
+        if (segment is null)
+        {
+            return;
+        }
+
+        var newText = segment.Text.Trim();
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            segment.IsEditing = false;
+            StatusMessage = "Telop text was not changed because it was empty.";
+            return;
+        }
+
+        ApplyTimelineTextChange(segment, newText);
+        segment.Text = newText;
+        segment.IsEditing = false;
+        OnPropertyChanged(nameof(SelectedSegmentSummary));
+        UpdatePreviewFromTimelineSelection(segment);
+        StatusMessage = "Edited telop text. Use Export only to write the updated output files.";
+    }
+
+    public bool AdvancePreviewFrame()
+    {
+        if (_latestFrameAnalyses.Count == 0)
+        {
+            StatusMessage = "No extracted frames are available for preview playback.";
+            return false;
+        }
+
+        var currentPath = PreviewImagePath;
+        var currentIndex = string.IsNullOrWhiteSpace(currentPath)
+            ? -1
+            : _latestFrameAnalyses
+                .Select((analysis, index) => new { analysis, index })
+                .FirstOrDefault(item => string.Equals(item.analysis.Frame.ImagePath, currentPath, StringComparison.OrdinalIgnoreCase))
+                ?.index ?? -1;
+        var next = _latestFrameAnalyses[(currentIndex + 1) % _latestFrameAnalyses.Count];
+        var matchingTimelineRow = TimelineSegments.FirstOrDefault(row => row.FrameIndex == next.Frame.FrameIndex);
+
+        if (matchingTimelineRow is not null)
+        {
+            SelectedTimelineSegment = matchingTimelineRow;
+        }
+        else
+        {
+            UpdatePreview(next.Frame.FrameIndex, next.Frame.TimestampMs, null, null);
+        }
+
+        return true;
+    }
+
+    private void ApplyTimelineTextChange(TimelineSegment segment, string newText)
+    {
+        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        {
+            _latestSegments = _latestSegments
+                .Select(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal)
+                    ? item with { Text = newText }
+                    : item)
+                .ToArray();
+        }
+
+        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
+        {
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => ReplaceDetectionText(analysis, segment.DetectionId, newText))
+                .ToArray();
+        }
+
+        ReplaceMatchingResultRow(segment, row => row with { Text = newText });
+    }
+
+    private void DeleteTimelineSegment(TimelineSegment segment)
+    {
+        var currentIndex = TimelineSegments.IndexOf(segment);
+
+        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        {
+            _latestSegments = _latestSegments
+                .Where(item => !string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal))
+                .ToArray();
+        }
+
+        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
+        {
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => RemoveDetection(analysis, segment.DetectionId))
+                .ToArray();
+        }
+
+        RemoveMatchingResultRow(segment);
+        TimelineSegments.Remove(segment);
+
+        var nextIndex = Math.Clamp(currentIndex, 0, Math.Max(0, TimelineSegments.Count - 1));
+        SelectedTimelineSegment = TimelineSegments.Count == 0 ? null : TimelineSegments[nextIndex];
+        RefreshInfoCards(
+            _latestMetadata,
+            _latestFrameExtractionResult?.Frames.Count ?? 0,
+            _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
+            _latestSegments.Count);
+        StatusMessage = "Deleted selected telop. Use Export only to write the updated output files.";
+    }
+
+    private void ReplaceMatchingResultRow(TimelineSegment segment, Func<ResultRow, ResultRow> replace)
+    {
+        var index = FindMatchingResultRowIndex(segment);
+        if (index >= 0)
+        {
+            ResultRows[index] = replace(ResultRows[index]);
+        }
+    }
+
+    private void RemoveMatchingResultRow(TimelineSegment segment)
+    {
+        var index = FindMatchingResultRowIndex(segment);
+        if (index >= 0)
+        {
+            ResultRows.RemoveAt(index);
+        }
+    }
+
+    private int FindMatchingResultRowIndex(TimelineSegment segment)
+    {
+        for (var i = 0; i < ResultRows.Count; i++)
+        {
+            var row = ResultRows[i];
+            if (SelectionKeysMatch(
+                segment.FrameIndex,
+                segment.TimestampMs,
+                segment.SegmentId,
+                segment.DetectionId,
+                row.FrameIndex,
+                row.TimestampMs,
+                row.SegmentId,
+                row.DetectionId))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static FrameAnalysisResult ReplaceDetectionText(
+        FrameAnalysisResult analysis,
+        string detectionId,
+        string newText)
+    {
+        var ocrDetections = analysis.Ocr.Detections
+            .Select(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal)
+                ? detection with { Text = newText }
+                : detection)
+            .ToArray();
+        var attributeDetections = analysis.Attributes.Detections
+            .Select(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal)
+                ? detection with { Text = newText }
+                : detection)
+            .ToArray();
+
+        return analysis with
+        {
+            Ocr = analysis.Ocr with { Detections = ocrDetections },
+            Attributes = analysis.Attributes with { Detections = attributeDetections }
+        };
+    }
+
+    private static FrameAnalysisResult RemoveDetection(FrameAnalysisResult analysis, string detectionId)
+    {
+        var ocrDetections = analysis.Ocr.Detections
+            .Where(detection => !string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
+            .ToArray();
+        var attributeDetections = analysis.Attributes.Detections
+            .Where(detection => !string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
+            .ToArray();
+
+        return analysis with
+        {
+            Ocr = analysis.Ocr with { Detections = ocrDetections },
+            Attributes = analysis.Attributes with { Detections = attributeDetections }
+        };
+    }
+
     private async Task RunAnalysisAsync(AnalysisStartStage startStage)
     {
         if (IsBusy)
@@ -465,6 +683,17 @@ public partial class MainPageViewModel : ObservableObject
         if (startStage == AnalysisStartStage.Export && _latestFrameAnalyses.Count == 0)
         {
             SetPipelineFailure("Re-run preparation", "ANALYSIS_RESULT_NOT_FOUND", "Run OCR before exporting results again.");
+            return;
+        }
+
+        string outputRootDirectory;
+        try
+        {
+            outputRootDirectory = ResolveWritableOutputRootDirectory();
+        }
+        catch (Exception ex)
+        {
+            SetPipelineFailure("Output folder", "OUTPUT_ROOT_UNAVAILABLE", ex.Message);
             return;
         }
 
@@ -502,7 +731,7 @@ public partial class MainPageViewModel : ObservableObject
                     ProgressValue = value * 0.6d;
                     ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames);
                 });
-                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, OutputRootDirectoryText);
+                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, outputRootDirectory);
                 _latestFrameExtractionResult = result;
             }
             else
@@ -684,7 +913,7 @@ public partial class MainPageViewModel : ObservableObject
         SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
         SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。"));
         SettingItems.Add(new SettingItem("PaddleOCR 検出", FormatPaddleDetectionSummary(), "検出閾値や向き補正を設定できます。空欄の値は PaddleOCR の既定値を使います。"));
-        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, Path.Combine(OutputRootDirectoryText, "<run_id>"), UiText.OutputSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, FormatOutputRootPreview(), UiText.OutputSettingDescription));
     }
 
     private void ResetDynamicCollections()
@@ -716,8 +945,14 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
         InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText)));
-        InfoCards.Add(new InfoCardItem(UiText.LogInfoTitle, LogDirectoryText, UiText.LogInfoDescription, IsActionablePath(LogDirectoryText)));
-        InfoCards.Add(new InfoCardItem(UiText.WorkInfoTitle, WorkDirectoryText, UiText.WorkInfoDescription, IsActionablePath(WorkDirectoryText)));
+    }
+
+    private string FormatOutputRootPreview()
+    {
+        var root = string.IsNullOrWhiteSpace(OutputRootDirectoryText)
+            ? OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory()
+            : OutputRootDirectoryText.Trim();
+        return $"{root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)}{Path.DirectorySeparatorChar}{{run_id}}";
     }
 
     private static bool IsActionablePath(string? path)
@@ -733,6 +968,37 @@ public partial class MainPageViewModel : ObservableObject
         }
 
         return path.Trim();
+    }
+
+    private string ResolveWritableOutputRootDirectory()
+    {
+        var rawPath = string.IsNullOrWhiteSpace(OutputRootDirectoryText)
+            ? OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory()
+            : OutputRootDirectoryText.Trim();
+        var expandedPath = Environment.ExpandEnvironmentVariables(rawPath);
+        var fullPath = Path.GetFullPath(expandedPath);
+
+        if (File.Exists(fullPath))
+        {
+            throw new InvalidOperationException($"Output folder points to a file: {fullPath}");
+        }
+
+        Directory.CreateDirectory(fullPath);
+        var probePath = Path.Combine(fullPath, $".movie-telop-write-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllText(probePath, "write-test");
+        }
+        finally
+        {
+            if (File.Exists(probePath))
+            {
+                File.Delete(probePath);
+            }
+        }
+
+        OutputRootDirectoryText = fullPath;
+        return fullPath;
     }
 
     private static string? ResolveExistingPath(string path)
@@ -892,7 +1158,7 @@ public partial class MainPageViewModel : ObservableObject
                         detection.Confidence,
                         analysis.Frame.FrameIndex,
                         analysis.Frame.TimestampMs,
-                        DetectionId: detection.DetectionId));
+                        detectionId: detection.DetectionId));
                     ResultRows.Add(new ResultRow(
                         timeLabel,
                         "OCR",

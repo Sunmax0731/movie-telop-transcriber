@@ -46,6 +46,11 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
+                        <TextBox
+                            Header="{x:Bind ViewModel.UiText.FrameInterval, Mode=OneWay}"
+                            IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                            Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.FrameIntervalSettingDescription, Mode=OneWay}" />
                         <StackPanel Spacing="6">
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.OutputDirectory, Mode=OneWay}"
@@ -70,7 +75,7 @@
                     BorderThickness="1"
                     CornerRadius="10">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="PaddleOCR" Style="{StaticResource AppSectionTitleTextStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.UiText.DetectionSettingsTitle, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <CheckBox
                             Content="OCR 前処理を有効にする"
                             IsChecked="{x:Bind ViewModel.PaddlePreprocessEnabled, Mode=TwoWay}"
