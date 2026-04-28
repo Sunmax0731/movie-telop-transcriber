@@ -77,6 +77,7 @@
 - `docs/10_PaddleOCRワーカー導入手順.md`
 - `docs/11_配布構成と同梱物.md`
 - `docs/12_導入手順書.md`
+- `docs/13_リリースノート.md`
 - `docs/spec/06_QCDS評価仕様.md`
 - `docs/spec/07_テロップ属性リリース範囲.md`
 - `docs/templates/qcds_evaluation_report_template.md`
@@ -90,7 +91,7 @@
 1. リリース
 2. リリース工程の親 Issue: `#18`
 3. テスト工程の親 Issue `#21` と個別 Issue `#42` から `#47` は完了済み
-4. 現在の個別 Issue: `#50` リリースノートを作成する
+4. 現在の個別 Issue: `#51` GitHub リリースと配布物公開を行う
 
 ## 実装メモ
 - 動画メタデータ読込とフレーム抽出を実装済み。
@@ -125,4 +126,6 @@
 - PaddleOCR worker 検証は `docs/test-results/2026-04-28_PaddleOCRワーカー検証.md` に記録済み。
 - 配布構成と同梱物は `docs/11_配布構成と同梱物.md` に整理済み。初期リリースでは Release build 出力を基準にアプリ本体 zip を作成し、PaddleOCR の Python runtime / Python package / モデルはアプリ本体 zip に同梱しない。
 - 導入手順は `docs/12_導入手順書.md` に整理済み。Release build 出力、.NET 10 Desktop Runtime、PaddleOCR Python 環境、モデル事前配置、初回確認、導入失敗時の確認項目を扱う。
-- リリース工程では、リリースノート、GitHub Release を順に確定する。
+- 初期リリースの対象バージョンは `v0.1.0` とする。`segments.json` の `run_metadata.application_version` はアセンブリの informational version を使い、`0.1.0` として出力する。
+- リリースノートは `docs/13_リリースノート.md` に整理済み。GitHub Release 本文と配布物公開で参照する。
+- リリース工程では、GitHub Release と配布物公開を次に確定する。
