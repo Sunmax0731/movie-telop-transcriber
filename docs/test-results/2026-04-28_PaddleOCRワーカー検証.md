@@ -57,5 +57,25 @@ temp\ocr-eval\.venv\Scripts\python.exe tools\ocr\paddle_ocr_worker.py `
   - `VS` / `0.8515245914459229`
   - `単語知らないママ` / `0.9988257884979248`
 
+### 5.4 小書き仮名補正
+ユーザー確認で、小さい仮名が通常サイズとして認識される例が多いことを確認した。手動クロップは避け、PaddleOCR worker の日本語後処理として小書き仮名補正を追加した。
+
+検証コマンド:
+
+```powershell
+$env:MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA = "true"
+
+temp\ocr-eval\.venv\Scripts\python.exe tools\ocr\paddle_ocr_worker.py `
+  work\runs\20260428_185235_4e37\ocr\ocr-000211-00007000ms.request.json `
+  temp\ocr-eval\paddle-worker-response-000211-small-kana.json
+```
+
+結果:
+
+| 補正対象 | 補正後 |
+| --- | --- |
+| `ちよつと何ですか` | `ちょっと何ですか` |
+| `急に入つてきて` | `急に入ってきて` |
+
 ## 6. 残確認
 GUI から動画を選択し、抽出からセグメント生成、出力、ログ作成まで手動確認する。手動確認が通過したら #72 を close できる。

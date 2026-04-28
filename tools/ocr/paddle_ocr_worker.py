@@ -70,6 +70,10 @@ class PaddleOcrWorker:
         self._version = os.environ.get("MOVIE_TELOP_PADDLEOCR_VERSION", "PP-OCRv5")
         self._device = os.environ.get("MOVIE_TELOP_PADDLEOCR_DEVICE", "cpu")
         self._min_score = float(os.environ.get("MOVIE_TELOP_PADDLEOCR_MIN_SCORE", "0.5"))
+        self._normalize_small_kana = parse_bool(
+            os.environ.get("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA"),
+            True,
+        )
 
     def process_file(self, request_path: str, response_path: str) -> None:
         try:
@@ -106,7 +110,7 @@ class PaddleOcrWorker:
         ocr = self._get_model(lang)
         result = ocr.predict(image_path)
         payload = extract_result_payload(result)
-        detections = self._create_detections(request, payload)
+        detections = self._create_detections(request, payload, lang)
 
         return {
             "request_id": request.get("request_id", ""),
@@ -131,7 +135,7 @@ class PaddleOcrWorker:
 
         return self._models[lang]
 
-    def _create_detections(self, request: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
+    def _create_detections(self, request: dict[str, Any], payload: dict[str, Any], lang: str) -> list[dict[str, Any]]:
         texts = payload.get("rec_texts") or []
         scores = payload.get("rec_scores") or []
         polys = payload.get("rec_polys") or payload.get("dt_polys") or []
@@ -141,6 +145,9 @@ class PaddleOcrWorker:
 
         for index, text in enumerate(texts):
             normalized_text = str(text).strip()
+            if self._normalize_small_kana and lang == "japan":
+                normalized_text = normalize_japanese_small_kana(normalized_text)
+
             if not normalized_text:
                 continue
 
@@ -176,6 +183,74 @@ def resolve_language(language_hint: str) -> str:
     if normalized.startswith("en"):
         return "en"
     return "japan"
+
+
+def parse_bool(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def normalize_japanese_small_kana(text: str) -> str:
+    """Correct common OCR substitutions where small kana are read as full-size kana.
+
+    The rules are intentionally conservative: they only handle yoon after i-row
+    kana and sokuon before t/d-row kana, plus a few high-frequency lexical cases.
+    """
+
+    text = replace_yoon_kana(text)
+    text = replace_sokuon_kana(text)
+    return replace_common_small_kana_words(text)
+
+
+def replace_yoon_kana(text: str) -> str:
+    yoon_sources = "きぎしじちぢにひびぴみりキギシジチヂニヒビピミリ"
+    small_map = {
+        "や": "ゃ",
+        "ゆ": "ゅ",
+        "よ": "ょ",
+        "ヤ": "ャ",
+        "ユ": "ュ",
+        "ヨ": "ョ",
+    }
+    output: list[str] = []
+    for index, char in enumerate(text):
+        previous = text[index - 1] if index > 0 else ""
+        output.append(small_map[char] if previous in yoon_sources and char in small_map else char)
+    return "".join(output)
+
+
+def replace_sokuon_kana(text: str) -> str:
+    sokuon_next = set("たちつてとだぢづでどタチツテトダヂヅデド")
+    output: list[str] = []
+    for index, char in enumerate(text):
+        next_char = text[index + 1] if index + 1 < len(text) else ""
+        if char == "つ" and next_char in sokuon_next:
+            output.append("っ")
+        elif char == "ツ" and next_char in sokuon_next:
+            output.append("ッ")
+        else:
+            output.append(char)
+    return "".join(output)
+
+
+def replace_common_small_kana_words(text: str) -> str:
+    replacements = {
+        "さつき": "さっき",
+        "びつくり": "びっくり",
+        "ビツクリ": "ビックリ",
+        "ゆつくり": "ゆっくり",
+        "ユツクリ": "ユックリ",
+    }
+    for source, replacement in replacements.items():
+        text = text.replace(source, replacement)
+    return text
 
 
 def extract_result_payload(result: Any) -> dict[str, Any]:
