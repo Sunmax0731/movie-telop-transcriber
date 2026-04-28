@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "video": {
+    "file_name": "sample_basic_telop.mp4",
+    "duration_ms": 5000,
+    "width": 640,
+    "height": 360,
+    "fps": 10
+  },
+  "segments": [
+    {
+      "segment_id": "seg-0001",
+      "start_timestamp_ms": 1000,
+      "end_timestamp_ms": 3000,
+      "text": "サンプルテロップ",
+      "text_type": "caption_band",
+      "font_family": "Meiryo",
+      "font_size": 34,
+      "text_color": "#FFFFFF",
+      "stroke_color": "#000000",
+      "background_color": "#144A8B",
+      "confidence": 0.98
+    },
+    {
+      "segment_id": "seg-0002",
+      "start_timestamp_ms": 3000,
+      "end_timestamp_ms": 5000,
+      "text": "重要なお知らせ",
+      "text_type": "title",
+      "font_family": "Meiryo",
+      "font_size": 38,
+      "text_color": "#FFD84D",
+      "stroke_color": "#202020",
+      "background_color": null,
+      "confidence": 0.96
+    }
+  ]
+}
