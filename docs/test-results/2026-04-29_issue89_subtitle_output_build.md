@@ -43,6 +43,7 @@ dotnet run --project temp\issue89-export-smoke\issue89-export-smoke.csproj
 - ASS に `[Script Info]`、`[V4+ Styles]`、`[Events]`、`Dialogue` 行が含まれること。
 - `logs/summary.json` と `logs/run.log` に `srt_path`、`vtt_path`、`ass_path` が記録されること。
 - 設定画面の現在設定サマリに `JSON / CSV / SRT / VTT / ASS` が表示されること。
+- メイン画面の状態セクションで、出力フォルダの Copy ボタン下に表示ボタンがあり、押下時に Explorer で出力フォルダが開くこと。
 
 ## 判断
 - SRT / VTT は字幕ツール連携用の初期出力として今回のリリース範囲に含める。

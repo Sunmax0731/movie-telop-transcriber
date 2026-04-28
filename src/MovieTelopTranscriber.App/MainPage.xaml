@@ -101,15 +101,25 @@
                                                         Style="{StaticResource AppMetaValueTextStyle}"
                                                         TextWrapping="WrapWholeWords" />
                                                 </StackPanel>
-                                                <Button
+                                                <StackPanel
                                                     Grid.Column="1"
-                                                    MinWidth="64"
                                                     VerticalAlignment="Center"
-                                                    Click="OnInfoCardCopyClicked"
-                                                    Content="{x:Bind CopyButtonText}"
-                                                    IsEnabled="{x:Bind CanCopy}"
-                                                    Tag="{x:Bind Value}"
-                                                    Visibility="{x:Bind CopyButtonVisibility}" />
+                                                    Spacing="6">
+                                                    <Button
+                                                        MinWidth="64"
+                                                        Click="OnInfoCardCopyClicked"
+                                                        Content="{x:Bind CopyButtonText}"
+                                                        IsEnabled="{x:Bind CanCopy}"
+                                                        Tag="{x:Bind Value}"
+                                                        Visibility="{x:Bind CopyButtonVisibility}" />
+                                                    <Button
+                                                        MinWidth="64"
+                                                        Click="OnInfoCardOpenClicked"
+                                                        Content="{x:Bind OpenButtonText}"
+                                                        IsEnabled="{x:Bind CanOpen}"
+                                                        Tag="{x:Bind Value}"
+                                                        Visibility="{x:Bind OpenButtonVisibility}" />
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>

@@ -1480,7 +1480,15 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem(UiText.FramesInfoTitle, frameCount.ToString(), UiText.FramesInfoDescription));
         InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText), UiText.TimelineCopy));
+        var canOpenExportDirectory = IsActionablePath(ExportDirectoryText);
+        InfoCards.Add(new InfoCardItem(
+            UiText.ExportInfoTitle,
+            ExportDirectoryText,
+            UiText.ExportInfoDescription,
+            canOpenExportDirectory,
+            UiText.TimelineCopy,
+            canOpenExportDirectory,
+            UiText.OpenPathButton));
     }
 
     private string FormatOutputRootPreview()

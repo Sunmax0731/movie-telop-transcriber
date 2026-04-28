@@ -338,6 +338,14 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void OnInfoCardOpenClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string path })
+        {
+            ViewModel.OpenPathLocationCommand.Execute(path);
+        }
+    }
+
     private void OnCopyTimelineClicked(object sender, RoutedEventArgs e)
     {
         ViewModel.CopySelectedTimelineTextCommand.Execute(null);
