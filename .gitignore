@@ -5,6 +5,7 @@ out/
 dist/
 work/
 temp/
+test-data/basic_telop/botirist.mp4
 __pycache__/
 *.pyc
 *.pyo
