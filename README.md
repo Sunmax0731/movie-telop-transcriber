@@ -62,3 +62,4 @@
 - 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv` として保存する。
 - 実行ログは `work/runs/<run_id>/logs/run.log` と `summary.json` として保存する。
 - 設定画面と出力画面は非モーダル子ウィンドウとして開き、メイン画面と同じ状態を参照する。
+- メイン画面からフレーム抽出、OCR、出力の単位で再実行でき、直近の失敗段階とエラー内容を確認できる。

@@ -10,6 +10,13 @@ namespace MovieTelopTranscriber.App.ViewModels;
 
 public partial class MainPageViewModel : ObservableObject
 {
+    private enum AnalysisStartStage
+    {
+        FrameExtraction,
+        Ocr,
+        Export
+    }
+
     private readonly OpenCvVideoProcessingService _videoProcessingService = new();
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
     private readonly TelopSegmentMerger _segmentMerger = new();
@@ -17,7 +24,10 @@ public partial class MainPageViewModel : ObservableObject
     private readonly RunLogWriter _runLogWriter = new();
     private IReadOnlyList<FrameAnalysisResult> _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
     private IReadOnlyList<SegmentRecord> _latestSegments = Array.Empty<SegmentRecord>();
+    private VideoMetadata? _latestMetadata;
+    private FrameExtractionResult? _latestFrameExtractionResult;
     private ExportWriteResult? _latestExport;
+    private double _latestFrameIntervalSeconds = 1.0d;
 
     public MainPageViewModel()
     {
@@ -114,6 +124,15 @@ public partial class MainPageViewModel : ObservableObject
     public partial string RunSummaryPathText { get; set; } = "-";
 
     [ObservableProperty]
+    public partial string LastFailedStageText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string LastErrorCodeText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string LastErrorMessageText { get; set; } = "-";
+
+    [ObservableProperty]
     public partial TimelineSegment? SelectedTimelineSegment { get; set; }
 
     public string SelectedSegmentSummary =>
@@ -164,40 +183,105 @@ public partial class MainPageViewModel : ObservableObject
     [RelayCommand]
     private async Task StartAnalysisAsync()
     {
+        await RunAnalysisAsync(AnalysisStartStage.FrameExtraction);
+    }
+
+    [RelayCommand]
+    private async Task RerunFrameExtractionAsync()
+    {
+        await RunAnalysisAsync(AnalysisStartStage.FrameExtraction);
+    }
+
+    [RelayCommand]
+    private async Task RerunOcrAsync()
+    {
+        await RunAnalysisAsync(AnalysisStartStage.Ocr);
+    }
+
+    [RelayCommand]
+    private async Task RerunExportAsync()
+    {
+        await RunAnalysisAsync(AnalysisStartStage.Export);
+    }
+
+    private async Task RunAnalysisAsync(AnalysisStartStage startStage)
+    {
         if (IsBusy)
         {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(VideoPath) || !File.Exists(VideoPath))
+        if (startStage == AnalysisStartStage.FrameExtraction
+            && (string.IsNullOrWhiteSpace(VideoPath) || !File.Exists(VideoPath)))
         {
-            StatusMessage = "Select a valid video file before running extraction.";
+            SetPipelineFailure("Input validation", "VIDEO_NOT_FOUND", "Select a valid video file before running analysis.");
             return;
         }
 
+        if (startStage != AnalysisStartStage.FrameExtraction
+            && (_latestMetadata is null || _latestFrameExtractionResult is null))
+        {
+            SetPipelineFailure("Re-run preparation", "PREVIOUS_RUN_NOT_FOUND", "Run frame extraction before re-running a later stage.");
+            return;
+        }
+
+        if (startStage == AnalysisStartStage.Export && _latestFrameAnalyses.Count == 0)
+        {
+            SetPipelineFailure("Re-run preparation", "ANALYSIS_RESULT_NOT_FOUND", "Run OCR before exporting results again.");
+            return;
+        }
+
+        ClearPipelineFailure();
         IsBusy = true;
         ProgressValue = 0;
-        PreviewState = "Extracting frames";
-        StatusMessage = "Frame extraction started.";
-        ActivityMessage = "Frames are being written to the work directory.";
+        PreviewState = startStage == AnalysisStartStage.Export ? "Exporting results" : "Running analysis";
+        StatusMessage = CreateStartStatus(startStage);
+        ActivityMessage = "Pipeline stage is running.";
+        var currentStage = "Input validation";
 
         try
         {
             var startedAt = DateTimeOffset.Now;
             var stopwatch = Stopwatch.StartNew();
-            var metadata = await _videoProcessingService.ReadMetadataAsync(VideoPath);
-            var progress = new Progress<double>(value => ProgressValue = value * 0.6d);
-            var intervalSeconds = ParseFrameIntervalSeconds();
-            var result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress);
+            var intervalSeconds = startStage == AnalysisStartStage.FrameExtraction
+                ? ParseFrameIntervalSeconds()
+                : _latestFrameIntervalSeconds;
+            VideoMetadata metadata;
+            FrameExtractionResult result;
+
+            if (startStage == AnalysisStartStage.FrameExtraction)
+            {
+                currentStage = "Video metadata";
+                metadata = await _videoProcessingService.ReadMetadataAsync(VideoPath);
+                _latestMetadata = metadata;
+                _latestFrameIntervalSeconds = intervalSeconds;
+
+                currentStage = "Frame extraction";
+                var progress = new Progress<double>(value => ProgressValue = value * 0.6d);
+                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress);
+                _latestFrameExtractionResult = result;
+            }
+            else
+            {
+                metadata = _latestMetadata!;
+                result = _latestFrameExtractionResult!;
+                ProgressValue = startStage == AnalysisStartStage.Ocr ? 10d : 70d;
+            }
 
             WorkDirectoryText = result.RunDirectory;
             OcrEngineText = _frameAnalysisService.EngineName;
-            PreviewState = "Running OCR";
-            ActivityMessage = "OCR worker is processing extracted frames.";
 
-            var ocrProgress = new Progress<double>(value => ProgressValue = 60d + (value * 0.4d));
-            _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
-            _latestSegments = _segmentMerger.Merge(_latestFrameAnalyses, intervalSeconds);
+            if (startStage != AnalysisStartStage.Export)
+            {
+                currentStage = "OCR";
+                PreviewState = "Running OCR";
+                ActivityMessage = "OCR worker is processing extracted frames.";
+                var ocrProgress = new Progress<double>(value => ProgressValue = 60d + (value * 0.3d));
+                _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
+
+                currentStage = "Attribute analysis";
+                _latestSegments = _segmentMerger.Merge(_latestFrameAnalyses, intervalSeconds);
+            }
 
             TimelineSegments.Clear();
             ResultRows.Clear();
@@ -207,6 +291,7 @@ public partial class MainPageViewModel : ObservableObject
             var warningCount = _latestFrameAnalyses.Count(analysis => analysis.Ocr.Status == "warning");
             PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
 
+            currentStage = "Output";
             stopwatch.Stop();
             _latestExport = await _exportPackageWriter.WriteAsync(
                 metadata,
@@ -223,6 +308,7 @@ public partial class MainPageViewModel : ObservableObject
             SegmentsCsvOutputPathText = _latestExport.SegmentsCsvPath;
             FramesCsvOutputPathText = _latestExport.FramesCsvPath;
 
+            currentStage = "Logging";
             var logWriteResult = await _runLogWriter.WriteSuccessAsync(
                 result,
                 metadata,
@@ -239,6 +325,7 @@ public partial class MainPageViewModel : ObservableObject
             LogDirectoryText = logWriteResult.LogsDirectory;
             RunLogPathText = logWriteResult.LogPath;
             RunSummaryPathText = logWriteResult.SummaryPath;
+            ProgressValue = 100d;
 
             SelectedTimelineSegment = TimelineSegments.FirstOrDefault();
             PreviewState = _latestSegments.Count > 0 ? $"Created {_latestSegments.Count} segments" : "No telop segments";
@@ -251,9 +338,10 @@ public partial class MainPageViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            SetPipelineFailure(currentStage, "PIPELINE_STAGE_FAILED", ex.Message);
             PreviewState = "Analysis failed";
             ActivityMessage = ex.Message;
-            StatusMessage = "Analysis or export failed.";
+            StatusMessage = $"Pipeline failed at {currentStage}.";
         }
         finally
         {
@@ -301,9 +389,13 @@ public partial class MainPageViewModel : ObservableObject
             LogDirectoryText = "-";
             RunLogPathText = "-";
             RunSummaryPathText = "-";
+            _latestMetadata = metadata;
+            _latestFrameExtractionResult = null;
             _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
             _latestSegments = Array.Empty<SegmentRecord>();
             _latestExport = null;
+            _latestFrameIntervalSeconds = ParseFrameIntervalSeconds();
+            ClearPipelineFailure();
             PreviewState = "Ready";
             StatusMessage = $"Loaded {metadata.FileName}";
             ActivityMessage = "Metadata loaded. You can now run frame extraction.";
@@ -345,6 +437,7 @@ public partial class MainPageViewModel : ObservableObject
         LogDirectoryText = "-";
         RunLogPathText = "-";
         RunSummaryPathText = "-";
+        ClearPipelineFailure();
         RefreshInfoCards(null, 0, 0, 0);
         TimelineSegments.Clear();
         ResultRows.Clear();
@@ -363,6 +456,33 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem("Export", ExportDirectoryText, "JSON and CSV output directory"));
         InfoCards.Add(new InfoCardItem("Log", LogDirectoryText, "Run log directory"));
         InfoCards.Add(new InfoCardItem("Work", WorkDirectoryText, "Current output directory"));
+    }
+
+    private static string CreateStartStatus(AnalysisStartStage startStage)
+    {
+        return startStage switch
+        {
+            AnalysisStartStage.FrameExtraction => "Frame extraction started.",
+            AnalysisStartStage.Ocr => "OCR re-run started.",
+            AnalysisStartStage.Export => "Export re-run started.",
+            _ => "Analysis started."
+        };
+    }
+
+    private void ClearPipelineFailure()
+    {
+        LastFailedStageText = "-";
+        LastErrorCodeText = "-";
+        LastErrorMessageText = "-";
+    }
+
+    private void SetPipelineFailure(string stage, string code, string message)
+    {
+        LastFailedStageText = stage;
+        LastErrorCodeText = code;
+        LastErrorMessageText = message;
+        ActivityMessage = message;
+        StatusMessage = $"{stage} failed: {message}";
     }
 
     private void PopulateTimelineAndResults(

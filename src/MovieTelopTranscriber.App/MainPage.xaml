@@ -295,6 +295,29 @@
                         <TextBlock Text="Activity" Style="{StaticResource SubtitleTextBlockStyle}" />
                         <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" />
                         <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="Rerun frames" />
+                            <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="Rerun OCR" />
+                            <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="Export only" />
+                        </StackPanel>
+                        <Border
+                            Padding="10"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="6">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Last failure" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Grid>
             </Border>
