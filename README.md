@@ -75,6 +75,7 @@
 - `docs/08_既知不具合と制約一覧.md`
 - `docs/09_Windows_OCRワーカー導入手順.md`
 - `docs/10_PaddleOCRワーカー導入手順.md`
+- `docs/11_配布構成と同梱物.md`
 - `docs/spec/06_QCDS評価仕様.md`
 - `docs/spec/07_テロップ属性リリース範囲.md`
 - `docs/templates/qcds_evaluation_report_template.md`
@@ -88,7 +89,7 @@
 1. リリース
 2. リリース工程の親 Issue: `#18`
 3. テスト工程の親 Issue `#21` と個別 Issue `#42` から `#47` は完了済み
-4. 現在の個別 Issue: `#48` 配布構成と同梱物を確定する
+4. 現在の個別 Issue: `#49` 導入手順書を作成する
 
 ## 実装メモ
 - 動画メタデータ読込とフレーム抽出を実装済み。
@@ -121,4 +122,5 @@
 - テスト工程完了レビューは `docs/test-results/2026-04-28_テスト工程完了レビュー.md` に記録済み。
 - OCR エンジン比較検討は `docs/test-results/2026-04-28_OCRエンジン比較検討.md` に記録済み。
 - PaddleOCR worker 検証は `docs/test-results/2026-04-28_PaddleOCRワーカー検証.md` に記録済み。
-- リリース工程では、実 OCR ワーカー、配布構成、導入手順、リリースノート、GitHub Release を順に確定する。
+- 配布構成と同梱物は `docs/11_配布構成と同梱物.md` に整理済み。初期リリースでは Release build 出力を基準にアプリ本体 zip を作成し、PaddleOCR の Python runtime / Python package / モデルはアプリ本体 zip に同梱しない。
+- リリース工程では、導入手順、リリースノート、GitHub Release を順に確定する。

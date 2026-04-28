@@ -86,10 +86,10 @@
 - 外部 OCR ワーカーは `MOVIE_TELOP_OCR_WORKER` 環境変数で差し替え可能とする。
 - `json-sidecar` 検証を行う場合は `MOVIE_TELOP_OCR_ENGINE=json-sidecar` を明示し、抽出フレームと同名の `.ocr.json` サイドカーを読み込む。
 - `json-sidecar` 検証時に sidecar がない場合は `OCR_SIDECAR_NOT_FOUND` の `error` 応答を作成し、OCR 未実行を空検出の正常完了として扱わない。
-- 実 OCR エンジンの配布形態とモデル同梱範囲は未確定であり、テスト工程とリリース工程で再評価する。
+- 実 OCR エンジンの初期配布形態は #48 で確定済み。アプリ本体 zip には `tools/ocr/paddle_ocr_worker.py` を同梱し、Python runtime、PaddlePaddle / PaddleOCR の Python package、PaddleOCR モデル本体は同梱しない。
 
 ### 1.7 実装前に確認する項目
-- Windows 配布時に必要な OCR 依存物の同梱方法
+- Windows 配布時に必要な OCR 依存物の事前配置方法
 - オフライン端末での初回起動時間
 - 日本語モデルのサイズ
 - ログ出力と失敗時の再実行導線
