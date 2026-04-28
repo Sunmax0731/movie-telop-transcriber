@@ -74,6 +74,7 @@ $env:MOVIE_TELOP_WINDOWS_OCR_MIN_HEIGHT = "18"
 - 現時点では Windows OCR の行単位検出結果をそのまま共通 OCR 契約へ変換する。
 - 信頼度は Windows OCR API から取得できないため `null` として出力する。
 - 小さい文字行除外はヒューリスティックであり、実動画によって調整が必要になる可能性がある。
+- 共通出力属性では、`font_size` は OCR 矩形高さ相当、色/枠は暫定ラベル、`font_family` と `background_color` は `null` 許容として扱う。
 
 ## 9. リリース工程への引き継ぎ
 - #72 では、Windows OCR worker を fallback として残しつつ、PaddleOCR PP-OCRv5 worker で実動画 OCR を成立させる。
