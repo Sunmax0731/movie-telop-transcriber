@@ -1,8 +1,6 @@
 namespace MovieTelopTranscriber.App.Models;
 
 public sealed record LocalizedUiText(
-    string AppTitle,
-    string WindowDescription,
     string SettingsButton,
     string ExportButton,
     string PathPlaceholder,
@@ -71,8 +69,6 @@ public sealed record LocalizedUiText(
     }
 
     public static LocalizedUiText English { get; } = new(
-        "Movie Telop Transcriber",
-        "WinUI 3 desktop shell for video input, frame extraction, and timeline-linked review.",
         "Settings",
         "Export",
         "Select a video file or enter a path",
@@ -131,7 +127,6 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Japanese { get; } = English with
     {
-        WindowDescription = "動画入力、フレーム抽出、タイムライン連動確認を行う WinUI 3 デスクトップアプリ。",
         SettingsButton = "設定",
         ExportButton = "出力",
         PathPlaceholder = "動画ファイルを選択またはパスを入力",
@@ -191,7 +186,6 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Chinese { get; } = English with
     {
-        WindowDescription = "用于视频输入、帧提取和时间轴联动检查的 WinUI 3 桌面应用。",
         SettingsButton = "设置",
         ExportButton = "导出",
         PathPlaceholder = "选择视频文件或输入路径",
@@ -250,7 +244,6 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Korean { get; } = English with
     {
-        WindowDescription = "동영상 입력, 프레임 추출, 타임라인 연동 확인을 위한 WinUI 3 데스크톱 앱입니다.",
         SettingsButton = "설정",
         ExportButton = "내보내기",
         PathPlaceholder = "동영상 파일을 선택하거나 경로를 입력",

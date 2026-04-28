@@ -17,14 +17,16 @@
             <TextBox
                 Header="{x:Bind ViewModel.UiText.FrameInterval, Mode=OneWay}"
                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.FrameIntervalSettingDescription, Mode=OneWay}" />
 
             <ComboBox
                 Header="{x:Bind ViewModel.UiText.Language, Mode=OneWay}"
                 HorizontalAlignment="Stretch"
                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
                 ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
-                SelectedItem="{x:Bind ViewModel.SelectedLanguageOption, Mode=TwoWay}">
+                SelectedItem="{x:Bind ViewModel.SelectedLanguageOption, Mode=TwoWay}"
+                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.LanguageSettingDescription, Mode=OneWay}">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="models:LanguageOption">
                         <TextBlock Text="{x:Bind DisplayName}" />
@@ -58,14 +60,11 @@
                                 Margin="0,0,0,8"
                                 Padding="10"
                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                CornerRadius="6">
+                                CornerRadius="6"
+                                ToolTipService.ToolTip="{x:Bind Description}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{x:Bind Label}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                     <TextBlock Text="{x:Bind Value}" Style="{StaticResource AppMetaValueTextStyle}" />
-                                    <TextBlock
-                                        Text="{x:Bind Description}"
-                                        Style="{StaticResource AppSecondaryTextStyle}"
-                                        TextWrapping="WrapWholeWords" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>

@@ -67,9 +67,6 @@ public partial class MainPageViewModel : ObservableObject
     public event EventHandler? ExportWindowRequested;
 
     [ObservableProperty]
-    public partial string WindowDescription { get; set; } = "WinUI 3 desktop shell for video input, frame extraction, and timeline-linked review.";
-
-    [ObservableProperty]
     public partial LocalizedUiText UiText { get; set; } = LocalizedUiText.English;
 
     [ObservableProperty]
