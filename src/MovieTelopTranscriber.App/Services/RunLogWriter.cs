@@ -47,7 +47,7 @@ public sealed class RunLogWriter
         var summaryPath = Path.Combine(logsDirectory, "summary.json");
         await using (var stream = File.Create(summaryPath))
         {
-            await JsonSerializer.SerializeAsync(stream, summary, OcrContractJson.Options, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, summary, OcrContractJson.RunSummaryRecord, cancellationToken);
         }
 
         var logPath = Path.Combine(logsDirectory, "run.log");

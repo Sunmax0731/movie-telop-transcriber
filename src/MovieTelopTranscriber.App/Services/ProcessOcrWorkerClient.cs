@@ -137,9 +137,9 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
         try
         {
             await using var stream = File.OpenRead(responsePath);
-            var response = await JsonSerializer.DeserializeAsync<OcrWorkerResponse>(
+            var response = await JsonSerializer.DeserializeAsync(
                 stream,
-                OcrContractJson.Options,
+                OcrContractJson.OcrWorkerResponse,
                 cancellationToken);
 
             if (response is null)
@@ -165,10 +165,16 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
         }
     }
 
-    private static async Task WriteJsonAsync<T>(string path, T value, CancellationToken cancellationToken)
+    private static async Task WriteJsonAsync(string path, OcrWorkerRequest value, CancellationToken cancellationToken)
     {
         await using var stream = File.Create(path);
-        await JsonSerializer.SerializeAsync(stream, value, OcrContractJson.Options, cancellationToken);
+        await JsonSerializer.SerializeAsync(stream, value, OcrContractJson.OcrWorkerRequest, cancellationToken);
+    }
+
+    private static async Task WriteJsonAsync(string path, OcrWorkerResponse value, CancellationToken cancellationToken)
+    {
+        await using var stream = File.Create(path);
+        await JsonSerializer.SerializeAsync(stream, value, OcrContractJson.OcrWorkerResponse, cancellationToken);
     }
 
     private static OcrWorkerResponse CreateErrorResponse(
