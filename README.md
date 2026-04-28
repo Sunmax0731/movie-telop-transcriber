@@ -45,6 +45,7 @@
 - `docs/05_詳細設計書.md`
 - `docs/06_テスト計画書.md`
 - `docs/08_既知不具合と制約一覧.md`
+- `docs/09_Windows_OCRワーカー導入手順.md`
 
 ## ディレクトリ
 - `src/`: 実装
@@ -62,6 +63,7 @@
 - OCR ワーカー接続は JSON I/O 契約で実装済み。
 - 外部 OCR ワーカーは `MOVIE_TELOP_OCR_WORKER` 環境変数で指定する。
 - 未指定時はフレーム同名の `.ocr.json` サイドカーを読み込み、サイドカーがない場合は空検出として処理を継続する。
+- Windows 標準 OCR を使う baseline worker は `src/MovieTelopTranscriber.Ocr.Windows/` に実装済み。
 - 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。
 - 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv` として保存する。
 - 実行ログは `work/runs/<run_id>/logs/run.log` と `summary.json` として保存する。
