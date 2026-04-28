@@ -4,7 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:MovieTelopTranscriber.App.Models">
-    <Grid Padding="20" RowSpacing="16" Width="720">
+    <Grid Padding="16" RowSpacing="14" Width="680">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -12,10 +12,10 @@
         </Grid.RowDefinitions>
 
         <StackPanel Spacing="4">
-            <TextBlock Text="Export" FontSize="24" FontWeight="SemiBold" />
+            <TextBlock Text="Export" Style="{StaticResource AppPageTitleTextStyle}" />
             <TextBlock
                 Text="Generated JSON and CSV output paths for the latest run."
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource AppSecondaryTextStyle}"
                 TextWrapping="WrapWholeWords" />
         </StackPanel>
 
@@ -53,24 +53,24 @@
         </StackPanel>
 
         <Grid Grid.Row="2">
-            <TextBlock Text="Latest result list" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="Latest result list" Style="{StaticResource AppSectionTitleTextStyle}" />
             <ListView
-                Margin="0,34,0,0"
+                Margin="0,30,0,0"
                 ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:ResultRow">
                         <Border
                             Margin="0,0,0,8"
-                            Padding="12"
+                            Padding="10"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                             CornerRadius="6">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Bind RangeLabel}" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBlock Text="{x:Bind Category}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                                 <TextBlock Text="{x:Bind Text}" TextWrapping="WrapWholeWords" />
                                 <TextBlock
                                     Text="{x:Bind Detail}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     TextWrapping="WrapWholeWords" />
                             </StackPanel>
                         </Border>

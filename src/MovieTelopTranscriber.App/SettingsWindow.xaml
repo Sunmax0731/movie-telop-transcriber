@@ -5,12 +5,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:MovieTelopTranscriber.App.Models">
     <ScrollViewer>
-        <StackPanel Padding="20" Spacing="16" Width="520">
+        <StackPanel Padding="16" Spacing="14" Width="500">
             <StackPanel Spacing="4">
-                <TextBlock Text="Settings" FontSize="24" FontWeight="SemiBold" />
+                <TextBlock Text="Settings" Style="{StaticResource AppPageTitleTextStyle}" />
                 <TextBlock
                     Text="Main window remains available while this window is open."
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource AppSecondaryTextStyle}"
                     TextWrapping="WrapWholeWords" />
             </StackPanel>
 
@@ -37,21 +37,21 @@
                 TextWrapping="Wrap" />
 
             <StackPanel Spacing="8">
-                <TextBlock Text="Current setting summary" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock Text="Current setting summary" Style="{StaticResource AppSectionTitleTextStyle}" />
                 <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:SettingItem">
                             <Border
                                 Margin="0,0,0,8"
-                                Padding="12"
+                                Padding="10"
                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                 CornerRadius="6">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{x:Bind Value}" />
+                                    <TextBlock Text="{x:Bind Label}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind Value}" Style="{StaticResource AppMetaValueTextStyle}" />
                                     <TextBlock
                                         Text="{x:Bind Description}"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
                                         TextWrapping="WrapWholeWords" />
                                 </StackPanel>
                             </Border>

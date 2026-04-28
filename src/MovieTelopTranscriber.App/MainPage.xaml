@@ -7,7 +7,7 @@
     xmlns:models="using:MovieTelopTranscriber.App.Models"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
-    <Grid Padding="20" RowSpacing="16">
+    <Grid Padding="16" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
 
         <Border
-            Padding="16"
+            Padding="14"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"
@@ -31,10 +31,10 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Movie Telop Transcriber" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock Text="Movie Telop Transcriber" Style="{StaticResource AppPageTitleTextStyle}" />
                     <TextBlock
                         Text="{x:Bind ViewModel.WindowDescription, Mode=OneWay}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource AppSecondaryTextStyle}"
                         TextWrapping="WrapWholeWords" />
                 </StackPanel>
 
@@ -64,16 +64,16 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" ColumnSpacing="16">
+        <Grid Grid.Row="1" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="340" />
             </Grid.ColumnDefinitions>
 
             <Border
                 Grid.Column="0"
-                Padding="16"
+                Padding="14"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
@@ -81,49 +81,49 @@
                 <ScrollViewer
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto">
-                    <Grid RowSpacing="16">
+                    <Grid RowSpacing="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Input" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Supported formats" />
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Input" Style="{StaticResource AppSectionTitleTextStyle}" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Supported formats" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBlock
                                     Text="{x:Bind ViewModel.SupportedFormats, Mode=OneWay}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     TextWrapping="WrapWholeWords" />
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Spacing="12">
-                            <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <StackPanel Grid.Row="1" Spacing="10">
+                            <TextBlock Text="Settings" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Frame interval (sec)" />
+                                <TextBlock Text="Frame interval (sec)" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBox Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay}" />
                             </StackPanel>
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:SettingItem">
-                                        <Grid Margin="0,0,0,10" ColumnSpacing="12">
+                                        <Grid Margin="0,0,0,8" ColumnSpacing="10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Spacing="2">
-                                                <TextBlock Text="{x:Bind Label}" />
+                                                <TextBlock Text="{x:Bind Label}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                                 <TextBlock
                                                     Text="{x:Bind Description}"
-                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                    Style="{StaticResource BodyTextBlockStyle}"
+                                                    Style="{StaticResource AppSecondaryTextStyle}"
                                                     TextWrapping="WrapWholeWords" />
                                             </StackPanel>
                                             <TextBlock
                                                 Grid.Column="1"
                                                 VerticalAlignment="Center"
+                                                Style="{StaticResource AppMetaValueTextStyle}"
                                                 Text="{x:Bind Value}" />
                                         </Grid>
                                     </DataTemplate>
@@ -131,26 +131,42 @@
                             </ItemsRepeater>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="2" Spacing="12">
-                            <TextBlock Text="Status" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <StackPanel Grid.Row="2" Spacing="10">
+                            <TextBlock Text="Status" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.InfoCards, Mode=OneWay}">
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:InfoCardItem">
                                         <Border
-                                            Margin="0,0,0,10"
-                                            Padding="12"
+                                            Margin="0,0,0,8"
+                                            Padding="10"
                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                             CornerRadius="6">
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <Grid RowSpacing="3">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock
+                                                        VerticalAlignment="Center"
+                                                        Text="{x:Bind Title}"
+                                                        Style="{StaticResource AppMetaLabelTextStyle}" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        Text="{x:Bind Value}"
+                                                        Style="{StaticResource AppMetaValueTextStyle}"
+                                                        TextWrapping="WrapWholeWords" />
+                                                </Grid>
                                                 <TextBlock
-                                                    Text="{x:Bind Value}"
-                                                    Style="{StaticResource TitleTextBlockStyle}" />
-                                                <TextBlock
+                                                    Grid.Row="1"
                                                     Text="{x:Bind Description}"
-                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    Style="{StaticResource AppSecondaryTextStyle}"
                                                     TextWrapping="WrapWholeWords" />
-                                            </StackPanel>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsRepeater.ItemTemplate>
@@ -163,7 +179,7 @@
             <Grid Grid.Column="1" RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="220" />
+                    <RowDefinition Height="200" />
                 </Grid.RowDefinitions>
 
                 <Border
@@ -184,7 +200,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Preview" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock Text="Preview" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <ToggleButton
                                 Grid.Column="1"
                                 IsChecked="{x:Bind ViewModel.ShowTimelineSelection, Mode=TwoWay}"
@@ -193,23 +209,23 @@
 
                         <Border
                             Grid.Row="1"
-                            MinHeight="320"
+                            MinHeight="280"
                             Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
                             CornerRadius="6">
                             <StackPanel
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Spacing="8">
-                                <FontIcon Glyph="&#xE714;" FontSize="40" />
+                                <FontIcon Glyph="&#xE714;" FontSize="32" />
                                 <TextBlock Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}" />
                                 <TextBlock
                                     Text="Frame extraction shell"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    Style="{StaticResource AppSecondaryTextStyle}" />
                             </StackPanel>
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6">
-                            <TextBlock Text="Selected item" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="Selected item" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <TextBlock
                                 Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
@@ -225,25 +241,25 @@
                     BorderThickness="1"
                     CornerRadius="8">
                     <Grid RowSpacing="12">
-                        <TextBlock Text="Timeline" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock Text="Timeline" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <ListView
-                            Margin="0,32,0,0"
+                            Margin="0,28,0,0"
                             ItemsSource="{x:Bind ViewModel.TimelineSegments, Mode=OneWay}"
                             SelectedItem="{x:Bind ViewModel.SelectedTimelineSegment, Mode=TwoWay}">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="models:TimelineSegment">
-                                    <Grid Padding="0,8" ColumnSpacing="12">
+                                    <Grid Padding="0,6" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="110" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="150" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind RangeLabel}" />
+                                        <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                         <TextBlock Grid.Column="1" Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
                                         <TextBlock
                                             Grid.Column="2"
                                             HorizontalAlignment="Right"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Style="{StaticResource AppSecondaryTextStyle}"
                                             Text="{x:Bind StyleSummary}" />
                                     </Grid>
                                 </DataTemplate>
@@ -267,26 +283,26 @@
                     </Grid.RowDefinitions>
 
                     <Grid>
-                        <TextBlock Text="Results" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock Text="Results" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <ListView
-                            Margin="0,32,0,0"
+                            Margin="0,28,0,0"
                             ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="models:ResultRow">
-                                    <Border Margin="0,0,0,10" Padding="12" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6">
+                                    <Border Margin="0,0,0,8" Padding="10" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6">
                                         <StackPanel Spacing="6">
                                             <Grid ColumnSpacing="12">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                                 <TextBlock Grid.Column="1" Text="{x:Bind Category}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                                             </Grid>
                                             <TextBlock Text="{x:Bind Text}" TextWrapping="WrapWholeWords" />
                                             <TextBlock
                                                 Text="{x:Bind Detail}"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Style="{StaticResource AppSecondaryTextStyle}"
                                                 TextWrapping="WrapWholeWords" />
                                         </StackPanel>
                                     </Border>
@@ -296,29 +312,34 @@
                     </Grid>
 
                     <StackPanel Grid.Row="1" Spacing="8">
-                        <TextBlock Text="Activity" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock Text="Activity" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" />
                         <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="Rerun frames" />
-                            <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="Rerun OCR" />
-                            <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="Export only" />
-                        </StackPanel>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="Rerun frames" HorizontalAlignment="Stretch" />
+                            <Button Grid.Column="1" Command="{x:Bind ViewModel.RerunOcrCommand}" Content="Rerun OCR" HorizontalAlignment="Stretch" />
+                            <Button Grid.Column="2" Command="{x:Bind ViewModel.RerunExportCommand}" Content="Export only" HorizontalAlignment="Stretch" />
+                        </Grid>
                         <Border
                             Padding="10"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                             CornerRadius="6">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Last failure" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Last failure" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
-                                <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 <TextBlock
                                     Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     TextWrapping="WrapWholeWords" />
                                 <TextBlock
                                     Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     TextWrapping="WrapWholeWords" />
                             </StackPanel>
                         </Border>
