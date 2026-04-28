@@ -391,6 +391,16 @@ public sealed partial class MainPage : Page
         DispatcherQueue.TryEnqueue(FocusTimelineEditingTextBox);
     }
 
+    private void OnMergeTimelineClicked(object sender, RoutedEventArgs e)
+    {
+        ViewModel.MergeSelectedTimelineSegmentCommand.Execute(null);
+    }
+
+    private void OnSplitTimelineClicked(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SplitSelectedTimelineSegmentCommand.Execute(null);
+    }
+
     private async void OnDeleteTimelineClicked(object sender, RoutedEventArgs e)
     {
         var dialog = new ContentDialog

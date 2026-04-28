@@ -8,4 +8,5 @@ public sealed record ExportPackage(
     ProcessingSettingsRecord ProcessingSettings,
     IReadOnlyList<FrameExportRecord> Frames,
     IReadOnlyList<SegmentRecord> Segments,
+    IReadOnlyList<EditOperationRecord> Edits,
     RunMetadataRecord RunMetadata);
