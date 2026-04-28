@@ -9,7 +9,7 @@ public sealed class TelopFrameAnalysisService
     private readonly TelopAttributeAnalysisService _attributeAnalysisService;
 
     public TelopFrameAnalysisService()
-        : this(new ProcessOcrWorkerClient(), new TelopAttributeAnalysisService())
+        : this(OcrWorkerClientFactory.Create(), new TelopAttributeAnalysisService())
     {
     }
 
