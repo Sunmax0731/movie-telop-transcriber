@@ -79,5 +79,5 @@ $env:MOVIE_TELOP_WINDOWS_OCR_MIN_HEIGHT = "18"
 ## 9. リリース工程への引き継ぎ
 - #72 では、Windows OCR worker を fallback として残しつつ、PaddleOCR PP-OCRv5 worker で実動画 OCR を成立させる。
 - #48 では、初期リリースのアプリ本体 zip には Windows OCR worker exe を既定同梱しない方針にした。必要な場合は fallback 用の別手順または別配布物として扱う。
-- #49 では、本手順の扱いを利用者向け導入手順へ統合する。
+- #49 では、本手順の扱いを `docs/12_導入手順書.md` へ統合済み。
 - PaddleOCR 採用後に配布形態が重くなりすぎる場合は、Tesseract または ONNX Runtime 利用を代替候補として再評価する。
