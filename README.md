@@ -1,134 +1,224 @@
 # movie-telop-transcriber
 
-## 2026-04-28 UI/UX 改善メモ
-- `#87` で結果ペインを廃止し、タイムラインを右ペインの主作業面へ集約した。
-- 同一フレーム内の OCR 文字列は bounding box の上端座標で並べ、上に表示されている文字列から確認できる。
-- タイムラインは時刻、フレーム、テキスト、詳細、認識精度の列で表示し、列境界線のドラッグで幅を調整できる。
-- `#93` で認識精度ゲージを 50% から 100% の範囲表示に変更し、50% 未満はゲージを非表示にした。
-- `#93` でタイムライン選択中のテロップに対し、テキスト編集と削除確認ダイアログを提供する。
-- `#93` でプレビューに再生 / 一時停止を追加し、抽出済みフレームを自動で進められるようにした。
-- `#86` でタイムライン選択中テロップの編集履歴を `segments.json` の `edits` に出力する。結合 / 分割ボタンはプレビュー同期の再検討が必要なため一時的に非表示とする。
-- `#89` で `segments` から SRT / VTT / ASS 字幕ファイルを出力する。
-- `#95` でプレビューのシーケンスバー、処理状況の経過時間 / 推定残り時間、検出設定スライダー、初期設定へ戻す操作を追加した。
-- `#95` で日本語を含む Desktop パスでも PaddleOCR worker へ UTF-8 で stdio 連携するようにした。
-- `#95` の手動確認フィードバックを受け、タイムライン選択テキストのコピー、列表示の ON/OFF、設定画面 720px 高、進捗時間表示の多言語化と毎秒更新、`◎` の画像補完検出を追加した。
-- `#95` の追加調整で、処理状況の再実行ボタンを横並びにし、直近の失敗を状態セクションへ移動、タイムライン詳細列を表示属性の一行表示に整理した。
-- `#100` でプレビューとタイムラインの初期幅を同じにし、プレビューと処理状況の境界ドラッグで処理状況ペインの高さを変更できるようにする。
-- `#102` で OCR エンジン未指定時の既定を PaddleOCR に変更し、`json-sidecar` は明示的な検証モードとして扱う。
-- `#90` で QCDS 評価条件、計測指標、レポートテンプレート、`basic_telop` の初期計測レポートを整備する。
-- `#75` で初期リリースの属性範囲を整理し、`font_size` は OCR 矩形高さ相当、色/枠は暫定ラベル、ASS は標準スタイルのみとする。
-- `#74` で処理状況を中央ペインに配置し、フレーム数ベースの進捗と段階的な再実行操作を確認できるようにした。
-- 左ペインは入力、設定ボタン、状態表示に整理し、状態カードは出力フォルダのみをコピー対象として扱う。
-- `#88` と `#93` で設定画面を 2 ペイン構成、固定サイズ、言語 / 出力先 / 検出設定の編集画面として整理した。
+`movie-telop-transcriber` は、動画内のテロップを OCR で読み取り、文字列、表示時刻、表示位置、暫定的な見た目属性を構造化データとして出力する Windows 向け GUI アプリケーションです。
 
-## リリース前改善
-- `#84` で UI/UX と QCDS 改善をリリース前トラックとして管理する。
-- `#85` では、中央プレビューに抽出フレーム画像を表示し、OCR の bounding box と認識文字を重ねて確認できるようにした。
-- タイムライン選択に合わせて、対応するフレームと OCR 矩形をプレビューへ反映する。
-- `icon.png` を元に `Assets/AppIcon.ico` と主要 PNG アセットを生成し、タイトルバー、ウィンドウ、exe のアイコンとして利用する。
-- 利用者向けの導入手順書とリリース手順書は、改善実装完了後のリリース工程で整備する。
+目的は、動画編集や字幕確認で必要になる「どの時刻に、どのテロップが、どの位置に出ていたか」を後から追跡できる形で残すことです。初期リリースでは WinUI 3 の画面から動画を選択し、フレーム抽出、PaddleOCR による認識、タイムライン確認、SRT / VTT / ASS / CSV / JSON 出力までを扱います。
 
-## 概要
-動画を読み込み、動画内のテロップを文字起こしし、時間情報と見た目の種類を構造化データとして記録する GUI アプリケーション。
+## 利用者向け
 
-## 開発方針
-- ドキュメントは日本語で統一する。
-- GitHub の Issue 駆動で開発を進める。
-- 原則として Issue ごとに作業ブランチを切って進める。
-- 各工程に対応する親 Issue を作成し、その配下に個別タスク Issue を起票する。
-- 前工程を完了したら次工程の親 Issue と着手タスクを起票してから進む。
-- 工程の区切りごとに `README.md`、`AGENTS.md`、`SKILL.md`、`docs/` を見直す。
-- 開発は工程を区切って進める。
-  - 要件定義
-  - 仕様検討
-  - 設計
-  - 実装
-  - テスト
-  - リリース
-- オフライン環境で動作可能とする。
+### できること
+- 動画ファイルを選択し、一定間隔でフレームを抽出する。
+- PaddleOCR PP-OCRv5 で日本語テロップを認識する。
+- 認識結果をタイムライン、プレビュー、bounding box で確認する。
+- タイムライン上のテキストをコピー、編集、削除する。
+- `segments.json`、`segments.csv`、`frames.csv`、`segments.srt`、`segments.vtt`、`segments.ass` を出力する。
+- 処理ログと中間成果物を run 単位で保存し、後から確認できるようにする。
 
-## 想定機能
-- 動画ファイルを読み込む
-- 一定間隔などの条件でフレームを取得する
-- フレーム中のテロップを検出して文字列として記録する
-- 記録した文字列ごとに動画中の時間を記録する
-- テロップの種類を記録する
-  - フォント
-  - サイズ
-  - 色
-    - 文字色
-    - 枠色
-    - 地色
+### 動作環境
+- Windows x64
+- .NET 10 Desktop Runtime x64
+- 実動画 OCR 用の Python 3.10 環境
+- PaddlePaddle `3.2.0` CPU
+- PaddleOCR `3.5.0`
+- OCR モデル: `PP-OCRv5_server_det`、`PP-OCRv5_server_rec`
 
-## 想定成果物
-- フレーム単位の解析結果
-- テロップ単位に統合した解析結果
-- 処理ログ
+### 導入方法
+推奨は PowerShell インストーラを使う方法です。アプリ本体を所定のディレクトリへ配置し、PaddleOCR 用の Python 仮想環境、Python package、OCR モデル取得までをまとめて実行します。
 
-## 主要ドキュメント
-- `docs/01_要件定義.md`
-- `docs/02_開発工程.md`
-- `docs/03_仕様書.md`
-- `docs/04_基本設計書.md`
-- `docs/05_詳細設計書.md`
-- `docs/06_テスト計画書.md`
-- `docs/08_既知不具合と制約一覧.md`
-- `docs/09_Windows_OCRワーカー導入手順.md`
-- `docs/10_PaddleOCRワーカー導入手順.md`
-- `docs/11_配布構成と同梱物.md`
-- `docs/12_導入手順書.md`
-- `docs/13_リリースノート.md`
-- `docs/spec/06_QCDS評価仕様.md`
-- `docs/spec/07_テロップ属性リリース範囲.md`
-- `docs/templates/qcds_evaluation_report_template.md`
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\install\Install-MovieTelopTranscriber.ps1
+```
 
-## ディレクトリ
-- `src/`: 実装
-- `docs/`: 要件、仕様、設計、テスト、運用文書
-- `test-data/`: テスト用サンプル動画、正解データ、補助スクリプト
-- `tools/release/`: 配布物作成スクリプト
+既定の配置先は次のとおりです。
 
-## 現在工程
-1. 初期リリース `v0.1.0` 公開済み
-2. リリース工程の親 Issue `#18` は完了整理対象
-3. テスト工程の親 Issue `#21` と個別 Issue `#42` から `#47` は完了済み
-4. リリース工程の個別 Issue `#48`、`#49`、`#50`、`#51` は完了済み
-5. 現在残っている主な open Issue は `#98` タイムライン結合・分割 UI とプレビュー同期のリリース後対応
+| 種別 | 既定パス |
+| --- | --- |
+| アプリ本体 | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber` |
+| OCR runtime | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\ocr-runtime` |
+| 起動スクリプト | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1` |
+| OCR モデル | `%USERPROFILE%\.paddlex\official_models` |
 
-## 実装メモ
-- 動画メタデータ読込とフレーム抽出を実装済み。
-- OCR ワーカー接続は JSON I/O 契約で実装済み。
-- 外部 OCR ワーカーは `MOVIE_TELOP_OCR_WORKER` 環境変数で指定する。
-- OCR エンジン未指定かつ外部 OCR ワーカー未指定の場合は、実動画 OCR の既定として PaddleOCR を使用する。
-- `.ocr.json` サイドカー検証を行う場合は `MOVIE_TELOP_OCR_ENGINE=json-sidecar` を明示する。sidecar がない場合は `OCR_SIDECAR_NOT_FOUND` の OCR エラーとして扱い、空検出の正常完了にはしない。
-- Windows 標準 OCR を使う baseline worker は `src/MovieTelopTranscriber.Ocr.Windows/` に実装済み。
-- PaddleOCR PP-OCRv5 worker は `tools/ocr/paddle_ocr_worker.py` と `PaddleOcrWorkerClient` で実装済み。`MOVIE_TELOP_OCR_ENGINE=paddleocr` または OCR エンジン未指定時の既定として利用する。
-- PaddleOCR worker は日本語 OCR 結果で通常サイズとして認識された小書き仮名を保守的に補正する。
-- PaddleOCR worker はフルフレームの自動前処理を行う。拡大率は `1.0` 固定とし、コントラスト、シャープ化、検出閾値、文字方向分類、文書ゆがみ補正を設定画面から調整できる。
-- セグメント統合は、近接フレーム内の類似文字列を同一テロップ候補として扱い、代表文字列を confidence と出現回数で選択する。
-- Windows OCR の手動検証では日本語テロップの認識精度が不足したため、#72 では PaddleOCR PP-OCRv5 worker を採用する。
-- 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。
-- 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv`、`segments.srt`、`segments.vtt`、`segments.ass` として保存する。
-- 実行ログは `work/runs/<run_id>/logs/run.log` と `summary.json` として保存する。
-- 設定ボタンから開く固定サイズの非モーダル子ウィンドウで、言語、出力先フォルダ、検出設定を 2 ペインで編集する。
-- 出力先フォルダは解析開始前に作成と書き込み確認を行い、利用できない場合は `OUTPUT_ROOT_UNAVAILABLE` として表示する。
-- タイムライン上のテロップは選択後にコピー、編集、削除できる。編集内容は画面上の現在結果へ反映し、ファイルへ反映する場合は `出力のみ` を実行する。
-- `segments.json` には GUI 上の編集、削除の履歴を `edits` として保存し、元 OCR / セグメント結果との追跡に使えるようにする。結合 / 分割は再設計まで UI から非表示とする。
-- QCDS 評価は `tools/validation/evaluate_qcds_report.py` で正解データと `segments.json` を比較し、文字列一致、欠落、余計な検出、時刻誤差、処理時間、エラー件数をレポート化する。
-- 検出設定のしきい値と抽出間隔は設定画面のスライダーで調整し、初期設定へ戻すボタンで既定値へ戻せる。
-- PaddleOCR worker との stdio 連携は UTF-8 固定とし、出力先に日本語パスを含む場合も request / response パスを渡せる。
-- メイン画面からフレーム抽出、OCR、出力の単位で再実行でき、直近の失敗段階とエラー内容を確認できる。
-- 実装工程の個別 Issue `#31`、`#33`、`#39`、`#40`、`#41` は完了済み。
-- テスト工程の個別 Issue `#42`、`#43`、`#44`、`#45`、`#46`、`#47` は完了済み。
-- 現行の OCR 精度検証では、PaddleOCR が既定の実 OCR 経路であり、Python ランタイムや PaddleOCR が未構成の場合は OCR エラーとして表示する。サンプル sidecar では文字列とセグメント時刻が期待値と一致する。
-- 初期リリースの属性範囲は `docs/spec/07_テロップ属性リリース範囲.md` に整理する。`font_size` は OCR 矩形高さ相当、`text_color` / `stroke_color` / `text_type` は色/枠の暫定ラベル、`font_family` と `background_color` は `null` 許容の既知制約として扱う。
-- 既知不具合と制約は `docs/08_既知不具合と制約一覧.md` に整理済み。
-- テスト工程完了レビューは `docs/test-results/2026-04-28_テスト工程完了レビュー.md` に記録済み。
-- OCR エンジン比較検討は `docs/test-results/2026-04-28_OCRエンジン比較検討.md` に記録済み。
-- PaddleOCR worker 検証は `docs/test-results/2026-04-28_PaddleOCRワーカー検証.md` に記録済み。
-- 配布構成と同梱物は `docs/11_配布構成と同梱物.md` に整理済み。初期リリースでは Release build 出力を基準にアプリ本体 zip を作成し、PaddleOCR の Python runtime / Python package / モデルはアプリ本体 zip に同梱しない。
-- 導入手順は `docs/12_導入手順書.md` に整理済み。Release build 出力、.NET 10 Desktop Runtime、PaddleOCR Python 環境、モデル事前配置、初回確認、導入失敗時の確認項目を扱う。
-- 初期リリースの対象バージョンは `v0.1.0` とする。`segments.json` の `run_metadata.application_version` はアセンブリの informational version を使い、`0.1.0` として出力する。
-- リリースノートは `docs/13_リリースノート.md` に整理済み。GitHub Release 本文と配布物公開で参照する。
-- GitHub Release `v0.1.0` は公開済み。配布 asset は `movie-telop-transcriber-win-x64-v0.1.0.zip` と `.zip.sha256`。
-- リリース後の次の主タスクは `#98` タイムライン結合・分割 UI とプレビュー同期の再設計。
+再インストールする場合は `-Force` を付けます。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
+  -Force
+```
+
+配置先を変える場合は `-InstallRoot` と `-OcrRuntimeRoot` を指定します。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
+  -InstallRoot D:\Tools\movie-telop-transcriber `
+  -OcrRuntimeRoot D:\Tools\movie-telop-ocr-runtime
+```
+
+手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
+
+### 起動方法
+インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` から起動できます。PowerShell から起動する場合は、生成された起動スクリプトを実行します。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File "$env:LOCALAPPDATA\Programs\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1"
+```
+
+この起動スクリプトは、PaddleOCR 用の環境変数を設定してからアプリを起動します。
+
+### 基本的な使い方
+1. アプリを起動する。
+2. 入力動画を選択する。
+3. 出力先フォルダを指定する。
+4. 必要に応じて設定画面で抽出間隔や OCR 検出設定を調整する。
+5. `抽出` を実行する。
+6. タイムラインとプレビューで結果を確認する。
+7. 必要に応じてテキストを編集し、`出力のみ` で出力ファイルへ反映する。
+
+出力先には `work/runs/<run_id>/` 相当の構成で、抽出フレーム、OCR 結果、属性推定結果、最終出力、ログが保存されます。
+
+### トラブルシューティング
+| 症状 | 確認すること | 対処 |
+| --- | --- | --- |
+| インストーラが PowerShell 実行ポリシーで止まる | 起動コマンドに `-ExecutionPolicy Bypass` があるか | README の導入コマンドをそのまま実行する |
+| アプリが起動しない | .NET 10 Desktop Runtime x64 が入っているか | `dotnet --list-runtimes` で `Microsoft.WindowsDesktop.App 10.0.x` を確認し、不足していれば導入する |
+| インストーラが Python を見つけられない | `py -3.10` で Python 3.10 が起動できるか | Python 3.10 を導入するか、`-PythonCommand` と `-PythonArguments` で利用する Python を指定する |
+| OCR が `paddleocr` を import できない | 起動スクリプトの `MOVIE_TELOP_PADDLEOCR_PYTHON` が仮想環境を指しているか | インストーラを再実行する。手動導入の場合は `pip show paddleocr` を確認する |
+| 初回 OCR でモデル取得に失敗する | ネットワーク接続、プロキシ、`%USERPROFILE%\.paddlex` への書き込み権限 | ネットワーク接続できる環境でインストーラを再実行する。オフライン端末ではモデル取得済みの `.paddlex` をコピーする |
+| `ocr_engine=json-sidecar` になっている | `MOVIE_TELOP_OCR_ENGINE=json-sidecar` を設定したまま起動していないか | 実動画 OCR では未指定または `paddleocr` にする |
+| 出力先フォルダの作成に失敗する | 指定フォルダに書き込み権限があるか | 利用者が書き込めるフォルダを指定する。失敗時は `OUTPUT_ROOT_UNAVAILABLE` として表示される |
+| テロップ検出が欠落する | 抽出間隔、検出しきい値、前処理設定 | 設定画面で抽出間隔を短くし、検出しきい値や前処理を調整して OCR を再実行する |
+
+### 既知制約
+- 初期リリースでは CPU 推論を標準とするため、動画や設定によって処理に時間がかかる。
+- `font_size` は OCR 矩形の高さ相当であり、実フォントサイズではない。
+- `text_color`、`stroke_color`、`text_type` は暫定ラベルであり、厳密な色値や意味分類ではない。
+- `font_family` と `background_color` は `null` を許容する。
+- SRT / VTT はテキストと時刻のみ、ASS は標準スタイルのみを使う。
+- タイムラインの結合 / 分割 UI は、プレビュー同期の再設計まで非表示にしている。
+
+## 開発者向け
+
+### 開発方針
+- ドキュメントは日本語で作成する。
+- GitHub Issue を作業単位とし、原則として `issue-<番号>-<概要>` 形式のブランチで対応する。
+- 工程ごとに親 Issue を持ち、個別 Issue の検討結果、判断理由、完了要点を Issue コメントへ残す。
+- GUI は WinUI 3、設計パターンは MVVM を採用する。
+- 実動画 OCR の既定は PaddleOCR とし、`json-sidecar` は明示的なサンプル検証モードとして扱う。
+- 中間成果物とログを保存し、すべての解析結果を動画時刻へ追跡できるようにする。
+
+### リポジトリ構成
+| パス | 内容 |
+| --- | --- |
+| `src/` | WinUI 3 アプリ、ドメイン、OCR worker client、Windows OCR fallback |
+| `tools/ocr/` | PaddleOCR Python worker |
+| `tools/install/` | 利用者向けインストーラ |
+| `tools/release/` | 配布物作成スクリプト |
+| `tools/validation/` | QCDS とサンプル評価スクリプト |
+| `docs/` | 要件、設計、導入、リリース、既知制約 |
+| `docs/spec/` | 出力仕様、QCDS 評価仕様、属性範囲 |
+| `test-data/` | サンプル動画、正解データ、検証用データ |
+| `work/` | 実行時の run 出力。通常は追跡しない |
+
+### 開発環境
+標準の開発前提は次のとおりです。
+
+- Windows
+- .NET 10 SDK
+- WinUI 3 / Windows App SDK を扱える Visual Studio または同等の開発環境
+- Python 3.10
+- PaddlePaddle `3.2.0` CPU
+- PaddleOCR `3.5.0`
+
+PaddleOCR worker の開発用環境例:
+
+```powershell
+python -m venv temp\ocr-eval\.venv
+temp\ocr-eval\.venv\Scripts\python.exe -m pip install --upgrade pip
+temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddlepaddle==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddleocr==3.5.0
+```
+
+モデル取得だけを明示的に確認する場合:
+
+```powershell
+temp\ocr-eval\.venv\Scripts\python.exe tools\ocr\paddle_ocr_worker.py --warmup-models --warmup-language ja
+```
+
+### ビルド
+Release build:
+
+```powershell
+dotnet build src\MovieTelopTranscriber.sln -c Release -p:Platform=x64
+```
+
+Debug build:
+
+```powershell
+dotnet build src\MovieTelopTranscriber.sln -c Debug -p:Platform=x64
+```
+
+### 配布物作成
+アプリ本体 zip と checksum を作る場合:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\release\New-ReleasePackage.ps1 `
+  -Version 0.1.0
+```
+
+生成物は `dist/` 配下に作成されます。配布 zip にはアプリ本体、docs、最小サンプル、インストーラを含めます。Python runtime、PaddleOCR package、OCR モデル本体は同梱せず、インストーラまたは手動手順で取得します。
+
+### インストーラ検証
+実際の配置を行わずに計画だけ確認する場合:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
+  -WhatIf
+```
+
+ローカルで作成済みの zip を使って導入確認する場合:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
+  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v0.1.0.zip `
+  -Force
+```
+
+OCR runtime やモデル取得を省略してアプリ配置だけ確認する場合は、`-SkipOcrSetup -SkipModelDownload` を指定します。
+
+### QCDS 評価
+QCDS 評価の仕様は [docs/spec/06_QCDS評価仕様.md](docs/spec/06_QCDS評価仕様.md) にあります。評価スクリプトは、正解データと `segments.json` を比較し、文字列一致、欠落、余計な検出、時刻誤差、処理時間、エラー件数をレポート化します。
+
+```powershell
+python tools\validation\evaluate_qcds_report.py `
+  --ground-truth test-data\basic_telop\ground_truth.json `
+  --segments work\runs\<run_id>\output\segments.json `
+  --summary work\runs\<run_id>\logs\summary.json `
+  --output docs\test-results\<report>.md
+```
+
+### 主要ドキュメント
+- [docs/01_要件定義.md](docs/01_要件定義.md)
+- [docs/02_開発工程.md](docs/02_開発工程.md)
+- [docs/03_仕様書.md](docs/03_仕様書.md)
+- [docs/04_基本設計書.md](docs/04_基本設計書.md)
+- [docs/05_詳細設計書.md](docs/05_詳細設計書.md)
+- [docs/06_テスト計画書.md](docs/06_テスト計画書.md)
+- [docs/07_実装メモ.md](docs/07_実装メモ.md)
+- [docs/08_既知不具合と制約一覧.md](docs/08_既知不具合と制約一覧.md)
+- [docs/11_配布構成と同梱物.md](docs/11_配布構成と同梱物.md)
+- [docs/12_導入手順書.md](docs/12_導入手順書.md)
+- [docs/13_リリースノート.md](docs/13_リリースノート.md)
+- [docs/spec/04_出力仕様.md](docs/spec/04_出力仕様.md)
+- [docs/spec/06_QCDS評価仕様.md](docs/spec/06_QCDS評価仕様.md)
+- [docs/spec/07_テロップ属性リリース範囲.md](docs/spec/07_テロップ属性リリース範囲.md)
+
+### 現在の状態
+- 初期リリース `v0.1.0` は公開済み。
+- GitHub Release には `movie-telop-transcriber-win-x64-v0.1.0.zip` と checksum を配置済み。
+- リリース後の主な open Issue は、タイムライン結合 / 分割 UI とプレビュー同期の再設計である。
