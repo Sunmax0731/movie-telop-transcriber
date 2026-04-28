@@ -185,25 +185,49 @@
 
                         <Border
                             Grid.Row="1"
+                            x:Name="PreviewFrameContainer"
                             MinHeight="280"
                             Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
-                            CornerRadius="6">
-                            <StackPanel
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="8">
-                                <FontIcon Glyph="&#xE714;" FontSize="32" />
-                                <TextBlock Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}" />
-                                <TextBlock
-                                    Text="{x:Bind ViewModel.UiText.PreviewShell, Mode=OneWay}"
-                                    Style="{StaticResource AppSecondaryTextStyle}" />
-                            </StackPanel>
+                            CornerRadius="6"
+                            SizeChanged="OnPreviewFrameContainerSizeChanged">
+                            <Grid>
+                                <Image
+                                    x:Name="PreviewFrameImage"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    ImageFailed="OnPreviewFrameImageFailed"
+                                    ImageOpened="OnPreviewFrameImageOpened"
+                                    Stretch="Uniform" />
+                                <Canvas
+                                    x:Name="PreviewOverlayCanvas"
+                                    IsHitTestVisible="False" />
+                                <StackPanel
+                                    x:Name="PreviewEmptyState"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="8">
+                                    <FontIcon Glyph="&#xE714;" FontSize="32" />
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}"
+                                        TextAlignment="Center" />
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        Text="{x:Bind ViewModel.UiText.PreviewShell, Mode=OneWay}"
+                                        TextAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6">
                             <TextBlock Text="{x:Bind ViewModel.UiText.SelectedItem, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <TextBlock
                                 Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
+                                TextWrapping="WrapWholeWords" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.PreviewDetailText, Mode=OneWay}"
+                                Style="{StaticResource AppSecondaryTextStyle}"
                                 TextWrapping="WrapWholeWords" />
                         </StackPanel>
                     </Grid>
@@ -262,7 +286,8 @@
                         <TextBlock Text="{x:Bind ViewModel.UiText.Results, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <ListView
                             Margin="0,28,0,0"
-                            ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">
+                            ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedResultRow, Mode=TwoWay}">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="models:ResultRow">
                                     <Border Margin="0,0,0,8" Padding="10" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6">
