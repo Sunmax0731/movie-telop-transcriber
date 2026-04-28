@@ -49,15 +49,14 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
             return sidecarResponse;
         }
 
-        var emptyResponse = new OcrWorkerResponse(
-            request.RequestId,
-            "success",
-            request.FrameIndex,
-            request.TimestampMs,
-            Array.Empty<OcrDetectionRecord>(),
-            null);
-        await WriteJsonAsync(responsePath, emptyResponse, cancellationToken);
-        return emptyResponse;
+        var missingSidecarResponse = CreateErrorResponse(
+            request,
+            "OCR_SIDECAR_NOT_FOUND",
+            "No OCR worker is configured and no sidecar OCR response exists for this frame.",
+            $"Set {EngineEnvironmentVariable}=paddleocr for real-video OCR, configure {WorkerPathEnvironmentVariable}, or provide sidecar file: {sidecarPath}",
+            true);
+        await WriteJsonAsync(responsePath, missingSidecarResponse, cancellationToken);
+        return missingSidecarResponse;
     }
 
     private static async Task<OcrWorkerResponse> RunExternalWorkerAsync(
