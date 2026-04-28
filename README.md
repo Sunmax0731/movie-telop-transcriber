@@ -64,6 +64,7 @@
 - 外部 OCR ワーカーは `MOVIE_TELOP_OCR_WORKER` 環境変数で指定する。
 - 未指定時はフレーム同名の `.ocr.json` サイドカーを読み込み、サイドカーがない場合は空検出として処理を継続する。
 - Windows 標準 OCR を使う baseline worker は `src/MovieTelopTranscriber.Ocr.Windows/` に実装済み。
+- Windows OCR の手動検証では日本語テロップの認識精度が不足したため、#72 では PaddleOCR PP-OCRv5 worker を第一候補として追加検討中。
 - 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。
 - 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv` として保存する。
 - 実行ログは `work/runs/<run_id>/logs/run.log` と `summary.json` として保存する。
@@ -74,4 +75,5 @@
 - 現行の OCR 精度検証では、外部 OCR ワーカーまたは動画ごとの `.ocr.json` サイドカーがない任意動画は空検出になる。サンプル sidecar では文字列とセグメント時刻が期待値と一致する一方、フォント名、色、背景色、精密な種別は未推定値として扱う。
 - 既知不具合と制約は `docs/08_既知不具合と制約一覧.md` に整理済み。
 - テスト工程完了レビューは `docs/test-results/2026-04-28_テスト工程完了レビュー.md` に記録済み。
+- OCR エンジン比較検討は `docs/test-results/2026-04-28_OCRエンジン比較検討.md` に記録済み。
 - リリース工程では、実 OCR ワーカー、配布構成、導入手順、リリースノート、GitHub Release を順に確定する。

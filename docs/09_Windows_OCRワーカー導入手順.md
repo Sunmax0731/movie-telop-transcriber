@@ -14,6 +14,7 @@
 - OCR エンジンは Windows の `Windows.Media.Ocr` を利用する。
 - 追加の Python ランタイムや外部 OCR モデルは不要。
 - 認識品質は Windows OCR とインストール済み言語に依存するため、PaddleOCR などの専用 OCR より高精度とは限らない。
+- 2026-04-28 の手動検証では日本語テロップの認識精度が不足したため、#72 の第一候補は PaddleOCR PP-OCRv5 worker へ切り替えて検討する。
 
 ## 4. ビルド
 ```powershell
@@ -75,7 +76,7 @@ $env:MOVIE_TELOP_WINDOWS_OCR_MIN_HEIGHT = "18"
 - 小さい文字行除外はヒューリスティックであり、実動画によって調整が必要になる可能性がある。
 
 ## 9. リリース工程への引き継ぎ
-- #72 では、Windows OCR worker を baseline として実動画 OCR を成立させる。
+- #72 では、Windows OCR worker を baseline として残しつつ、PaddleOCR PP-OCRv5 worker を第一候補として実動画 OCR を成立させる。
 - #48 では、worker exe と必要ランタイムを配布物へ含めるかを判断する。
 - #49 では、本手順を利用者向け導入手順へ統合する。
-- 精度が不足する場合は、PaddleOCR または Tesseract worker を追加候補として再評価する。
+- PaddleOCR 採用後に配布形態が重くなりすぎる場合は、Tesseract または ONNX Runtime 利用を代替候補として再評価する。
