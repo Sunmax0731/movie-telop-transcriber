@@ -106,7 +106,7 @@
                                                     MinWidth="64"
                                                     VerticalAlignment="Center"
                                                     Click="OnInfoCardCopyClicked"
-                                                    Content="Copy"
+                                                    Content="{x:Bind CopyButtonText}"
                                                     IsEnabled="{x:Bind CanCopy}"
                                                     Tag="{x:Bind Value}"
                                                     Visibility="{x:Bind CopyButtonVisibility}" />
@@ -115,6 +115,24 @@
                                     </DataTemplate>
                                 </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
+                            <Border
+                                Padding="10"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="6">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
@@ -123,7 +141,7 @@
             <Grid Grid.Column="1" RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="200" />
+                    <RowDefinition Height="160" />
                 </Grid.RowDefinitions>
 
                 <Border
@@ -195,6 +213,24 @@
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Slider
+                                    Minimum="0"
+                                    Maximum="{x:Bind ViewModel.PreviewSequenceMaximum, Mode=OneWay}"
+                                    IsEnabled="{x:Bind ViewModel.HasPreviewSequence, Mode=OneWay}"
+                                    Value="{x:Bind ViewModel.PreviewSequenceValue, Mode=TwoWay}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    MinWidth="52"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
+                                    Text="{x:Bind ViewModel.PreviewSequenceLabel, Mode=OneWay}"
+                                    TextAlignment="Right" />
+                            </Grid>
                             <TextBlock Text="{x:Bind ViewModel.UiText.SelectedItem, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <TextBlock
                                 Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
@@ -209,15 +245,17 @@
 
                 <Border
                     Grid.Row="1"
-                    Padding="16"
+                    Padding="12"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="8">
                     <ScrollViewer
                         HorizontalScrollBarVisibility="Disabled"
-                        VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="8">
+                        HorizontalScrollMode="Disabled"
+                        VerticalScrollBarVisibility="Disabled"
+                        VerticalScrollMode="Disabled">
+                        <StackPanel Spacing="5">
                             <TextBlock Text="{x:Bind ViewModel.UiText.Activity, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                             <TextBlock
@@ -225,29 +263,16 @@
                                 Style="{StaticResource AppSecondaryTextStyle}"
                                 TextWrapping="WrapWholeWords" />
                             <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-                            <StackPanel Spacing="6">
-                                <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                            </StackPanel>
-                            <Border
-                                Padding="10"
-                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                CornerRadius="6">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                    <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
-                                    <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
-                                    <TextBlock
-                                        Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
-                                        Style="{StaticResource AppSecondaryTextStyle}"
-                                        TextWrapping="WrapWholeWords" />
-                                    <TextBlock
-                                        Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
-                                        Style="{StaticResource AppSecondaryTextStyle}"
-                                        TextWrapping="WrapWholeWords" />
-                                </StackPanel>
-                            </Border>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Grid.Column="1" Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Grid.Column="2" Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                            </Grid>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -285,15 +310,24 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{x:Bind ViewModel.UiText.Timeline, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <Button
                             Grid.Column="1"
+                            Width="76"
+                            Click="OnCopyTimelineClicked"
+                            Content="{x:Bind ViewModel.UiText.TimelineCopy, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
+                        <Button
+                            Grid.Column="2"
+                            Width="76"
                             Click="OnEditTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineEdit, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
                         <Button
-                            Grid.Column="2"
+                            Grid.Column="3"
+                            Width="76"
                             Click="OnDeleteTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineDelete, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
@@ -304,35 +338,35 @@
                         HorizontalScrollMode="Auto"
                         VerticalScrollBarVisibility="Disabled"
                         VerticalScrollMode="Disabled">
-                        <Grid Padding="8,0">
+                        <Grid Padding="8,0" RightTapped="OnTimelineHeaderRightTapped">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="{Binding TimelineTimeColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineFrameColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineTextColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineDetailColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineConfidenceColumnWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTimeColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTimeSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineFrameColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineFrameSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTextColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTextSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineDetailColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineDetailSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineConfidenceColumnActualWidth, ElementName=RootPage}" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="時刻" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.TimelineColumnTime, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="1" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="time">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="2" Text="フレーム" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.UiText.TimelineColumnFrame, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="3" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="frame">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="4" Text="テキスト" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="4" Text="{x:Bind ViewModel.UiText.TimelineColumnText, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="5" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="text">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="6" Text="詳細" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="6" Text="{x:Bind ViewModel.UiText.TimelineColumnDetail, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="7" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="detail">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="8" Text="認識精度" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="8" Text="{x:Bind ViewModel.UiText.TimelineColumnConfidence, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                         </Grid>
                     </ScrollViewer>
                     <ScrollViewer
@@ -350,15 +384,15 @@
                                 <DataTemplate x:DataType="models:TimelineSegment">
                                     <Grid Padding="8,8">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="{Binding TimelineTimeColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineFrameColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineTextColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineDetailColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineConfidenceColumnWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTimeColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTimeSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineFrameColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineFrameSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTextColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTextSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineDetailColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineDetailSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineConfidenceColumnActualWidth, ElementName=RootPage}" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" TextWrapping="WrapWholeWords" />
                                         <TextBlock Grid.Column="2" Text="{x:Bind FrameLabel}" Style="{StaticResource AppSecondaryTextStyle}" TextWrapping="WrapWholeWords" />
@@ -376,13 +410,11 @@
                                                 TextWrapping="Wrap"
                                                 Visibility="{x:Bind TextEditVisibility, Mode=OneWay}" />
                                         </Grid>
-                                        <StackPanel Grid.Column="6" Spacing="2">
-                                            <TextBlock Text="{x:Bind Category}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                            <TextBlock
-                                                Text="{x:Bind Detail}"
-                                                Style="{StaticResource AppSecondaryTextStyle}"
-                                                TextWrapping="WrapWholeWords" />
-                                        </StackPanel>
+                                        <TextBlock
+                                            Grid.Column="6"
+                                            Text="{x:Bind DisplayAttributeLabel}"
+                                            Style="{StaticResource AppSecondaryTextStyle}"
+                                            TextWrapping="WrapWholeWords" />
                                         <StackPanel Grid.Column="8" Spacing="4">
                                             <TextBlock
                                                 HorizontalAlignment="Right"

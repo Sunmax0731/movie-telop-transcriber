@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using MovieTelopTranscriber.App.Models;
 
@@ -213,7 +214,10 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
                 CreateNoWindow = true,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                StandardInputEncoding = new UTF8Encoding(false),
+                StandardOutputEncoding = new UTF8Encoding(false),
+                StandardErrorEncoding = new UTF8Encoding(false)
             };
             startInfo.ArgumentList.Add(scriptPath);
             startInfo.ArgumentList.Add("--stdio");

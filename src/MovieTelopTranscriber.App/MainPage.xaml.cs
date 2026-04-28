@@ -37,6 +37,33 @@ public sealed partial class MainPage : Page
     public static readonly DependencyProperty TimelineConfidenceColumnWidthProperty =
         DependencyProperty.Register(nameof(TimelineConfidenceColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(104)));
 
+    public static readonly DependencyProperty TimelineTimeColumnActualWidthProperty =
+        DependencyProperty.Register(nameof(TimelineTimeColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
+
+    public static readonly DependencyProperty TimelineFrameColumnActualWidthProperty =
+        DependencyProperty.Register(nameof(TimelineFrameColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(96)));
+
+    public static readonly DependencyProperty TimelineTextColumnActualWidthProperty =
+        DependencyProperty.Register(nameof(TimelineTextColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(160)));
+
+    public static readonly DependencyProperty TimelineDetailColumnActualWidthProperty =
+        DependencyProperty.Register(nameof(TimelineDetailColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(110)));
+
+    public static readonly DependencyProperty TimelineConfidenceColumnActualWidthProperty =
+        DependencyProperty.Register(nameof(TimelineConfidenceColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(104)));
+
+    public static readonly DependencyProperty TimelineTimeSeparatorWidthProperty =
+        DependencyProperty.Register(nameof(TimelineTimeSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
+
+    public static readonly DependencyProperty TimelineFrameSeparatorWidthProperty =
+        DependencyProperty.Register(nameof(TimelineFrameSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
+
+    public static readonly DependencyProperty TimelineTextSeparatorWidthProperty =
+        DependencyProperty.Register(nameof(TimelineTextSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
+
+    public static readonly DependencyProperty TimelineDetailSeparatorWidthProperty =
+        DependencyProperty.Register(nameof(TimelineDetailSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
+
     public static readonly DependencyProperty RightPaneWidthProperty =
         DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(560)));
 
@@ -47,6 +74,11 @@ public sealed partial class MainPage : Page
     private double _lastRightPaneResizeX;
     private readonly DispatcherTimer _previewPlaybackTimer = new() { Interval = TimeSpan.FromMilliseconds(650) };
     private bool _isPreviewPlaying;
+    private bool _showTimelineTimeColumn = true;
+    private bool _showTimelineFrameColumn = true;
+    private bool _showTimelineTextColumn = true;
+    private bool _showTimelineDetailColumn = true;
+    private bool _showTimelineConfidenceColumn = true;
 
     public MainPageViewModel ViewModel { get; } = new();
 
@@ -80,6 +112,60 @@ public sealed partial class MainPage : Page
         set => SetValue(TimelineConfidenceColumnWidthProperty, value);
     }
 
+    public GridLength TimelineTimeColumnActualWidth
+    {
+        get => (GridLength)GetValue(TimelineTimeColumnActualWidthProperty);
+        set => SetValue(TimelineTimeColumnActualWidthProperty, value);
+    }
+
+    public GridLength TimelineFrameColumnActualWidth
+    {
+        get => (GridLength)GetValue(TimelineFrameColumnActualWidthProperty);
+        set => SetValue(TimelineFrameColumnActualWidthProperty, value);
+    }
+
+    public GridLength TimelineTextColumnActualWidth
+    {
+        get => (GridLength)GetValue(TimelineTextColumnActualWidthProperty);
+        set => SetValue(TimelineTextColumnActualWidthProperty, value);
+    }
+
+    public GridLength TimelineDetailColumnActualWidth
+    {
+        get => (GridLength)GetValue(TimelineDetailColumnActualWidthProperty);
+        set => SetValue(TimelineDetailColumnActualWidthProperty, value);
+    }
+
+    public GridLength TimelineConfidenceColumnActualWidth
+    {
+        get => (GridLength)GetValue(TimelineConfidenceColumnActualWidthProperty);
+        set => SetValue(TimelineConfidenceColumnActualWidthProperty, value);
+    }
+
+    public GridLength TimelineTimeSeparatorWidth
+    {
+        get => (GridLength)GetValue(TimelineTimeSeparatorWidthProperty);
+        set => SetValue(TimelineTimeSeparatorWidthProperty, value);
+    }
+
+    public GridLength TimelineFrameSeparatorWidth
+    {
+        get => (GridLength)GetValue(TimelineFrameSeparatorWidthProperty);
+        set => SetValue(TimelineFrameSeparatorWidthProperty, value);
+    }
+
+    public GridLength TimelineTextSeparatorWidth
+    {
+        get => (GridLength)GetValue(TimelineTextSeparatorWidthProperty);
+        set => SetValue(TimelineTextSeparatorWidthProperty, value);
+    }
+
+    public GridLength TimelineDetailSeparatorWidth
+    {
+        get => (GridLength)GetValue(TimelineDetailSeparatorWidthProperty);
+        set => SetValue(TimelineDetailSeparatorWidthProperty, value);
+    }
+
     public GridLength RightPaneWidth
     {
         get => (GridLength)GetValue(RightPaneWidthProperty);
@@ -93,6 +179,7 @@ public sealed partial class MainPage : Page
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.PreviewDetections.CollectionChanged += OnPreviewDetectionsChanged;
         _previewPlaybackTimer.Tick += OnPreviewPlaybackTimerTick;
+        RefreshTimelineColumnWidths();
         UpdatePreviewImage();
     }
 
@@ -239,6 +326,8 @@ public sealed partial class MainPage : Page
                 TimelineDetailColumnWidth = ResizeGridLength(TimelineDetailColumnWidth, delta, 90);
                 break;
         }
+
+        RefreshTimelineColumnWidths();
     }
 
     private void OnInfoCardCopyClicked(object sender, RoutedEventArgs e)
@@ -246,6 +335,53 @@ public sealed partial class MainPage : Page
         if (sender is FrameworkElement { Tag: string path })
         {
             ViewModel.CopyPathCommand.Execute(path);
+        }
+    }
+
+    private void OnCopyTimelineClicked(object sender, RoutedEventArgs e)
+    {
+        ViewModel.CopySelectedTimelineTextCommand.Execute(null);
+    }
+
+    private void OnTimelineHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        var flyout = new MenuFlyout();
+        AddTimelineColumnToggle(flyout, "time", ViewModel.UiText.TimelineColumnTime, _showTimelineTimeColumn);
+        AddTimelineColumnToggle(flyout, "frame", ViewModel.UiText.TimelineColumnFrame, _showTimelineFrameColumn);
+        AddTimelineColumnToggle(flyout, "text", ViewModel.UiText.TimelineColumnText, _showTimelineTextColumn);
+        AddTimelineColumnToggle(flyout, "detail", ViewModel.UiText.TimelineColumnDetail, _showTimelineDetailColumn);
+        AddTimelineColumnToggle(flyout, "confidence", ViewModel.UiText.TimelineColumnConfidence, _showTimelineConfidenceColumn);
+        flyout.ShowAt(element);
+        e.Handled = true;
+    }
+
+    private void AddTimelineColumnToggle(MenuFlyout flyout, string columnKey, string label, bool isVisible)
+    {
+        var item = new ToggleMenuFlyoutItem
+        {
+            Text = label,
+            Tag = columnKey,
+            IsChecked = isVisible
+        };
+        item.Click += OnTimelineColumnVisibilityClicked;
+        flyout.Items.Add(item);
+    }
+
+    private void OnTimelineColumnVisibilityClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleMenuFlyoutItem { Tag: string columnKey } item)
+        {
+            return;
+        }
+
+        if (!SetTimelineColumnVisibility(columnKey, item.IsChecked))
+        {
+            item.IsChecked = true;
         }
     }
 
@@ -365,6 +501,97 @@ public sealed partial class MainPage : Page
     {
         var currentValue = current.IsAbsolute ? current.Value : minimum;
         return new GridLength(Math.Max(minimum, currentValue + delta));
+    }
+
+    private bool SetTimelineColumnVisibility(string columnKey, bool isVisible)
+    {
+        if (!isVisible && CountVisibleTimelineColumns() <= 1)
+        {
+            ViewModel.StatusMessage = "At least one timeline column must remain visible.";
+            return false;
+        }
+
+        switch (columnKey)
+        {
+            case "time":
+                _showTimelineTimeColumn = isVisible;
+                break;
+            case "frame":
+                _showTimelineFrameColumn = isVisible;
+                break;
+            case "text":
+                _showTimelineTextColumn = isVisible;
+                break;
+            case "detail":
+                _showTimelineDetailColumn = isVisible;
+                break;
+            case "confidence":
+                _showTimelineConfidenceColumn = isVisible;
+                break;
+            default:
+                return false;
+        }
+
+        RefreshTimelineColumnWidths();
+        return true;
+    }
+
+    private int CountVisibleTimelineColumns()
+    {
+        var count = 0;
+        if (_showTimelineTimeColumn)
+        {
+            count++;
+        }
+
+        if (_showTimelineFrameColumn)
+        {
+            count++;
+        }
+
+        if (_showTimelineTextColumn)
+        {
+            count++;
+        }
+
+        if (_showTimelineDetailColumn)
+        {
+            count++;
+        }
+
+        if (_showTimelineConfidenceColumn)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private void RefreshTimelineColumnWidths()
+    {
+        TimelineTimeColumnActualWidth = _showTimelineTimeColumn ? TimelineTimeColumnWidth : new GridLength(0);
+        TimelineFrameColumnActualWidth = _showTimelineFrameColumn ? TimelineFrameColumnWidth : new GridLength(0);
+        TimelineTextColumnActualWidth = _showTimelineTextColumn ? TimelineTextColumnWidth : new GridLength(0);
+        TimelineDetailColumnActualWidth = _showTimelineDetailColumn ? TimelineDetailColumnWidth : new GridLength(0);
+        TimelineConfidenceColumnActualWidth = _showTimelineConfidenceColumn ? TimelineConfidenceColumnWidth : new GridLength(0);
+
+        TimelineTimeSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineTimeColumn, _showTimelineFrameColumn, _showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineConfidenceColumn)
+            ? new GridLength(8)
+            : new GridLength(0);
+        TimelineFrameSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineFrameColumn, _showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineConfidenceColumn)
+            ? new GridLength(8)
+            : new GridLength(0);
+        TimelineTextSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineConfidenceColumn)
+            ? new GridLength(8)
+            : new GridLength(0);
+        TimelineDetailSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineDetailColumn, _showTimelineConfidenceColumn)
+            ? new GridLength(8)
+            : new GridLength(0);
+    }
+
+    private static bool ShouldShowTimelineSeparator(bool currentColumnVisible, params bool[] rightColumnsVisible)
+    {
+        return currentColumnVisible && rightColumnsVisible.Any(visible => visible);
     }
 
     private void UpdatePreviewImage()
