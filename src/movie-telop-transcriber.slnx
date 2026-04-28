@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="MovieTelopTranscriber.App/MovieTelopTranscriber.App.csproj" />
+  <Project Path="MovieTelopTranscriber.Ocr.Windows/MovieTelopTranscriber.Ocr.Windows.csproj" />
 </Solution>

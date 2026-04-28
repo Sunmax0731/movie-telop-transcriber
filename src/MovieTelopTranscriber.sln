@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieTelopTranscriber.App", "MovieTelopTranscriber.App\MovieTelopTranscriber.App.csproj", "{906C4468-BB8B-499C-9D56-100F6FE6921F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieTelopTranscriber.Ocr.Windows", "MovieTelopTranscriber.Ocr.Windows\MovieTelopTranscriber.Ocr.Windows.csproj", "{E8489C43-F434-4720-84D6-985198ED6B8A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{906C4468-BB8B-499C-9D56-100F6FE6921F}.Release|x64.Build.0 = Release|x64
 		{906C4468-BB8B-499C-9D56-100F6FE6921F}.Release|x86.ActiveCfg = Release|x64
 		{906C4468-BB8B-499C-9D56-100F6FE6921F}.Release|x86.Build.0 = Release|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Debug|Any CPU.Build.0 = Debug|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Debug|x64.ActiveCfg = Debug|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Debug|x64.Build.0 = Debug|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Debug|x86.ActiveCfg = Debug|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Debug|x86.Build.0 = Debug|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|Any CPU.ActiveCfg = Release|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|Any CPU.Build.0 = Release|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x64.ActiveCfg = Release|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x64.Build.0 = Release|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x86.ActiveCfg = Release|x64
+		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
