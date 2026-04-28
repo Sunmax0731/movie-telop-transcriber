@@ -11,9 +11,9 @@ public sealed partial class SettingsWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
 
-        Title = "Settings - Movie Telop Transcriber";
+        Title = "Settings & Output - Movie Telop Transcriber";
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Resize(new SizeInt32(560, 720));
+        AppWindow.Resize(new SizeInt32(740, 760));
     }
 
     public MainPageViewModel ViewModel { get; }

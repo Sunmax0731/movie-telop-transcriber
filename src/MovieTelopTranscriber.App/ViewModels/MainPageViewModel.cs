@@ -64,8 +64,6 @@ public partial class MainPageViewModel : ObservableObject
 
     public event EventHandler? SettingsWindowRequested;
 
-    public event EventHandler? ExportWindowRequested;
-
     [ObservableProperty]
     public partial LocalizedUiText UiText { get; set; } = LocalizedUiText.English;
 
@@ -379,19 +377,12 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenSettings()
+    private void OpenSettingsOutput()
     {
         SettingsWindowRequested?.Invoke(this, EventArgs.Empty);
-        StatusMessage = "Settings window is open.";
-    }
-
-    [RelayCommand]
-    private void OpenExport()
-    {
-        ExportWindowRequested?.Invoke(this, EventArgs.Empty);
         StatusMessage = _latestExport is null
-            ? "Export window is open. Run analysis to populate output paths."
-            : $"Export window is open. Latest export: {_latestExport.JsonPath}";
+            ? "Settings and output window is open. Run analysis to populate output paths."
+            : $"Settings and output window is open. Latest export: {_latestExport.JsonPath}";
     }
 
     private async Task LoadVideoAsync(string path)
