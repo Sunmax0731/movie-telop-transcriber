@@ -12,48 +12,48 @@
         </Grid.RowDefinitions>
 
         <StackPanel Spacing="4">
-            <TextBlock Text="Export" Style="{StaticResource AppPageTitleTextStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.UiText.ExportButton, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
             <TextBlock
-                Text="Generated JSON and CSV output paths for the latest run."
+                Text="{x:Bind ViewModel.UiText.ExportWindowDescription, Mode=OneWay}"
                 Style="{StaticResource AppSecondaryTextStyle}"
                 TextWrapping="WrapWholeWords" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Spacing="10">
             <TextBox
-                Header="Output directory"
+                Header="{x:Bind ViewModel.UiText.OutputDirectory, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}"
                 TextWrapping="Wrap" />
             <TextBox
-                Header="JSON"
+                Header="{x:Bind ViewModel.UiText.JsonOutput, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}"
                 TextWrapping="Wrap" />
             <TextBox
-                Header="Segments CSV"
+                Header="{x:Bind ViewModel.UiText.SegmentsCsv, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}"
                 TextWrapping="Wrap" />
             <TextBox
-                Header="Frames CSV"
+                Header="{x:Bind ViewModel.UiText.FramesCsv, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}"
                 TextWrapping="Wrap" />
             <TextBox
-                Header="Run log"
+                Header="{x:Bind ViewModel.UiText.RunLog, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
                 TextWrapping="Wrap" />
             <TextBox
-                Header="Run summary"
+                Header="{x:Bind ViewModel.UiText.RunSummary, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}"
                 TextWrapping="Wrap" />
         </StackPanel>
 
         <Grid Grid.Row="2">
-            <TextBlock Text="Latest result list" Style="{StaticResource AppSectionTitleTextStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.UiText.LatestResultList, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
             <ListView
                 Margin="0,30,0,0"
                 ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">

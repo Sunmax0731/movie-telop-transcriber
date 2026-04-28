@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MovieTelopTranscriber.App.Models;
@@ -22,6 +23,14 @@ public partial class MainPageViewModel : ObservableObject
     private readonly TelopSegmentMerger _segmentMerger = new();
     private readonly ExportPackageWriter _exportPackageWriter = new();
     private readonly RunLogWriter _runLogWriter = new();
+    private static readonly LanguageOption[] SupportedLanguageOptions =
+    [
+        new("ja", "日本語"),
+        new("en", "English"),
+        new("zh", "中文"),
+        new("ko", "한국어")
+    ];
+
     private IReadOnlyList<FrameAnalysisResult> _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
     private IReadOnlyList<SegmentRecord> _latestSegments = Array.Empty<SegmentRecord>();
     private VideoMetadata? _latestMetadata;
@@ -32,15 +41,20 @@ public partial class MainPageViewModel : ObservableObject
     public MainPageViewModel()
     {
         SettingItems = new ObservableCollection<SettingItem>();
+        LanguageOptions = new ObservableCollection<LanguageOption>(SupportedLanguageOptions);
         InfoCards = new ObservableCollection<InfoCardItem>();
         TimelineSegments = new ObservableCollection<TimelineSegment>();
         ResultRows = new ObservableCollection<ResultRow>();
 
+        SelectedLanguageOption = ResolveDefaultLanguageOption();
+        UiText = LocalizedUiText.ForLanguage(SelectedLanguageOption.Code);
         RefreshStaticCollections();
         ResetDynamicCollections();
     }
 
     public ObservableCollection<SettingItem> SettingItems { get; }
+
+    public ObservableCollection<LanguageOption> LanguageOptions { get; }
 
     public ObservableCollection<InfoCardItem> InfoCards { get; }
 
@@ -54,6 +68,9 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string WindowDescription { get; set; } = "WinUI 3 desktop shell for video input, frame extraction, and timeline-linked review.";
+
+    [ObservableProperty]
+    public partial LocalizedUiText UiText { get; set; } = LocalizedUiText.English;
 
     [ObservableProperty]
     public partial string VideoPath { get; set; } = string.Empty;
@@ -83,6 +100,9 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string FrameIntervalText { get; set; } = "1.0";
+
+    [ObservableProperty]
+    public partial LanguageOption SelectedLanguageOption { get; set; } = SupportedLanguageOptions[1];
 
     [ObservableProperty]
     public partial string DurationText { get; set; } = "-";
@@ -153,6 +173,18 @@ public partial class MainPageViewModel : ObservableObject
     partial void OnFrameIntervalTextChanged(string value)
     {
         RefreshStaticCollections();
+    }
+
+    partial void OnSelectedLanguageOptionChanged(LanguageOption value)
+    {
+        ApplyLanguageCulture(value);
+        UiText = LocalizedUiText.ForLanguage(value.Code);
+        RefreshStaticCollections();
+        RefreshInfoCards(
+            _latestMetadata,
+            _latestFrameExtractionResult?.Frames.Count ?? 0,
+            _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
+            _latestSegments.Count);
     }
 
     [RelayCommand]
@@ -422,9 +454,10 @@ public partial class MainPageViewModel : ObservableObject
     private void RefreshStaticCollections()
     {
         SettingItems.Clear();
-        SettingItems.Add(new SettingItem("Frame interval", $"{ParseFrameIntervalSeconds():F1} sec", "Default extraction interval."));
-        SettingItems.Add(new SettingItem("OCR engine", _frameAnalysisService.EngineName, "Set MOVIE_TELOP_OCR_WORKER to use an external JSON worker."));
-        SettingItems.Add(new SettingItem("Output", "work/runs/<run_id>", "Frames, OCR responses, and attributes are saved under the per-run work directory."));
+        SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} sec", UiText.FrameIntervalSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.Language, SelectedLanguageOption.DisplayName, UiText.LanguageSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, "work/runs/<run_id>", UiText.OutputSettingDescription));
     }
 
     private void ResetDynamicCollections()
@@ -449,13 +482,13 @@ public partial class MainPageViewModel : ObservableObject
     private void RefreshInfoCards(VideoMetadata? metadata, int frameCount, int detectionCount, int segmentCount)
     {
         InfoCards.Clear();
-        InfoCards.Add(new InfoCardItem("Video", metadata?.FileName ?? "Not selected", "Current source video"));
-        InfoCards.Add(new InfoCardItem("Frames", frameCount.ToString(), "Extracted frame count"));
-        InfoCards.Add(new InfoCardItem("OCR", $"{detectionCount} detections", OcrEngineText));
-        InfoCards.Add(new InfoCardItem("Segments", segmentCount.ToString(), "Merged telop segments"));
-        InfoCards.Add(new InfoCardItem("Export", ExportDirectoryText, "JSON and CSV output directory"));
-        InfoCards.Add(new InfoCardItem("Log", LogDirectoryText, "Run log directory"));
-        InfoCards.Add(new InfoCardItem("Work", WorkDirectoryText, "Current output directory"));
+        InfoCards.Add(new InfoCardItem(UiText.VideoInfoTitle, metadata?.FileName ?? "Not selected", UiText.VideoInfoDescription));
+        InfoCards.Add(new InfoCardItem(UiText.FramesInfoTitle, frameCount.ToString(), UiText.FramesInfoDescription));
+        InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
+        InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
+        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription));
+        InfoCards.Add(new InfoCardItem(UiText.LogInfoTitle, LogDirectoryText, UiText.LogInfoDescription));
+        InfoCards.Add(new InfoCardItem(UiText.WorkInfoTitle, WorkDirectoryText, UiText.WorkInfoDescription));
     }
 
     private static string CreateStartStatus(AnalysisStartStage startStage)
@@ -554,5 +587,22 @@ public partial class MainPageViewModel : ObservableObject
         return double.TryParse(FrameIntervalText, out var seconds) && seconds > 0
             ? seconds
             : 1.0d;
+    }
+
+    private static LanguageOption ResolveDefaultLanguageOption()
+    {
+        var cultureName = CultureInfo.CurrentUICulture.Name;
+        var languageCode = cultureName.Split('-', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "en";
+        return SupportedLanguageOptions.FirstOrDefault(option => option.Code == languageCode)
+            ?? SupportedLanguageOptions[1];
+    }
+
+    private static void ApplyLanguageCulture(LanguageOption option)
+    {
+        var culture = CultureInfo.GetCultureInfo(option.Code);
+        CultureInfo.CurrentCulture = culture;
+        CultureInfo.CurrentUICulture = culture;
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
     }
 }

@@ -31,9 +31,9 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Movie Telop Transcriber" Style="{StaticResource AppPageTitleTextStyle}" />
+                    <TextBlock Text="{x:Bind ViewModel.UiText.AppTitle, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
                     <TextBlock
-                        Text="{x:Bind ViewModel.WindowDescription, Mode=OneWay}"
+                        Text="{x:Bind ViewModel.UiText.WindowDescription, Mode=OneWay}"
                         Style="{StaticResource AppSecondaryTextStyle}"
                         TextWrapping="WrapWholeWords" />
                 </StackPanel>
@@ -43,8 +43,8 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">
-                    <Button Command="{x:Bind ViewModel.OpenSettingsCommand}" Content="Settings" />
-                    <Button Command="{x:Bind ViewModel.OpenExportCommand}" Content="Export" />
+                    <Button Command="{x:Bind ViewModel.OpenSettingsCommand}" Content="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" />
+                    <Button Command="{x:Bind ViewModel.OpenExportCommand}" Content="{x:Bind ViewModel.UiText.ExportButton, Mode=OneWay}" />
                 </StackPanel>
 
                 <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnSpacing="8">
@@ -56,17 +56,17 @@
 
                     <AutoSuggestBox
                         Grid.Column="0"
-                        PlaceholderText="Select a video file or enter a path"
+                        PlaceholderText="{x:Bind ViewModel.UiText.PathPlaceholder, Mode=OneWay}"
                         Text="{x:Bind ViewModel.VideoPath, Mode=TwoWay}" />
-                    <Button Grid.Column="1" Command="{x:Bind ViewModel.SelectVideoCommand}" Content="Browse" />
-                    <Button Grid.Column="2" Command="{x:Bind ViewModel.StartAnalysisCommand}" Content="Extract" />
+                    <Button Grid.Column="1" Command="{x:Bind ViewModel.SelectVideoCommand}" Content="{x:Bind ViewModel.UiText.BrowseButton, Mode=OneWay}" />
+                    <Button Grid.Column="2" Command="{x:Bind ViewModel.StartAnalysisCommand}" Content="{x:Bind ViewModel.UiText.ExtractButton, Mode=OneWay}" />
                 </Grid>
             </Grid>
         </Border>
 
         <Grid Grid.Row="1" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="340" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="340" />
             </Grid.ColumnDefinitions>
@@ -89,9 +89,9 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Spacing="10">
-                            <TextBlock Text="Input" Style="{StaticResource AppSectionTitleTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.InputSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Supported formats" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                <TextBlock Text="{x:Bind ViewModel.UiText.SupportedFormats, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBlock
                                     Text="{x:Bind ViewModel.SupportedFormats, Mode=OneWay}"
                                     Style="{StaticResource AppSecondaryTextStyle}"
@@ -100,10 +100,24 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Spacing="10">
-                            <TextBlock Text="Settings" Style="{StaticResource AppSectionTitleTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.SettingsSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Frame interval (sec)" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                <TextBlock Text="{x:Bind ViewModel.UiText.FrameInterval, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBox Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Bind ViewModel.UiText.Language, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                <ComboBox
+                                    HorizontalAlignment="Stretch"
+                                    IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                                    ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
+                                    SelectedItem="{x:Bind ViewModel.SelectedLanguageOption, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:LanguageOption">
+                                            <TextBlock Text="{x:Bind DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
                                 <ItemsRepeater.ItemTemplate>
@@ -132,7 +146,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="2" Spacing="10">
-                            <TextBlock Text="Status" Style="{StaticResource AppSectionTitleTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.StatusSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.InfoCards, Mode=OneWay}">
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:InfoCardItem">
@@ -141,32 +155,19 @@
                                             Padding="10"
                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                             CornerRadius="6">
-                                            <Grid RowSpacing="3">
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto" />
-                                                    <RowDefinition Height="Auto" />
-                                                </Grid.RowDefinitions>
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock
-                                                        VerticalAlignment="Center"
-                                                        Text="{x:Bind Title}"
-                                                        Style="{StaticResource AppMetaLabelTextStyle}" />
-                                                    <TextBlock
-                                                        Grid.Column="1"
-                                                        Text="{x:Bind Value}"
-                                                        Style="{StaticResource AppMetaValueTextStyle}"
-                                                        TextWrapping="WrapWholeWords" />
-                                                </Grid>
+                                            <StackPanel Spacing="3">
                                                 <TextBlock
-                                                    Grid.Row="1"
+                                                    Text="{x:Bind Title}"
+                                                    Style="{StaticResource AppMetaLabelTextStyle}" />
+                                                <TextBlock
+                                                    Text="{x:Bind Value}"
+                                                    Style="{StaticResource AppMetaValueTextStyle}"
+                                                    TextWrapping="WrapWholeWords" />
+                                                <TextBlock
                                                     Text="{x:Bind Description}"
                                                     Style="{StaticResource AppSecondaryTextStyle}"
                                                     TextWrapping="WrapWholeWords" />
-                                            </Grid>
+                                            </StackPanel>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsRepeater.ItemTemplate>
@@ -200,11 +201,11 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Preview" Style="{StaticResource AppSectionTitleTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.PreviewSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <ToggleButton
                                 Grid.Column="1"
                                 IsChecked="{x:Bind ViewModel.ShowTimelineSelection, Mode=TwoWay}"
-                                Content="Sync timeline" />
+                                Content="{x:Bind ViewModel.UiText.SyncTimeline, Mode=OneWay}" />
                         </Grid>
 
                         <Border
@@ -219,13 +220,13 @@
                                 <FontIcon Glyph="&#xE714;" FontSize="32" />
                                 <TextBlock Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}" />
                                 <TextBlock
-                                    Text="Frame extraction shell"
+                                    Text="{x:Bind ViewModel.UiText.PreviewShell, Mode=OneWay}"
                                     Style="{StaticResource AppSecondaryTextStyle}" />
                             </StackPanel>
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6">
-                            <TextBlock Text="Selected item" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.SelectedItem, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <TextBlock
                                 Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
@@ -241,7 +242,7 @@
                     BorderThickness="1"
                     CornerRadius="8">
                     <Grid RowSpacing="12">
-                        <TextBlock Text="Timeline" Style="{StaticResource AppSectionTitleTextStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.UiText.Timeline, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <ListView
                             Margin="0,28,0,0"
                             ItemsSource="{x:Bind ViewModel.TimelineSegments, Mode=OneWay}"
@@ -283,7 +284,7 @@
                     </Grid.RowDefinitions>
 
                     <Grid>
-                        <TextBlock Text="Results" Style="{StaticResource AppSectionTitleTextStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.UiText.Results, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <ListView
                             Margin="0,28,0,0"
                             ItemsSource="{x:Bind ViewModel.ResultRows, Mode=OneWay}">
@@ -312,7 +313,7 @@
                     </Grid>
 
                     <StackPanel Grid.Row="1" Spacing="8">
-                        <TextBlock Text="Activity" Style="{StaticResource AppSectionTitleTextStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.UiText.Activity, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" />
                         <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
                         <Grid ColumnSpacing="8">
@@ -321,16 +322,16 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="Rerun frames" HorizontalAlignment="Stretch" />
-                            <Button Grid.Column="1" Command="{x:Bind ViewModel.RerunOcrCommand}" Content="Rerun OCR" HorizontalAlignment="Stretch" />
-                            <Button Grid.Column="2" Command="{x:Bind ViewModel.RerunExportCommand}" Content="Export only" HorizontalAlignment="Stretch" />
+                            <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                            <Button Grid.Column="1" Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                            <Button Grid.Column="2" Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
                         </Grid>
                         <Border
                             Padding="10"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                             CornerRadius="6">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Last failure" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                 <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
                                 <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 <TextBlock
