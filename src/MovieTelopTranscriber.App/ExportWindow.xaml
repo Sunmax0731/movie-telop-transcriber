@@ -40,6 +40,16 @@
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}"
                 TextWrapping="Wrap" />
+            <TextBox
+                Header="Run log"
+                IsReadOnly="True"
+                Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
+                TextWrapping="Wrap" />
+            <TextBox
+                Header="Run summary"
+                IsReadOnly="True"
+                Text="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}"
+                TextWrapping="Wrap" />
         </StackPanel>
 
         <Grid Grid.Row="2">

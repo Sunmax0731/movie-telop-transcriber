@@ -14,6 +14,7 @@ public partial class MainPageViewModel : ObservableObject
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
     private readonly TelopSegmentMerger _segmentMerger = new();
     private readonly ExportPackageWriter _exportPackageWriter = new();
+    private readonly RunLogWriter _runLogWriter = new();
     private IReadOnlyList<FrameAnalysisResult> _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
     private IReadOnlyList<SegmentRecord> _latestSegments = Array.Empty<SegmentRecord>();
     private ExportWriteResult? _latestExport;
@@ -104,6 +105,15 @@ public partial class MainPageViewModel : ObservableObject
     public partial string FramesCsvOutputPathText { get; set; } = "-";
 
     [ObservableProperty]
+    public partial string LogDirectoryText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string RunLogPathText { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string RunSummaryPathText { get; set; } = "-";
+
+    [ObservableProperty]
     public partial TimelineSegment? SelectedTimelineSegment { get; set; }
 
     public string SelectedSegmentSummary =>
@@ -173,6 +183,7 @@ public partial class MainPageViewModel : ObservableObject
 
         try
         {
+            var startedAt = DateTimeOffset.Now;
             var stopwatch = Stopwatch.StartNew();
             var metadata = await _videoProcessingService.ReadMetadataAsync(VideoPath);
             var progress = new Progress<double>(value => ProgressValue = value * 0.6d);
@@ -212,9 +223,26 @@ public partial class MainPageViewModel : ObservableObject
             SegmentsCsvOutputPathText = _latestExport.SegmentsCsvPath;
             FramesCsvOutputPathText = _latestExport.FramesCsvPath;
 
+            var logWriteResult = await _runLogWriter.WriteSuccessAsync(
+                result,
+                metadata,
+                _latestExport,
+                intervalSeconds,
+                OcrEngineText,
+                startedAt,
+                DateTimeOffset.Now,
+                result.Frames.Count,
+                detectionCount,
+                _latestSegments.Count,
+                warningCount,
+                errorCount);
+            LogDirectoryText = logWriteResult.LogsDirectory;
+            RunLogPathText = logWriteResult.LogPath;
+            RunSummaryPathText = logWriteResult.SummaryPath;
+
             SelectedTimelineSegment = TimelineSegments.FirstOrDefault();
             PreviewState = _latestSegments.Count > 0 ? $"Created {_latestSegments.Count} segments" : "No telop segments";
-            ActivityMessage = $"Saved {result.Frames.Count} frames, {detectionCount} detections, and {_latestSegments.Count} segments to {_latestExport.OutputDirectory}.";
+            ActivityMessage = $"Saved {result.Frames.Count} frames, {detectionCount} detections, {_latestSegments.Count} segments, and run logs under {result.RunDirectory}.";
             StatusMessage = errorCount == 0
                 ? $"Analysis and export completed. Run ID: {result.RunId}"
                 : $"Analysis exported with {errorCount} OCR error(s). Run ID: {result.RunId}";
@@ -270,6 +298,9 @@ public partial class MainPageViewModel : ObservableObject
             JsonOutputPathText = "-";
             SegmentsCsvOutputPathText = "-";
             FramesCsvOutputPathText = "-";
+            LogDirectoryText = "-";
+            RunLogPathText = "-";
+            RunSummaryPathText = "-";
             _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
             _latestSegments = Array.Empty<SegmentRecord>();
             _latestExport = null;
@@ -311,6 +342,9 @@ public partial class MainPageViewModel : ObservableObject
         JsonOutputPathText = "-";
         SegmentsCsvOutputPathText = "-";
         FramesCsvOutputPathText = "-";
+        LogDirectoryText = "-";
+        RunLogPathText = "-";
+        RunSummaryPathText = "-";
         RefreshInfoCards(null, 0, 0, 0);
         TimelineSegments.Clear();
         ResultRows.Clear();
@@ -327,6 +361,7 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem("OCR", $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem("Segments", segmentCount.ToString(), "Merged telop segments"));
         InfoCards.Add(new InfoCardItem("Export", ExportDirectoryText, "JSON and CSV output directory"));
+        InfoCards.Add(new InfoCardItem("Log", LogDirectoryText, "Run log directory"));
         InfoCards.Add(new InfoCardItem("Work", WorkDirectoryText, "Current output directory"));
     }
 
