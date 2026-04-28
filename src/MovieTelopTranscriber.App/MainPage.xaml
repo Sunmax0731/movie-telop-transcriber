@@ -34,7 +34,7 @@
                     Text="{x:Bind ViewModel.VideoPath, Mode=TwoWay}" />
                 <Button Grid.Column="1" MinWidth="88" Command="{x:Bind ViewModel.SelectVideoCommand}" Content="{x:Bind ViewModel.UiText.BrowseButton, Mode=OneWay}" />
                 <Button Grid.Column="2" MinWidth="88" Command="{x:Bind ViewModel.StartAnalysisCommand}" Content="{x:Bind ViewModel.UiText.ExtractButton, Mode=OneWay}" />
-                <Button Grid.Column="3" MinWidth="136" Command="{x:Bind ViewModel.OpenSettingsOutputCommand}" Content="{x:Bind ViewModel.UiText.SettingsOutputButton, Mode=OneWay}" />
+                <Button Grid.Column="3" MinWidth="88" Command="{x:Bind ViewModel.OpenSettingsOutputCommand}" Content="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" />
             </Grid>
         </Border>
 
