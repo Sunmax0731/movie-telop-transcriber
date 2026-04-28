@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import traceback
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,36 @@ class PaddleOcrWorker:
             os.environ.get("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA"),
             True,
         )
+        self._preprocess = parse_bool(os.environ.get("MOVIE_TELOP_PADDLEOCR_PREPROCESS"), True)
+        self._preprocess_upscale = clamp_float(
+            parse_float(os.environ.get("MOVIE_TELOP_PADDLEOCR_UPSCALE"), 1.5),
+            1.0,
+            4.0,
+        )
+        self._preprocess_contrast = clamp_float(
+            parse_float(os.environ.get("MOVIE_TELOP_PADDLEOCR_CONTRAST"), 1.1),
+            0.1,
+            4.0,
+        )
+        self._preprocess_sharpen = parse_bool(os.environ.get("MOVIE_TELOP_PADDLEOCR_SHARPEN"), True)
+        self._text_det_thresh = parse_float(os.environ.get("MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH"), None)
+        self._text_det_box_thresh = parse_float(os.environ.get("MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH"), None)
+        self._text_det_unclip_ratio = parse_float(
+            os.environ.get("MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO"),
+            None,
+        )
+        self._text_det_limit_side_len = parse_int(
+            os.environ.get("MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN"),
+            None,
+        )
+        self._use_textline_orientation = parse_bool(
+            os.environ.get("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION"),
+            False,
+        )
+        self._use_doc_unwarping = parse_bool(
+            os.environ.get("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING"),
+            False,
+        )
 
     def process_file(self, request_path: str, response_path: str) -> None:
         try:
@@ -108,9 +139,17 @@ class PaddleOcrWorker:
 
         lang = resolve_language(request.get("language_hint", ""))
         ocr = self._get_model(lang)
-        result = ocr.predict(image_path)
-        payload = extract_result_payload(result)
-        detections = self._create_detections(request, payload, lang)
+        ocr_image_path, coordinate_scale, temporary_image_path = self._prepare_image_for_ocr(image_path)
+        try:
+            result = ocr.predict(ocr_image_path)
+            payload = extract_result_payload(result)
+            detections = self._create_detections(request, payload, lang, coordinate_scale)
+        finally:
+            if temporary_image_path:
+                try:
+                    Path(temporary_image_path).unlink(missing_ok=True)
+                except OSError:
+                    pass
 
         return {
             "request_id": request.get("request_id", ""),
@@ -123,19 +162,68 @@ class PaddleOcrWorker:
 
     def _get_model(self, lang: str) -> Any:
         if lang not in self._models:
-            self._models[lang] = self._paddle_ocr_type(
-                lang=lang,
-                ocr_version=self._version,
-                device=self._device,
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                use_textline_orientation=False,
-                text_rec_score_thresh=0.0,
-            )
+            kwargs = {
+                "lang": lang,
+                "ocr_version": self._version,
+                "device": self._device,
+                "use_doc_orientation_classify": False,
+                "use_doc_unwarping": self._use_doc_unwarping,
+                "use_textline_orientation": self._use_textline_orientation,
+                "text_rec_score_thresh": 0.0,
+            }
+            if self._text_det_thresh is not None:
+                kwargs["text_det_thresh"] = self._text_det_thresh
+            if self._text_det_box_thresh is not None:
+                kwargs["text_det_box_thresh"] = self._text_det_box_thresh
+            if self._text_det_unclip_ratio is not None:
+                kwargs["text_det_unclip_ratio"] = self._text_det_unclip_ratio
+            if self._text_det_limit_side_len is not None:
+                kwargs["text_det_limit_side_len"] = self._text_det_limit_side_len
+
+            self._models[lang] = self._paddle_ocr_type(**kwargs)
 
         return self._models[lang]
 
-    def _create_detections(self, request: dict[str, Any], payload: dict[str, Any], lang: str) -> list[dict[str, Any]]:
+    def _prepare_image_for_ocr(self, image_path: str) -> tuple[str, float, str | None]:
+        if not self._preprocess:
+            return image_path, 1.0, None
+
+        should_upscale = self._preprocess_upscale > 1.0
+        should_adjust_contrast = abs(self._preprocess_contrast - 1.0) > 0.001
+        if not should_upscale and not should_adjust_contrast and not self._preprocess_sharpen:
+            return image_path, 1.0, None
+
+        try:
+            from PIL import Image, ImageEnhance, ImageFilter
+
+            image = Image.open(image_path).convert("RGB")
+            if should_upscale:
+                resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS")
+                width = max(1, int(round(image.width * self._preprocess_upscale)))
+                height = max(1, int(round(image.height * self._preprocess_upscale)))
+                image = image.resize((width, height), resampling)
+
+            if should_adjust_contrast:
+                image = ImageEnhance.Contrast(image).enhance(self._preprocess_contrast)
+
+            if self._preprocess_sharpen:
+                image = image.filter(ImageFilter.UnsharpMask(radius=1.2, percent=140, threshold=3))
+
+            fd, temporary_path = tempfile.mkstemp(prefix="movie_telop_ocr_", suffix=".png")
+            os.close(fd)
+            image.save(temporary_path)
+            return temporary_path, self._preprocess_upscale if should_upscale else 1.0, temporary_path
+        except Exception as exc:  # noqa: BLE001 - fall back to original frames when preprocessing fails.
+            print(f"PaddleOCR preprocessing skipped: {exc}", file=sys.stderr)
+            return image_path, 1.0, None
+
+    def _create_detections(
+        self,
+        request: dict[str, Any],
+        payload: dict[str, Any],
+        lang: str,
+        coordinate_scale: float,
+    ) -> list[dict[str, Any]]:
         texts = payload.get("rec_texts") or []
         scores = payload.get("rec_scores") or []
         polys = payload.get("rec_polys") or payload.get("dt_polys") or []
@@ -161,7 +249,7 @@ class PaddleOcrWorker:
                     "detection_id": f"paddleocr-{frame_index:06d}-{timestamp_ms:08d}ms-{index + 1:02d}",
                     "text": normalized_text,
                     "confidence": confidence,
-                    "bounding_box": to_bounding_points(polygon),
+                    "bounding_box": to_bounding_points(polygon, coordinate_scale),
                 }
             )
 
@@ -195,6 +283,33 @@ def parse_bool(value: str | None, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     return default
+
+
+def parse_float(value: str | None, default: float | None) -> float | None:
+    if value is None or not value.strip():
+        return default
+
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def parse_int(value: str | None, default: int | None) -> int | None:
+    if value is None or not value.strip():
+        return default
+
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def clamp_float(value: float | None, minimum: float, maximum: float) -> float:
+    if value is None:
+        return minimum
+
+    return max(minimum, min(maximum, value))
 
 
 def normalize_japanese_small_kana(text: str) -> str:
@@ -268,16 +383,19 @@ def extract_result_payload(result: Any) -> dict[str, Any]:
     return payload
 
 
-def to_bounding_points(polygon: Any) -> list[dict[str, float]]:
+def to_bounding_points(polygon: Any, coordinate_scale: float = 1.0) -> list[dict[str, float]]:
     points = to_plain_list(polygon)
     if not points:
         return []
 
     bounding_points: list[dict[str, float]] = []
+    scale = coordinate_scale if coordinate_scale > 0 else 1.0
     for point in points:
         if len(point) < 2:
             continue
-        bounding_points.append({"x": to_float(point[0]) or 0.0, "y": to_float(point[1]) or 0.0})
+        x = (to_float(point[0]) or 0.0) / scale
+        y = (to_float(point[1]) or 0.0) / scale
+        bounding_points.append({"x": x, "y": y})
 
     return bounding_points
 
