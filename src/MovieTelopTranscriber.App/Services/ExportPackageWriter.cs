@@ -45,7 +45,7 @@ public sealed class ExportPackageWriter
         var jsonPath = Path.Combine(outputDirectory, "segments.json");
         await using (var stream = File.Create(jsonPath))
         {
-            await JsonSerializer.SerializeAsync(stream, package, OcrContractJson.Options, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, package, OcrContractJson.ExportPackage, cancellationToken);
         }
 
         var segmentsCsvPath = Path.Combine(outputDirectory, "segments.csv");

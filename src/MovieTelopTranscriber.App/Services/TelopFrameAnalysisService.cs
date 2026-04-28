@@ -70,7 +70,7 @@ public sealed class TelopFrameAnalysisService
     {
         var path = Path.Combine(attributesDirectory, $"{requestId}.attributes.json");
         await using var stream = File.Create(path);
-        await JsonSerializer.SerializeAsync(stream, attributeResult, OcrContractJson.Options, cancellationToken);
+        await JsonSerializer.SerializeAsync(stream, attributeResult, OcrContractJson.AttributeAnalysisResult, cancellationToken);
     }
 
     private static string CreateRequestId(ExtractedFrameRecord frame)
