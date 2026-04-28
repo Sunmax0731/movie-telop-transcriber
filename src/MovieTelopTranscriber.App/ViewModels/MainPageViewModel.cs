@@ -1284,6 +1284,16 @@ public partial class MainPageViewModel : ObservableObject
             var detectionCount = _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count);
             var errorCount = _latestFrameAnalyses.Count(analysis => analysis.Ocr.Status == "error");
             var warningCount = _latestFrameAnalyses.Count(analysis => analysis.Ocr.Status == "warning");
+            var firstOcrError = _latestFrameAnalyses
+                .Select(analysis => analysis.Ocr.Error)
+                .FirstOrDefault(error => error is not null);
+            if (firstOcrError is not null)
+            {
+                LastFailedStageText = "OCR";
+                LastErrorCodeText = firstOcrError.Code;
+                LastErrorMessageText = firstOcrError.Message;
+            }
+
             PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
 
             currentStage = "Output";
@@ -1332,7 +1342,9 @@ public partial class MainPageViewModel : ObservableObject
                 PreviewState = _latestSegments.Count > 0 ? $"Created {_latestSegments.Count} segments" : "No telop segments";
             }
 
-            ActivityMessage = $"Saved {result.Frames.Count} frames, {detectionCount} detections, {_latestSegments.Count} segments, and run logs under {result.RunDirectory}.";
+            ActivityMessage = firstOcrError is null
+                ? $"Saved {result.Frames.Count} frames, {detectionCount} detections, {_latestSegments.Count} segments, and run logs under {result.RunDirectory}."
+                : $"Saved {result.Frames.Count} frames with {errorCount} OCR error(s). Latest error: {firstOcrError.Code}. Run directory: {result.RunDirectory}.";
             StatusMessage = errorCount == 0
                 ? $"Analysis and export completed. Run ID: {result.RunId}"
                 : $"Analysis exported with {errorCount} OCR error(s). Run ID: {result.RunId}";

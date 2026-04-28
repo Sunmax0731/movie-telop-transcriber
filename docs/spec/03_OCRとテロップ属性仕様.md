@@ -82,9 +82,10 @@
 
 ### 1.6.1 初期実装状態
 - GUI 本体は `IOcrWorkerClient` 経由で OCR ワーカーへ接続する。
+- `MOVIE_TELOP_OCR_ENGINE=paddleocr` の場合、または OCR エンジン未指定かつ外部 worker 未指定の場合は `PaddleOcrWorkerClient` を使う。
 - 外部 OCR ワーカーは `MOVIE_TELOP_OCR_WORKER` 環境変数で差し替え可能とする。
-- 外部ワーカー未設定時は、抽出フレームと同名の `.ocr.json` サイドカーを読み込む。
-- サイドカーがない場合は空検出の `success` 応答を作成し、フレーム抽出後の OCR / 属性解析フローを継続する。
+- `json-sidecar` 検証を行う場合は `MOVIE_TELOP_OCR_ENGINE=json-sidecar` を明示し、抽出フレームと同名の `.ocr.json` サイドカーを読み込む。
+- `json-sidecar` 検証時に sidecar がない場合は `OCR_SIDECAR_NOT_FOUND` の `error` 応答を作成し、OCR 未実行を空検出の正常完了として扱わない。
 - 実 OCR エンジンの配布形態とモデル同梱範囲は未確定であり、テスト工程とリリース工程で再評価する。
 
 ### 1.7 実装前に確認する項目
