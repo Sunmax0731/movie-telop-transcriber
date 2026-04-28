@@ -23,6 +23,7 @@ internal static class OcrContractJson
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     WriteIndented = true)]
 [JsonSerializable(typeof(AttributeAnalysisResult))]
+[JsonSerializable(typeof(EditOperationRecord))]
 [JsonSerializable(typeof(ExportPackage))]
 [JsonSerializable(typeof(FrameExportRecord))]
 [JsonSerializable(typeof(OcrBoundingPoint))]

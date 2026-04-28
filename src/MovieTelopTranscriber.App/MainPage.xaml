@@ -311,23 +311,37 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{x:Bind ViewModel.UiText.Timeline, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <Button
                             Grid.Column="1"
-                            Width="76"
+                            Width="72"
                             Click="OnCopyTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineCopy, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
                         <Button
                             Grid.Column="2"
-                            Width="76"
+                            Width="72"
                             Click="OnEditTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineEdit, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
                         <Button
                             Grid.Column="3"
-                            Width="76"
+                            Width="72"
+                            Click="OnMergeTimelineClicked"
+                            Content="{x:Bind ViewModel.UiText.TimelineMerge, Mode=OneWay}"
+                            Visibility="Collapsed" />
+                        <Button
+                            Grid.Column="4"
+                            Width="72"
+                            Click="OnSplitTimelineClicked"
+                            Content="{x:Bind ViewModel.UiText.TimelineSplit, Mode=OneWay}"
+                            Visibility="Collapsed" />
+                        <Button
+                            Grid.Column="5"
+                            Width="72"
                             Click="OnDeleteTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineDelete, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />

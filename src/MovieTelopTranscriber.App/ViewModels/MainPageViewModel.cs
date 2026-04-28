@@ -60,6 +60,7 @@ public partial class MainPageViewModel : ObservableObject
 
     private IReadOnlyList<FrameAnalysisResult> _latestFrameAnalyses = Array.Empty<FrameAnalysisResult>();
     private IReadOnlyList<SegmentRecord> _latestSegments = Array.Empty<SegmentRecord>();
+    private readonly List<EditOperationRecord> _timelineEdits = new();
     private VideoMetadata? _latestMetadata;
     private FrameExtractionResult? _latestFrameExtractionResult;
     private ExportWriteResult? _latestExport;
@@ -68,6 +69,7 @@ public partial class MainPageViewModel : ObservableObject
     private bool _isUpdatingPreviewSequence;
     private readonly DispatcherQueue? _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private ProgressFrameState? _activeProgressFrameState;
+    private int _manualEditSequence;
 
     public MainPageViewModel()
     {
@@ -606,6 +608,43 @@ public partial class MainPageViewModel : ObservableObject
         DeleteTimelineSegment(SelectedTimelineSegment);
     }
 
+    [RelayCommand]
+    private void MergeSelectedTimelineSegment()
+    {
+        if (SelectedTimelineSegment?.CanEdit != true)
+        {
+            StatusMessage = "Select an editable telop row before merging.";
+            return;
+        }
+
+        var next = FindNextEditableTimelineSegment(SelectedTimelineSegment);
+        if (next is null)
+        {
+            StatusMessage = "No next editable telop row is available to merge.";
+            return;
+        }
+
+        MergeTimelineSegments(SelectedTimelineSegment, next);
+    }
+
+    [RelayCommand]
+    private void SplitSelectedTimelineSegment()
+    {
+        if (SelectedTimelineSegment?.CanEdit != true)
+        {
+            StatusMessage = "Select an editable telop row before splitting.";
+            return;
+        }
+
+        if (!TrySplitText(SelectedTimelineSegment.Text, out var firstText, out var secondText))
+        {
+            StatusMessage = "Selected telop text is too short to split.";
+            return;
+        }
+
+        SplitTimelineSegment(SelectedTimelineSegment, firstText, secondText);
+    }
+
     public void CommitTimelineTextEdit(TimelineSegment? segment)
     {
         if (segment is null)
@@ -621,7 +660,16 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
+        var originalText = ResolveCurrentText(segment) ?? segment.Text;
+        if (string.Equals(originalText, newText, StringComparison.Ordinal))
+        {
+            segment.IsEditing = false;
+            StatusMessage = "Telop text was not changed.";
+            return;
+        }
+
         ApplyTimelineTextChange(segment, newText);
+        AddEditRecord("edit", segment, null, originalText, newText, "timeline text edit");
         segment.Text = newText;
         segment.IsEditing = false;
         OnPropertyChanged(nameof(SelectedSegmentSummary));
@@ -718,7 +766,194 @@ public partial class MainPageViewModel : ObservableObject
             _latestFrameExtractionResult?.Frames.Count ?? 0,
             _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
             _latestSegments.Count);
+        AddEditRecord("delete", segment, null, segment.Text, null, "timeline row delete");
         StatusMessage = "Deleted selected telop. Use Export only to write the updated output files.";
+    }
+
+    private TimelineSegment? FindNextEditableTimelineSegment(TimelineSegment segment)
+    {
+        var currentIndex = TimelineSegments.IndexOf(segment);
+        if (currentIndex < 0)
+        {
+            return null;
+        }
+
+        return TimelineSegments
+            .Skip(currentIndex + 1)
+            .FirstOrDefault(row => row.CanEdit);
+    }
+
+    private void MergeTimelineSegments(TimelineSegment first, TimelineSegment second)
+    {
+        var mergedText = NormalizeMergedText(first.Text, second.Text);
+        if (!string.IsNullOrWhiteSpace(first.SegmentId) && !string.IsNullOrWhiteSpace(second.SegmentId))
+        {
+            var firstSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, first.SegmentId, StringComparison.Ordinal));
+            var secondSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, second.SegmentId, StringComparison.Ordinal));
+            if (firstSegment is null || secondSegment is null)
+            {
+                StatusMessage = "Could not find selected segments to merge.";
+                return;
+            }
+
+            var mergedSegment = firstSegment with
+            {
+                EndTimestampMs = Math.Max(firstSegment.EndTimestampMs, secondSegment.EndTimestampMs),
+                Text = mergedText,
+                TextType = string.Equals(firstSegment.TextType, secondSegment.TextType, StringComparison.Ordinal)
+                    ? firstSegment.TextType
+                    : "edited",
+                Confidence = AverageConfidence(firstSegment.Confidence, secondSegment.Confidence),
+                SourceFrameCount = firstSegment.SourceFrameCount + secondSegment.SourceFrameCount
+            };
+            _latestSegments = _latestSegments
+                .Select(item => string.Equals(item.SegmentId, firstSegment.SegmentId, StringComparison.Ordinal) ? mergedSegment : item)
+                .Where(item => !string.Equals(item.SegmentId, secondSegment.SegmentId, StringComparison.Ordinal))
+                .ToArray();
+        }
+
+        if (string.IsNullOrWhiteSpace(first.SegmentId) && !string.IsNullOrWhiteSpace(first.DetectionId))
+        {
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => ReplaceDetectionText(analysis, first.DetectionId, mergedText))
+                .ToArray();
+        }
+
+        if (string.IsNullOrWhiteSpace(second.SegmentId) && !string.IsNullOrWhiteSpace(second.DetectionId))
+        {
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => RemoveDetection(analysis, second.DetectionId))
+                .ToArray();
+        }
+
+        AddEditRecord("merge", first, second, $"{first.Text.Trim()} | {second.Text.Trim()}", mergedText, "merged selected row with next row");
+        RebuildTimelineAndResults(first.SegmentId, first.DetectionId);
+        StatusMessage = "Merged selected telop with the next row. Use Export only to write the updated output files.";
+    }
+
+    private void SplitTimelineSegment(TimelineSegment segment, string firstText, string secondText)
+    {
+        string? secondSegmentId = null;
+        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        {
+            var sourceSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal));
+            if (sourceSegment is null)
+            {
+                StatusMessage = "Could not find selected segment to split.";
+                return;
+            }
+
+            var midpointMs = sourceSegment.StartTimestampMs + ((sourceSegment.EndTimestampMs - sourceSegment.StartTimestampMs) / 2);
+            secondSegmentId = CreateManualId(sourceSegment.SegmentId, "split");
+            var firstSegment = sourceSegment with
+            {
+                EndTimestampMs = midpointMs,
+                Text = firstText,
+                SourceFrameCount = Math.Max(1, sourceSegment.SourceFrameCount / 2)
+            };
+            var secondSegment = sourceSegment with
+            {
+                SegmentId = secondSegmentId,
+                StartTimestampMs = midpointMs,
+                Text = secondText,
+                SourceFrameCount = Math.Max(1, sourceSegment.SourceFrameCount - firstSegment.SourceFrameCount)
+            };
+
+            var updatedSegments = new List<SegmentRecord>();
+            foreach (var item in _latestSegments)
+            {
+                if (string.Equals(item.SegmentId, sourceSegment.SegmentId, StringComparison.Ordinal))
+                {
+                    updatedSegments.Add(firstSegment);
+                    updatedSegments.Add(secondSegment);
+                }
+                else
+                {
+                    updatedSegments.Add(item);
+                }
+            }
+
+            _latestSegments = updatedSegments;
+        }
+
+        if (string.IsNullOrWhiteSpace(segment.SegmentId) && !string.IsNullOrWhiteSpace(segment.DetectionId))
+        {
+            var secondDetectionId = CreateManualId(segment.DetectionId, "split");
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => SplitDetection(analysis, segment.DetectionId, secondDetectionId, firstText, secondText))
+                .ToArray();
+        }
+
+        AddEditRecord("split", segment, null, segment.Text, $"{firstText} | {secondText}", "split selected row into two rows");
+        RebuildTimelineAndResults(segment.SegmentId, segment.DetectionId);
+        StatusMessage = "Split selected telop. Use Export only to write the updated output files.";
+    }
+
+    private void RebuildTimelineAndResults(string? preferredSegmentId, string? preferredDetectionId)
+    {
+        TimelineSegments.Clear();
+        ResultRows.Clear();
+        PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
+
+        var nextSelection = TimelineSegments.FirstOrDefault(row => SelectionKeysMatch(
+                row.FrameIndex,
+                row.TimestampMs,
+                row.SegmentId,
+                row.DetectionId,
+                null,
+                null,
+                preferredSegmentId,
+                preferredDetectionId))
+            ?? TimelineSegments.FirstOrDefault();
+        SelectedTimelineSegment = nextSelection;
+        RefreshInfoCards(
+            _latestMetadata,
+            _latestFrameExtractionResult?.Frames.Count ?? 0,
+            _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
+            _latestSegments.Count);
+    }
+
+    private string? ResolveCurrentText(TimelineSegment segment)
+    {
+        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        {
+            var sourceSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal));
+            if (sourceSegment is not null)
+            {
+                return sourceSegment.Text;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
+        {
+            return _latestFrameAnalyses
+                .SelectMany(analysis => analysis.Ocr.Detections)
+                .FirstOrDefault(detection => string.Equals(detection.DetectionId, segment.DetectionId, StringComparison.Ordinal))
+                ?.Text;
+        }
+
+        return null;
+    }
+
+    private void AddEditRecord(
+        string operation,
+        TimelineSegment target,
+        TimelineSegment? related,
+        string? originalText,
+        string? updatedText,
+        string notes)
+    {
+        _timelineEdits.Add(new EditOperationRecord(
+            operation,
+            target.SegmentId ?? target.DetectionId ?? target.RangeLabel,
+            related?.SegmentId ?? related?.DetectionId,
+            target.DetectionId,
+            originalText,
+            updatedText,
+            target.TimestampMs,
+            null,
+            DateTimeOffset.Now,
+            notes));
     }
 
     private void ReplaceMatchingResultRow(TimelineSegment segment, Func<ResultRow, ResultRow> replace)
@@ -761,6 +996,69 @@ public partial class MainPageViewModel : ObservableObject
         return -1;
     }
 
+    private static string NormalizeMergedText(string first, string second)
+    {
+        return string.Join(
+            " ",
+            new[] { first.Trim(), second.Trim() }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static double? AverageConfidence(double? first, double? second)
+    {
+        return (first, second) switch
+        {
+            ({ } left, { } right) => (left + right) / 2d,
+            ({ } left, null) => left,
+            (null, { } right) => right,
+            _ => null
+        };
+    }
+
+    private string CreateManualId(string baseId, string operation)
+    {
+        _manualEditSequence++;
+        return $"{baseId}-{operation}-{_manualEditSequence:D3}";
+    }
+
+    private static bool TrySplitText(string text, out string firstText, out string secondText)
+    {
+        var trimmed = text.Trim();
+        var lines = trimmed
+            .Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+        if (lines.Length >= 2)
+        {
+            firstText = lines[0];
+            secondText = string.Join(" ", lines.Skip(1));
+            return true;
+        }
+
+        var words = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (words.Length >= 2)
+        {
+            var splitIndex = Math.Max(1, words.Length / 2);
+            firstText = string.Join(' ', words.Take(splitIndex));
+            secondText = string.Join(' ', words.Skip(splitIndex));
+            return !string.IsNullOrWhiteSpace(firstText) && !string.IsNullOrWhiteSpace(secondText);
+        }
+
+        var textElementIndexes = StringInfo.ParseCombiningCharacters(trimmed);
+        if (textElementIndexes.Length < 2)
+        {
+            firstText = string.Empty;
+            secondText = string.Empty;
+            return false;
+        }
+
+        var midpointElement = textElementIndexes.Length / 2;
+        var splitAt = textElementIndexes[midpointElement];
+        firstText = trimmed[..splitAt].Trim();
+        secondText = trimmed[splitAt..].Trim();
+        return !string.IsNullOrWhiteSpace(firstText) && !string.IsNullOrWhiteSpace(secondText);
+    }
+
     private static FrameAnalysisResult ReplaceDetectionText(
         FrameAnalysisResult analysis,
         string detectionId,
@@ -782,6 +1080,71 @@ public partial class MainPageViewModel : ObservableObject
             Ocr = analysis.Ocr with { Detections = ocrDetections },
             Attributes = analysis.Attributes with { Detections = attributeDetections }
         };
+    }
+
+    private static FrameAnalysisResult SplitDetection(
+        FrameAnalysisResult analysis,
+        string detectionId,
+        string secondDetectionId,
+        string firstText,
+        string secondText)
+    {
+        var ocrDetections = SplitDetectionRecords(
+            analysis.Ocr.Detections,
+            detectionId,
+            secondDetectionId,
+            firstText,
+            secondText,
+            detection => detection with { Text = firstText },
+            detection => detection with { DetectionId = secondDetectionId, Text = secondText });
+        var attributeDetections = SplitDetectionRecords(
+            analysis.Attributes.Detections,
+            detectionId,
+            secondDetectionId,
+            firstText,
+            secondText,
+            detection => detection with { Text = firstText },
+            detection => detection with { DetectionId = secondDetectionId, Text = secondText });
+
+        return analysis with
+        {
+            Ocr = analysis.Ocr with { Detections = ocrDetections },
+            Attributes = analysis.Attributes with { Detections = attributeDetections }
+        };
+    }
+
+    private static IReadOnlyList<TDetection> SplitDetectionRecords<TDetection>(
+        IReadOnlyList<TDetection> detections,
+        string detectionId,
+        string secondDetectionId,
+        string firstText,
+        string secondText,
+        Func<TDetection, TDetection> createFirst,
+        Func<TDetection, TDetection> createSecond)
+        where TDetection : notnull
+    {
+        var updated = new List<TDetection>();
+        foreach (var detection in detections)
+        {
+            var id = detection switch
+            {
+                OcrDetectionRecord ocr => ocr.DetectionId,
+                TelopAttributeRecord attribute => attribute.DetectionId,
+                _ => string.Empty
+            };
+
+            if (string.Equals(id, detectionId, StringComparison.Ordinal))
+            {
+                updated.Add(createFirst(detection));
+                updated.Add(createSecond(detection));
+            }
+            else
+            {
+                updated.Add(detection);
+            }
+        }
+
+        return updated;
     }
 
     private static FrameAnalysisResult RemoveDetection(FrameAnalysisResult analysis, string detectionId)
@@ -840,6 +1203,11 @@ public partial class MainPageViewModel : ObservableObject
 
         ApplyPaddleOcrEnvironment();
         ClearPipelineFailure();
+        if (startStage != AnalysisStartStage.Export)
+        {
+            _timelineEdits.Clear();
+        }
+
         IsBusy = true;
         ProgressValue = 0;
         ProgressDetailText = "0%";
@@ -926,6 +1294,7 @@ public partial class MainPageViewModel : ObservableObject
                 result,
                 _latestFrameAnalyses,
                 _latestSegments,
+                _timelineEdits,
                 intervalSeconds,
                 OcrEngineText,
                 stopwatch.ElapsedMilliseconds,
@@ -1092,6 +1461,8 @@ public partial class MainPageViewModel : ObservableObject
         RunSummaryPathText = "-";
         ClearPipelineFailure();
         ProgressDetailText = "-";
+        _timelineEdits.Clear();
+        _manualEditSequence = 0;
         RefreshInfoCards(null, 0, 0, 0);
         TimelineSegments.Clear();
         ResultRows.Clear();
@@ -1681,10 +2052,20 @@ public partial class MainPageViewModel : ObservableObject
 
         if (!string.IsNullOrWhiteSpace(segmentId) && !string.IsNullOrWhiteSpace(selectedText))
         {
-            return TextsMatch(detection.Text, selectedText);
+            return TextsMatch(detection.Text, selectedText)
+                || DetectionTextBelongsToSelectedSegment(detection.Text, selectedText);
         }
 
         return false;
+    }
+
+    private static bool DetectionTextBelongsToSelectedSegment(string detectionText, string selectedText)
+    {
+        var normalizedDetection = NormalizeTextForSelection(detectionText);
+        var normalizedSelection = NormalizeTextForSelection(selectedText);
+        return normalizedDetection.Length > 0
+            && normalizedSelection.Length > normalizedDetection.Length
+            && normalizedSelection.Contains(normalizedDetection, StringComparison.Ordinal);
     }
 
     private static FrameAnalysisResult? FindPreviewAnalysisForSegment(
@@ -1746,10 +2127,7 @@ public partial class MainPageViewModel : ObservableObject
         return analysis.Ocr.Detections
             .Where(detection => TextsMatch(detection.Text, text))
             .OrderBy(GetTopY)
-            .FirstOrDefault()
-            ?? analysis.Ocr.Detections
-                .OrderBy(GetTopY)
-                .FirstOrDefault();
+            .FirstOrDefault();
     }
 
     private static double GetTopY(OcrDetectionRecord? detection)

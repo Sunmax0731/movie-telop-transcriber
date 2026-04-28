@@ -13,6 +13,7 @@ public sealed class ExportPackageWriter
         FrameExtractionResult frameExtractionResult,
         IReadOnlyList<FrameAnalysisResult> frameAnalyses,
         IReadOnlyList<SegmentRecord> segments,
+        IReadOnlyList<EditOperationRecord> edits,
         double frameIntervalSeconds,
         string ocrEngine,
         long? processingTimeMs,
@@ -35,6 +36,7 @@ public sealed class ExportPackageWriter
                     frame.Attributes.Detections))
                 .ToArray(),
             segments,
+            edits,
             new RunMetadataRecord(
                 DateTimeOffset.Now,
                 GetApplicationVersion(),
