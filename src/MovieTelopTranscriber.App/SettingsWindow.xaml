@@ -7,7 +7,7 @@
     <ScrollViewer>
         <StackPanel Padding="16" Spacing="16" Width="680">
             <StackPanel Spacing="4">
-                <TextBlock Text="{x:Bind ViewModel.UiText.SettingsOutputButton, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
+                <TextBlock Text="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
                 <TextBlock
                     Text="{x:Bind ViewModel.UiText.SettingsOutputWindowDescription, Mode=OneWay}"
                     Style="{StaticResource AppSecondaryTextStyle}"

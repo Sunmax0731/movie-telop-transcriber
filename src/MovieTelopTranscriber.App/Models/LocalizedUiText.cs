@@ -1,7 +1,7 @@
 namespace MovieTelopTranscriber.App.Models;
 
 public sealed record LocalizedUiText(
-    string SettingsOutputButton,
+    string SettingsButton,
     string PathPlaceholder,
     string BrowseButton,
     string ExtractButton,
@@ -67,7 +67,7 @@ public sealed record LocalizedUiText(
     }
 
     public static LocalizedUiText English { get; } = new(
-        "Settings & Output",
+        "Settings",
         "Select a video file or enter a path",
         "Browse",
         "Extract",
@@ -123,7 +123,7 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Japanese { get; } = English with
     {
-        SettingsOutputButton = "設定と出力",
+        SettingsButton = "設定",
         PathPlaceholder = "動画ファイルを選択またはパスを入力",
         BrowseButton = "参照",
         ExtractButton = "抽出",
@@ -180,7 +180,7 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Chinese { get; } = English with
     {
-        SettingsOutputButton = "设置和导出",
+        SettingsButton = "设置",
         PathPlaceholder = "选择视频文件或输入路径",
         BrowseButton = "浏览",
         ExtractButton = "提取",
@@ -236,7 +236,7 @@ public sealed record LocalizedUiText(
 
     private static LocalizedUiText Korean { get; } = English with
     {
-        SettingsOutputButton = "설정 및 출력",
+        SettingsButton = "설정",
         PathPlaceholder = "동영상 파일을 선택하거나 경로를 입력",
         BrowseButton = "찾아보기",
         ExtractButton = "추출",
