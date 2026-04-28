@@ -52,7 +52,7 @@ public sealed class TelopFrameAnalysisService
                 _ocrWorkerClient.EngineName);
 
             var ocrResponse = await _ocrWorkerClient.RecognizeAsync(request, ocrDirectory, cancellationToken);
-            var attributeResult = _attributeAnalysisService.Analyze(ocrResponse);
+            var attributeResult = _attributeAnalysisService.Analyze(ocrResponse, frame.ImagePath);
             await WriteAttributeResultAsync(attributesDirectory, request.RequestId, attributeResult, cancellationToken);
             results.Add(new FrameAnalysisResult(frame, ocrResponse, attributeResult));
 

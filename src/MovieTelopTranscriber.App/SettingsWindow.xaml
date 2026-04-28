@@ -5,19 +5,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:MovieTelopTranscriber.App.Models">
     <ScrollViewer
-        HorizontalScrollBarVisibility="Auto"
-        HorizontalScrollMode="Auto"
-        VerticalScrollBarVisibility="Auto"
-        VerticalScrollMode="Auto">
+        HorizontalScrollBarVisibility="Disabled"
+        HorizontalScrollMode="Disabled"
+        VerticalScrollBarVisibility="Disabled"
+        VerticalScrollMode="Disabled">
         <StackPanel Padding="16" Spacing="16" MinWidth="900">
-            <StackPanel Spacing="4">
-                <TextBlock Text="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
-                <TextBlock
-                    Text="{x:Bind ViewModel.UiText.SettingsOutputWindowDescription, Mode=OneWay}"
-                    Style="{StaticResource AppSecondaryTextStyle}"
-                    TextWrapping="WrapWholeWords" />
-            </StackPanel>
-
             <Grid ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="380" />
@@ -46,6 +38,24 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
+                        <StackPanel Spacing="4" ToolTipService.ToolTip="{x:Bind ViewModel.UiText.FrameIntervalSettingDescription, Mode=OneWay}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{x:Bind ViewModel.UiText.FrameInterval, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.FrameIntervalText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                            </Grid>
+                            <Slider
+                                Minimum="0.25"
+                                Maximum="10"
+                                StepFrequency="0.25"
+                                TickFrequency="1"
+                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                                SnapsTo="StepValues"
+                                Value="{x:Bind ViewModel.FrameIntervalValue, Mode=TwoWay}" />
+                        </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBox
                                 Header="{x:Bind ViewModel.UiText.OutputDirectory, Mode=OneWay}"
@@ -59,6 +69,11 @@
                                 Content="{x:Bind ViewModel.UiText.BrowseButton, Mode=OneWay}"
                                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" />
                         </StackPanel>
+                        <Button
+                            HorizontalAlignment="Stretch"
+                            Command="{x:Bind ViewModel.ResetSettingsDefaultsCommand}"
+                            Content="{x:Bind ViewModel.UiText.ResetDefaultsButton, Mode=OneWay}"
+                            IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" />
                     </StackPanel>
                 </Border>
 
@@ -70,19 +85,19 @@
                     BorderThickness="1"
                     CornerRadius="10">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="PaddleOCR" Style="{StaticResource AppSectionTitleTextStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.UiText.DetectionSettingsTitle, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <CheckBox
-                            Content="OCR 前処理を有効にする"
+                            Content="{x:Bind ViewModel.UiText.PaddlePreprocessLabel, Mode=OneWay}"
                             IsChecked="{x:Bind ViewModel.PaddlePreprocessEnabled, Mode=TwoWay}"
                             IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                            ToolTipService.ToolTip="フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。" />
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddlePreprocessDescription, Mode=OneWay}" />
                         <CheckBox
-                            Content="シャープ化"
+                            Content="{x:Bind ViewModel.UiText.PaddleSharpenLabel, Mode=OneWay}"
                             IsChecked="{x:Bind ViewModel.PaddleSharpenEnabled, Mode=TwoWay}"
                             IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                            ToolTipService.ToolTip="細い文字や小さい仮名を認識しやすくするために画像全体をシャープ化します。" />
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleSharpenDescription, Mode=OneWay}" />
 
-                        <Grid ColumnSpacing="12" RowSpacing="10">
+                        <Grid ColumnSpacing="12" RowSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
@@ -94,60 +109,95 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBox
+                            <StackPanel
                                 Grid.Row="0"
                                 Grid.Column="0"
-                                Header="コントラスト"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                PlaceholderText="1.1"
-                                Text="{x:Bind ViewModel.PaddleContrastText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="OCR 前のコントラスト補正倍率です。1.0 が補正なしです。" />
-                            <TextBox
+                                Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleContrastDescription, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleContrastLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleContrastText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                </Grid>
+                                <Slider Minimum="0.1" Maximum="4" StepFrequency="0.1" TickFrequency="1" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" SnapsTo="StepValues" Value="{x:Bind ViewModel.PaddleContrastValue, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Row="1"
                                 Grid.Column="0"
-                                Header="text_det_thresh"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                PlaceholderText="既定"
-                                Text="{x:Bind ViewModel.PaddleTextDetThreshText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="PaddleOCR の文字検出閾値です。空欄の場合は PaddleOCR の既定値を使います。" />
-                            <TextBox
+                                Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetThreshDescription, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="text_det_thresh" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetThreshText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="1" StepFrequency="0.01" TickFrequency="0.25" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleTextDetThreshValue, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Row="1"
                                 Grid.Column="1"
-                                Header="text_det_box_thresh"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                PlaceholderText="既定"
-                                Text="{x:Bind ViewModel.PaddleTextDetBoxThreshText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="PaddleOCR の検出ボックス閾値です。空欄の場合は PaddleOCR の既定値を使います。" />
-                            <TextBox
+                                Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetBoxThreshDescription, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="text_det_box_thresh" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetBoxThreshText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="1" StepFrequency="0.01" TickFrequency="0.25" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleTextDetBoxThreshValue, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Row="2"
                                 Grid.Column="0"
-                                Header="text_det_unclip_ratio"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                PlaceholderText="既定"
-                                Text="{x:Bind ViewModel.PaddleTextDetUnclipRatioText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="検出ボックスの広げ方を調整します。空欄の場合は PaddleOCR の既定値を使います。" />
-                            <TextBox
+                                Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetUnclipRatioDescription, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="text_det_unclip_ratio" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetUnclipRatioText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                </Grid>
+                                <Slider Minimum="0.1" Maximum="10" StepFrequency="0.1" TickFrequency="1" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleTextDetUnclipRatioValue, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Row="2"
                                 Grid.Column="1"
-                                Header="text_det_limit_side_len"
-                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                PlaceholderText="既定"
-                                Text="{x:Bind ViewModel.PaddleTextDetLimitSideLenText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="検出時の入力画像サイズ上限です。空欄の場合は PaddleOCR の既定値を使います。" />
+                                Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleTextDetLimitSideLenDescription, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="text_det_limit_side_len" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetLimitSideLenText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                </Grid>
+                                <Slider Minimum="16" Maximum="4096" StepFrequency="16" TickFrequency="512" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" SnapsTo="StepValues" Value="{x:Bind ViewModel.PaddleTextDetLimitSideLenValue, Mode=TwoWay}" />
+                            </StackPanel>
                             <CheckBox
                                 Grid.Row="3"
                                 Grid.Column="0"
-                                Content="文字方向分類"
+                                Content="{x:Bind ViewModel.UiText.PaddleUseTextlineOrientationLabel, Mode=OneWay}"
                                 IsChecked="{x:Bind ViewModel.PaddleUseTextlineOrientation, Mode=TwoWay}"
                                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                ToolTipService.ToolTip="縦書きや回転した文字列が多い場合に試す設定です。" />
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleUseTextlineOrientationDescription, Mode=OneWay}" />
                             <CheckBox
                                 Grid.Row="3"
                                 Grid.Column="1"
-                                Content="文書ゆがみ補正"
+                                Content="{x:Bind ViewModel.UiText.PaddleUseDocUnwarpingLabel, Mode=OneWay}"
                                 IsChecked="{x:Bind ViewModel.PaddleUseDocUnwarping, Mode=TwoWay}"
                                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
-                                ToolTipService.ToolTip="撮影文書向けのゆがみ補正です。通常の動画テロップでは OFF を既定にします。" />
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleUseDocUnwarpingDescription, Mode=OneWay}" />
                         </Grid>
                     </StackPanel>
                 </Border>

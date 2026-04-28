@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.Services;
 using Windows.ApplicationModel.DataTransfer;
@@ -19,6 +21,18 @@ public partial class MainPageViewModel : ObservableObject
         Export
     }
 
+    private sealed record ProgressFrameState(
+        string StageLabel,
+        double Percent,
+        int TotalFrames,
+        Stopwatch Stopwatch);
+
+    private const double DefaultFrameIntervalSeconds = 1.0d;
+    private const double DefaultPaddleContrast = 1.1d;
+    private const double DefaultPaddleTextDetThresh = 0.3d;
+    private const double DefaultPaddleTextDetBoxThresh = 0.6d;
+    private const double DefaultPaddleTextDetUnclipRatio = 1.5d;
+    private const double DefaultPaddleTextDetLimitSideLen = 960d;
     private const string FixedPaddleUpscale = "1";
     private const string PaddlePreprocessEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PREPROCESS";
     private const string PaddleUpscaleEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_UPSCALE";
@@ -51,6 +65,9 @@ public partial class MainPageViewModel : ObservableObject
     private ExportWriteResult? _latestExport;
     private double _latestFrameIntervalSeconds = 1.0d;
     private bool _isSynchronizingSelection;
+    private bool _isUpdatingPreviewSequence;
+    private readonly DispatcherQueue? _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+    private ProgressFrameState? _activeProgressFrameState;
 
     public MainPageViewModel()
     {
@@ -107,6 +124,18 @@ public partial class MainPageViewModel : ObservableObject
     public partial string PreviewDetailText { get; set; } = "No frame selected.";
 
     [ObservableProperty]
+    public partial double PreviewSequenceValue { get; set; }
+
+    [ObservableProperty]
+    public partial double PreviewSequenceMaximum { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasPreviewSequence { get; set; }
+
+    [ObservableProperty]
+    public partial string PreviewSequenceLabel { get; set; } = "-";
+
+    [ObservableProperty]
     public partial string ActivityMessage { get; set; } = "Select a video file to load metadata and extract frames.";
 
     [ObservableProperty]
@@ -130,6 +159,9 @@ public partial class MainPageViewModel : ObservableObject
     public partial string FrameIntervalText { get; set; } = "1.0";
 
     [ObservableProperty]
+    public partial double FrameIntervalValue { get; set; } = DefaultFrameIntervalSeconds;
+
+    [ObservableProperty]
     public partial string OutputRootDirectoryText { get; set; } = OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory();
 
     [ObservableProperty]
@@ -139,19 +171,34 @@ public partial class MainPageViewModel : ObservableObject
     public partial string PaddleContrastText { get; set; } = ReadEnvironment(PaddleContrastEnvironmentVariable, "1.1");
 
     [ObservableProperty]
+    public partial double PaddleContrastValue { get; set; } = ReadDoubleSetting(PaddleContrastEnvironmentVariable, DefaultPaddleContrast);
+
+    [ObservableProperty]
     public partial bool PaddleSharpenEnabled { get; set; } = ReadBoolEnvironment(PaddleSharpenEnvironmentVariable, true);
 
     [ObservableProperty]
     public partial string PaddleTextDetThreshText { get; set; } = ReadEnvironment(PaddleTextDetThreshEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
+    public partial double PaddleTextDetThreshValue { get; set; } = ReadDoubleSetting(PaddleTextDetThreshEnvironmentVariable, DefaultPaddleTextDetThresh);
+
+    [ObservableProperty]
     public partial string PaddleTextDetBoxThreshText { get; set; } = ReadEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial double PaddleTextDetBoxThreshValue { get; set; } = ReadDoubleSetting(PaddleTextDetBoxThreshEnvironmentVariable, DefaultPaddleTextDetBoxThresh);
 
     [ObservableProperty]
     public partial string PaddleTextDetUnclipRatioText { get; set; } = ReadEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
+    public partial double PaddleTextDetUnclipRatioValue { get; set; } = ReadDoubleSetting(PaddleTextDetUnclipRatioEnvironmentVariable, DefaultPaddleTextDetUnclipRatio);
+
+    [ObservableProperty]
     public partial string PaddleTextDetLimitSideLenText { get; set; } = ReadEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial double PaddleTextDetLimitSideLenValue { get; set; } = ReadDoubleSetting(PaddleTextDetLimitSideLenEnvironmentVariable, DefaultPaddleTextDetLimitSideLen);
 
     [ObservableProperty]
     public partial bool PaddleUseTextlineOrientation { get; set; } = ReadBoolEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, false);
@@ -221,9 +268,13 @@ public partial class MainPageViewModel : ObservableObject
             ? "Nothing selected"
             : $"{SelectedTimelineSegment.RangeLabel} / {SelectedTimelineSegment.Text} / {SelectedTimelineSegment.StyleSummary}";
 
+    public Visibility TimelineSelectionActionsVisibility =>
+        SelectedTimelineSegment?.CanEdit == true ? Visibility.Visible : Visibility.Collapsed;
+
     partial void OnSelectedTimelineSegmentChanged(TimelineSegment? value)
     {
         OnPropertyChanged(nameof(SelectedSegmentSummary));
+        OnPropertyChanged(nameof(TimelineSelectionActionsVisibility));
         if (_isSynchronizingSelection)
         {
             return;
@@ -255,8 +306,30 @@ public partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanInteract));
     }
 
+    partial void OnPreviewSequenceValueChanged(double value)
+    {
+        if (_isUpdatingPreviewSequence || _latestFrameAnalyses.Count == 0)
+        {
+            return;
+        }
+
+        SelectPreviewFrameByIndex((int)Math.Round(value));
+    }
+
+    partial void OnFrameIntervalValueChanged(double value)
+    {
+        FrameIntervalText = FormatSettingNumber(value, "0.##");
+        RefreshStaticCollections();
+    }
+
     partial void OnFrameIntervalTextChanged(string value)
     {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleContrastValueChanged(double value)
+    {
+        PaddleContrastText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
     }
 
@@ -285,8 +358,20 @@ public partial class MainPageViewModel : ObservableObject
         RefreshStaticCollections();
     }
 
+    partial void OnPaddleTextDetThreshValueChanged(double value)
+    {
+        PaddleTextDetThreshText = FormatSettingNumber(value, "0.##");
+        RefreshStaticCollections();
+    }
+
     partial void OnPaddleTextDetBoxThreshTextChanged(string value)
     {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetBoxThreshValueChanged(double value)
+    {
+        PaddleTextDetBoxThreshText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
     }
 
@@ -295,8 +380,20 @@ public partial class MainPageViewModel : ObservableObject
         RefreshStaticCollections();
     }
 
+    partial void OnPaddleTextDetUnclipRatioValueChanged(double value)
+    {
+        PaddleTextDetUnclipRatioText = FormatSettingNumber(value, "0.#");
+        RefreshStaticCollections();
+    }
+
     partial void OnPaddleTextDetLimitSideLenTextChanged(string value)
     {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetLimitSideLenValueChanged(double value)
+    {
+        PaddleTextDetLimitSideLenText = Math.Round(value).ToString(CultureInfo.InvariantCulture);
         RefreshStaticCollections();
     }
 
@@ -413,6 +510,22 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void CopySelectedTimelineText()
+    {
+        var text = SelectedTimelineSegment?.Text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            StatusMessage = "No selected telop text is available to copy.";
+            return;
+        }
+
+        var package = new DataPackage();
+        package.SetText(text.Trim());
+        Clipboard.SetContent(package);
+        StatusMessage = "Copied selected telop text.";
+    }
+
+    [RelayCommand]
     private void OpenPathLocation(string? path)
     {
         var normalizedPath = NormalizeActionPath(path);
@@ -439,6 +552,252 @@ public partial class MainPageViewModel : ObservableObject
         };
         Process.Start(startInfo);
         StatusMessage = $"Opened path: {targetPath}";
+    }
+
+    [RelayCommand]
+    private void ResetSettingsDefaults()
+    {
+        SelectedLanguageOption = ResolveDefaultLanguageOption();
+        FrameIntervalValue = DefaultFrameIntervalSeconds;
+        PaddlePreprocessEnabled = true;
+        PaddleContrastValue = DefaultPaddleContrast;
+        PaddleSharpenEnabled = true;
+        PaddleTextDetThreshText = string.Empty;
+        PaddleTextDetBoxThreshText = string.Empty;
+        PaddleTextDetUnclipRatioText = string.Empty;
+        PaddleTextDetLimitSideLenText = string.Empty;
+        PaddleTextDetThreshValue = DefaultPaddleTextDetThresh;
+        PaddleTextDetBoxThreshValue = DefaultPaddleTextDetBoxThresh;
+        PaddleTextDetUnclipRatioValue = DefaultPaddleTextDetUnclipRatio;
+        PaddleTextDetLimitSideLenValue = DefaultPaddleTextDetLimitSideLen;
+        PaddleUseTextlineOrientation = false;
+        PaddleUseDocUnwarping = false;
+        ApplyPaddleOcrEnvironment();
+        RefreshStaticCollections();
+        StatusMessage = "Settings were reset to defaults.";
+    }
+
+    [RelayCommand]
+    private void EditSelectedTimelineSegment()
+    {
+        if (SelectedTimelineSegment?.CanEdit != true)
+        {
+            StatusMessage = "Select an editable telop row before editing.";
+            return;
+        }
+
+        foreach (var row in TimelineSegments)
+        {
+            row.IsEditing = ReferenceEquals(row, SelectedTimelineSegment);
+        }
+
+        StatusMessage = "Edit the selected telop text in the timeline.";
+    }
+
+    [RelayCommand]
+    private void DeleteSelectedTimelineSegment()
+    {
+        if (SelectedTimelineSegment?.CanEdit != true)
+        {
+            StatusMessage = "Select an editable telop row before deleting.";
+            return;
+        }
+
+        DeleteTimelineSegment(SelectedTimelineSegment);
+    }
+
+    public void CommitTimelineTextEdit(TimelineSegment? segment)
+    {
+        if (segment is null)
+        {
+            return;
+        }
+
+        var newText = segment.Text.Trim();
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            segment.IsEditing = false;
+            StatusMessage = "Telop text was not changed because it was empty.";
+            return;
+        }
+
+        ApplyTimelineTextChange(segment, newText);
+        segment.Text = newText;
+        segment.IsEditing = false;
+        OnPropertyChanged(nameof(SelectedSegmentSummary));
+        UpdatePreviewFromTimelineSelection(segment);
+        StatusMessage = "Edited telop text. Use Export only to write the updated output files.";
+    }
+
+    public bool AdvancePreviewFrame()
+    {
+        if (_latestFrameAnalyses.Count == 0)
+        {
+            StatusMessage = "No extracted frames are available for preview playback.";
+            return false;
+        }
+
+        var currentPath = PreviewImagePath;
+        var currentIndex = string.IsNullOrWhiteSpace(currentPath)
+            ? -1
+            : _latestFrameAnalyses
+                .Select((analysis, index) => new { analysis, index })
+                .FirstOrDefault(item => string.Equals(item.analysis.Frame.ImagePath, currentPath, StringComparison.OrdinalIgnoreCase))
+                ?.index ?? -1;
+        SelectPreviewFrameByIndex(currentIndex + 1);
+        return true;
+    }
+
+    private void SelectPreviewFrameByIndex(int index)
+    {
+        if (_latestFrameAnalyses.Count == 0)
+        {
+            return;
+        }
+
+        var normalizedIndex = ((index % _latestFrameAnalyses.Count) + _latestFrameAnalyses.Count) % _latestFrameAnalyses.Count;
+        var next = _latestFrameAnalyses[normalizedIndex];
+        var matchingTimelineRow = TimelineSegments.FirstOrDefault(row => row.FrameIndex == next.Frame.FrameIndex);
+
+        if (matchingTimelineRow is not null)
+        {
+            SelectedTimelineSegment = matchingTimelineRow;
+        }
+        else
+        {
+            UpdatePreview(next.Frame.FrameIndex, next.Frame.TimestampMs, null, null);
+        }
+    }
+
+    private void ApplyTimelineTextChange(TimelineSegment segment, string newText)
+    {
+        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        {
+            _latestSegments = _latestSegments
+                .Select(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal)
+                    ? item with { Text = newText }
+                    : item)
+                .ToArray();
+        }
+
+        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
+        {
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => ReplaceDetectionText(analysis, segment.DetectionId, newText))
+                .ToArray();
+        }
+
+        ReplaceMatchingResultRow(segment, row => row with { Text = newText });
+    }
+
+    private void DeleteTimelineSegment(TimelineSegment segment)
+    {
+        var currentIndex = TimelineSegments.IndexOf(segment);
+
+        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        {
+            _latestSegments = _latestSegments
+                .Where(item => !string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal))
+                .ToArray();
+        }
+
+        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
+        {
+            _latestFrameAnalyses = _latestFrameAnalyses
+                .Select(analysis => RemoveDetection(analysis, segment.DetectionId))
+                .ToArray();
+        }
+
+        RemoveMatchingResultRow(segment);
+        TimelineSegments.Remove(segment);
+
+        var nextIndex = Math.Clamp(currentIndex, 0, Math.Max(0, TimelineSegments.Count - 1));
+        SelectedTimelineSegment = TimelineSegments.Count == 0 ? null : TimelineSegments[nextIndex];
+        RefreshInfoCards(
+            _latestMetadata,
+            _latestFrameExtractionResult?.Frames.Count ?? 0,
+            _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
+            _latestSegments.Count);
+        StatusMessage = "Deleted selected telop. Use Export only to write the updated output files.";
+    }
+
+    private void ReplaceMatchingResultRow(TimelineSegment segment, Func<ResultRow, ResultRow> replace)
+    {
+        var index = FindMatchingResultRowIndex(segment);
+        if (index >= 0)
+        {
+            ResultRows[index] = replace(ResultRows[index]);
+        }
+    }
+
+    private void RemoveMatchingResultRow(TimelineSegment segment)
+    {
+        var index = FindMatchingResultRowIndex(segment);
+        if (index >= 0)
+        {
+            ResultRows.RemoveAt(index);
+        }
+    }
+
+    private int FindMatchingResultRowIndex(TimelineSegment segment)
+    {
+        for (var i = 0; i < ResultRows.Count; i++)
+        {
+            var row = ResultRows[i];
+            if (SelectionKeysMatch(
+                segment.FrameIndex,
+                segment.TimestampMs,
+                segment.SegmentId,
+                segment.DetectionId,
+                row.FrameIndex,
+                row.TimestampMs,
+                row.SegmentId,
+                row.DetectionId))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static FrameAnalysisResult ReplaceDetectionText(
+        FrameAnalysisResult analysis,
+        string detectionId,
+        string newText)
+    {
+        var ocrDetections = analysis.Ocr.Detections
+            .Select(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal)
+                ? detection with { Text = newText }
+                : detection)
+            .ToArray();
+        var attributeDetections = analysis.Attributes.Detections
+            .Select(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal)
+                ? detection with { Text = newText }
+                : detection)
+            .ToArray();
+
+        return analysis with
+        {
+            Ocr = analysis.Ocr with { Detections = ocrDetections },
+            Attributes = analysis.Attributes with { Detections = attributeDetections }
+        };
+    }
+
+    private static FrameAnalysisResult RemoveDetection(FrameAnalysisResult analysis, string detectionId)
+    {
+        var ocrDetections = analysis.Ocr.Detections
+            .Where(detection => !string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
+            .ToArray();
+        var attributeDetections = analysis.Attributes.Detections
+            .Where(detection => !string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
+            .ToArray();
+
+        return analysis with
+        {
+            Ocr = analysis.Ocr with { Detections = ocrDetections },
+            Attributes = analysis.Attributes with { Detections = attributeDetections }
+        };
     }
 
     private async Task RunAnalysisAsync(AnalysisStartStage startStage)
@@ -468,6 +827,17 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
+        string outputRootDirectory;
+        try
+        {
+            outputRootDirectory = ResolveWritableOutputRootDirectory();
+        }
+        catch (Exception ex)
+        {
+            SetPipelineFailure("Output folder", "OUTPUT_ROOT_UNAVAILABLE", ex.Message);
+            return;
+        }
+
         ApplyPaddleOcrEnvironment();
         ClearPipelineFailure();
         IsBusy = true;
@@ -477,11 +847,15 @@ public partial class MainPageViewModel : ObservableObject
         StatusMessage = CreateStartStatus(startStage);
         ActivityMessage = "Pipeline stage is running.";
         var currentStage = "Input validation";
+        CancellationTokenSource? progressTickerCts = null;
+        Task? progressTickerTask = null;
 
         try
         {
             var startedAt = DateTimeOffset.Now;
             var stopwatch = Stopwatch.StartNew();
+            progressTickerCts = new CancellationTokenSource();
+            progressTickerTask = RunProgressTickerAsync(progressTickerCts.Token);
             var intervalSeconds = startStage == AnalysisStartStage.FrameExtraction
                 ? ParseFrameIntervalSeconds()
                 : _latestFrameIntervalSeconds;
@@ -500,9 +874,9 @@ public partial class MainPageViewModel : ObservableObject
                 var progress = new Progress<double>(value =>
                 {
                     ProgressValue = value * 0.6d;
-                    ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames);
+                    SetTimedFrameProgress(UiText.ProgressFrameExtraction, value, expectedFrames, stopwatch);
                 });
-                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, OutputRootDirectoryText);
+                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, outputRootDirectory);
                 _latestFrameExtractionResult = result;
             }
             else
@@ -511,7 +885,7 @@ public partial class MainPageViewModel : ObservableObject
                 result = _latestFrameExtractionResult!;
                 ProgressValue = startStage == AnalysisStartStage.Ocr ? 10d : 70d;
                 ProgressDetailText = startStage == AnalysisStartStage.Ocr
-                    ? $"OCR: 0 / {result.Frames.Count} frames (0%)"
+                    ? FormatFrameProgress(UiText.ProgressOcr, 0d, result.Frames.Count, null, UiText)
                     : $"Output: preparing {result.Frames.Count} analyzed frames.";
             }
 
@@ -526,11 +900,12 @@ public partial class MainPageViewModel : ObservableObject
                 var ocrProgress = new Progress<double>(value =>
                 {
                     ProgressValue = 60d + (value * 0.3d);
-                    ProgressDetailText = FormatFrameProgress("OCR", value, result.Frames.Count);
+                    SetTimedFrameProgress(UiText.ProgressOcr, value, result.Frames.Count, stopwatch);
                 });
                 _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
 
                 currentStage = "Attribute analysis";
+                _activeProgressFrameState = null;
                 ProgressDetailText = $"Attribute analysis: {_latestFrameAnalyses.Count} frames analyzed.";
                 _latestSegments = _segmentMerger.Merge(_latestFrameAnalyses, intervalSeconds);
             }
@@ -605,6 +980,24 @@ public partial class MainPageViewModel : ObservableObject
         }
         finally
         {
+            _activeProgressFrameState = null;
+            if (progressTickerCts is not null)
+            {
+                progressTickerCts.Cancel();
+            }
+
+            if (progressTickerTask is not null)
+            {
+                try
+                {
+                    await progressTickerTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            progressTickerCts?.Dispose();
             IsBusy = false;
         }
     }
@@ -679,12 +1072,12 @@ public partial class MainPageViewModel : ObservableObject
     private void RefreshStaticCollections()
     {
         SettingItems.Clear();
-        SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} sec", UiText.FrameIntervalSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.FrameIntervalSettingLabel, $"{ParseFrameIntervalSeconds():F1} {UiText.SettingSecondsUnit}", UiText.FrameIntervalSettingDescription));
         SettingItems.Add(new SettingItem(UiText.Language, SelectedLanguageOption.DisplayName, UiText.LanguageSettingDescription));
         SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
-        SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。"));
-        SettingItems.Add(new SettingItem("PaddleOCR 検出", FormatPaddleDetectionSummary(), "検出閾値や向き補正を設定できます。空欄の値は PaddleOCR の既定値を使います。"));
-        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, Path.Combine(OutputRootDirectoryText, "<run_id>"), UiText.OutputSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.PaddlePreprocessSettingTitle, FormatPaddlePreprocessSummary(), UiText.PaddlePreprocessSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.PaddleDetectionSettingTitle, FormatPaddleDetectionSummary(), UiText.PaddleDetectionSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, FormatOutputRootPreview(), UiText.OutputSettingDescription));
     }
 
     private void ResetDynamicCollections()
@@ -715,9 +1108,15 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem(UiText.FramesInfoTitle, frameCount.ToString(), UiText.FramesInfoDescription));
         InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText)));
-        InfoCards.Add(new InfoCardItem(UiText.LogInfoTitle, LogDirectoryText, UiText.LogInfoDescription, IsActionablePath(LogDirectoryText)));
-        InfoCards.Add(new InfoCardItem(UiText.WorkInfoTitle, WorkDirectoryText, UiText.WorkInfoDescription, IsActionablePath(WorkDirectoryText)));
+        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText), UiText.TimelineCopy));
+    }
+
+    private string FormatOutputRootPreview()
+    {
+        var root = string.IsNullOrWhiteSpace(OutputRootDirectoryText)
+            ? OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory()
+            : OutputRootDirectoryText.Trim();
+        return $"{root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)}{Path.DirectorySeparatorChar}{{run_id}}";
     }
 
     private static bool IsActionablePath(string? path)
@@ -733,6 +1132,37 @@ public partial class MainPageViewModel : ObservableObject
         }
 
         return path.Trim();
+    }
+
+    private string ResolveWritableOutputRootDirectory()
+    {
+        var rawPath = string.IsNullOrWhiteSpace(OutputRootDirectoryText)
+            ? OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory()
+            : OutputRootDirectoryText.Trim();
+        var expandedPath = Environment.ExpandEnvironmentVariables(rawPath);
+        var fullPath = Path.GetFullPath(expandedPath);
+
+        if (File.Exists(fullPath))
+        {
+            throw new InvalidOperationException($"Output folder points to a file: {fullPath}");
+        }
+
+        Directory.CreateDirectory(fullPath);
+        var probePath = Path.Combine(fullPath, $".movie-telop-write-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllText(probePath, "write-test");
+        }
+        finally
+        {
+            if (File.Exists(probePath))
+            {
+                File.Delete(probePath);
+            }
+        }
+
+        OutputRootDirectoryText = fullPath;
+        return fullPath;
     }
 
     private static string? ResolveExistingPath(string path)
@@ -762,12 +1192,80 @@ public partial class MainPageViewModel : ObservableObject
         return Math.Abs(lastTimestampMs - durationMs) < 0.5d ? baseCount : baseCount + 1;
     }
 
-    private static string FormatFrameProgress(string stage, double percent, int totalFrames)
+    private void SetTimedFrameProgress(string stageLabel, double percent, int totalFrames, Stopwatch stopwatch)
+    {
+        var state = new ProgressFrameState(stageLabel, percent, totalFrames, stopwatch);
+        _activeProgressFrameState = state;
+        ProgressDetailText = FormatFrameProgress(state.StageLabel, state.Percent, state.TotalFrames, state.Stopwatch.Elapsed, UiText);
+    }
+
+    private async Task RunProgressTickerAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                var state = _activeProgressFrameState;
+                if (state is null)
+                {
+                    continue;
+                }
+
+                var text = FormatFrameProgress(
+                    state.StageLabel,
+                    state.Percent,
+                    state.TotalFrames,
+                    state.Stopwatch.Elapsed,
+                    UiText);
+                if (_dispatcherQueue is null || !_dispatcherQueue.TryEnqueue(() => ProgressDetailText = text))
+                {
+                    ProgressDetailText = text;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private static string FormatFrameProgress(
+        string stage,
+        double percent,
+        int totalFrames,
+        TimeSpan? elapsed,
+        LocalizedUiText uiText)
     {
         var normalizedPercent = Math.Clamp(percent, 0d, 100d);
         var total = Math.Max(1, totalFrames);
         var completed = Math.Clamp((int)Math.Ceiling(total * normalizedPercent / 100d), 0, total);
-        return $"{stage}: {completed} / {total} frames ({normalizedPercent:F0}%)";
+        var progress = $"{stage}: {completed} / {total} {uiText.ProgressFramesUnit} ({normalizedPercent:F0}%)";
+        if (elapsed is null)
+        {
+            return progress;
+        }
+
+        var remaining = EstimateRemaining(elapsed.Value, completed, total);
+        return $"{progress} / {uiText.ProgressElapsed} {FormatDuration(elapsed.Value)} / {uiText.ProgressRemaining} {FormatDuration(remaining)}";
+    }
+
+    private static TimeSpan EstimateRemaining(TimeSpan elapsed, int completedFrames, int totalFrames)
+    {
+        if (completedFrames <= 0 || totalFrames <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        var remainingFrames = Math.Max(0, totalFrames - completedFrames);
+        var millisecondsPerFrame = elapsed.TotalMilliseconds / completedFrames;
+        return TimeSpan.FromMilliseconds(Math.Max(0d, millisecondsPerFrame * remainingFrames));
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalHours >= 1d
+            ? $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}"
+            : $"{duration.Minutes:00}:{duration.Seconds:00}";
     }
 
     private static string CreateStartStatus(AnalysisStartStage startStage)
@@ -892,7 +1390,7 @@ public partial class MainPageViewModel : ObservableObject
                         detection.Confidence,
                         analysis.Frame.FrameIndex,
                         analysis.Frame.TimestampMs,
-                        DetectionId: detection.DetectionId));
+                        detectionId: detection.DetectionId));
                     ResultRows.Add(new ResultRow(
                         timeLabel,
                         "OCR",
@@ -1069,6 +1567,7 @@ public partial class MainPageViewModel : ObservableObject
         PreviewImagePath = analysis.Frame.ImagePath;
         PreviewImageWidth = _latestMetadata?.Width ?? 0;
         PreviewImageHeight = _latestMetadata?.Height ?? 0;
+        UpdatePreviewSequence(analysis);
 
         PreviewDetections.Clear();
         foreach (var detection in analysis.Ocr.Detections)
@@ -1098,6 +1597,39 @@ public partial class MainPageViewModel : ObservableObject
         PreviewDetections.Clear();
         PreviewState = state;
         PreviewDetailText = detail;
+        _isUpdatingPreviewSequence = true;
+        try
+        {
+            PreviewSequenceValue = 0d;
+            PreviewSequenceMaximum = 0d;
+            HasPreviewSequence = false;
+            PreviewSequenceLabel = "-";
+        }
+        finally
+        {
+            _isUpdatingPreviewSequence = false;
+        }
+    }
+
+    private void UpdatePreviewSequence(FrameAnalysisResult analysis)
+    {
+        var index = _latestFrameAnalyses
+            .Select((item, itemIndex) => new { item, itemIndex })
+            .FirstOrDefault(item => string.Equals(item.item.Frame.ImagePath, analysis.Frame.ImagePath, StringComparison.OrdinalIgnoreCase))
+            ?.itemIndex ?? 0;
+
+        _isUpdatingPreviewSequence = true;
+        try
+        {
+            PreviewSequenceMaximum = Math.Max(0, _latestFrameAnalyses.Count - 1);
+            PreviewSequenceValue = Math.Clamp(index, 0, PreviewSequenceMaximum);
+            HasPreviewSequence = _latestFrameAnalyses.Count > 0;
+            PreviewSequenceLabel = $"{index + 1} / {_latestFrameAnalyses.Count}";
+        }
+        finally
+        {
+            _isUpdatingPreviewSequence = false;
+        }
     }
 
     private FrameAnalysisResult? ResolvePreviewAnalysis(int? frameIndex, long? timestampMs, string? selectedText)
@@ -1191,26 +1723,22 @@ public partial class MainPageViewModel : ObservableObject
     private static string FormatSegmentStyleSummary(SegmentRecord segment)
     {
         var fontSize = segment.FontSize is null ? "size unknown" : $"{segment.FontSize:F1}{segment.FontSizeUnit}";
-        return $"{segment.TextType} / {fontSize} / {segment.SourceFrameCount} frame(s)";
+        return $"{segment.TextType} / {fontSize}";
     }
 
     private static string FormatSegmentDetail(SegmentRecord segment)
     {
-        var confidence = segment.Confidence is null ? "confidence unknown" : $"confidence {segment.Confidence:P1}";
         var colors = string.Join(
             " / ",
             new[] { segment.TextColor, segment.StrokeColor, segment.BackgroundColor }
                 .Where(value => !string.IsNullOrWhiteSpace(value)));
 
-        return string.IsNullOrWhiteSpace(colors)
-            ? confidence
-            : $"{confidence} / {colors}";
+        return string.IsNullOrWhiteSpace(colors) ? "-" : colors;
     }
 
     private static string FormatDetectionDetail(OcrDetectionRecord detection, string imagePath)
     {
-        var confidence = detection.Confidence is null ? "confidence unknown" : $"confidence {detection.Confidence:P1}";
-        return $"{confidence} / {Path.GetFileName(imagePath)}";
+        return Path.GetFileName(imagePath);
     }
 
     private static OcrDetectionRecord? FindDetectionForText(FrameAnalysisResult analysis, string text)
@@ -1241,7 +1769,7 @@ public partial class MainPageViewModel : ObservableObject
     {
         return double.TryParse(FrameIntervalText, out var seconds) && seconds > 0
             ? seconds
-            : 1.0d;
+            : DefaultFrameIntervalSeconds;
     }
 
     private void ApplyPaddleOcrEnvironment()
@@ -1272,15 +1800,28 @@ public partial class MainPageViewModel : ObservableObject
         return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / {orientation} / {unwarping}";
     }
 
-    private static string FormatSettingValue(string value)
+    private string FormatSettingValue(string value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "既定" : value.Trim();
+        return string.IsNullOrWhiteSpace(value) ? UiText.SettingDefaultValue : value.Trim();
+    }
+
+    private static string FormatSettingNumber(double value, string format)
+    {
+        return value.ToString(format, CultureInfo.InvariantCulture);
     }
 
     private static string ReadEnvironment(string name, string defaultValue)
     {
         var value = Environment.GetEnvironmentVariable(name);
         return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
+    }
+
+    private static double ReadDoubleSetting(string name, double defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : defaultValue;
     }
 
     private static bool ReadBoolEnvironment(string name, bool defaultValue)
