@@ -812,14 +812,14 @@ public partial class MainPageViewModel : ObservableObject
                 .ToArray();
         }
 
-        if (!string.IsNullOrWhiteSpace(first.DetectionId))
+        if (string.IsNullOrWhiteSpace(first.SegmentId) && !string.IsNullOrWhiteSpace(first.DetectionId))
         {
             _latestFrameAnalyses = _latestFrameAnalyses
                 .Select(analysis => ReplaceDetectionText(analysis, first.DetectionId, mergedText))
                 .ToArray();
         }
 
-        if (!string.IsNullOrWhiteSpace(second.DetectionId))
+        if (string.IsNullOrWhiteSpace(second.SegmentId) && !string.IsNullOrWhiteSpace(second.DetectionId))
         {
             _latestFrameAnalyses = _latestFrameAnalyses
                 .Select(analysis => RemoveDetection(analysis, second.DetectionId))
@@ -876,7 +876,7 @@ public partial class MainPageViewModel : ObservableObject
             _latestSegments = updatedSegments;
         }
 
-        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
+        if (string.IsNullOrWhiteSpace(segment.SegmentId) && !string.IsNullOrWhiteSpace(segment.DetectionId))
         {
             var secondDetectionId = CreateManualId(segment.DetectionId, "split");
             _latestFrameAnalyses = _latestFrameAnalyses
@@ -2052,10 +2052,20 @@ public partial class MainPageViewModel : ObservableObject
 
         if (!string.IsNullOrWhiteSpace(segmentId) && !string.IsNullOrWhiteSpace(selectedText))
         {
-            return TextsMatch(detection.Text, selectedText);
+            return TextsMatch(detection.Text, selectedText)
+                || DetectionTextBelongsToSelectedSegment(detection.Text, selectedText);
         }
 
         return false;
+    }
+
+    private static bool DetectionTextBelongsToSelectedSegment(string detectionText, string selectedText)
+    {
+        var normalizedDetection = NormalizeTextForSelection(detectionText);
+        var normalizedSelection = NormalizeTextForSelection(selectedText);
+        return normalizedDetection.Length > 0
+            && normalizedSelection.Length > normalizedDetection.Length
+            && normalizedSelection.Contains(normalizedDetection, StringComparison.Ordinal);
     }
 
     private static FrameAnalysisResult? FindPreviewAnalysisForSegment(
@@ -2117,10 +2127,7 @@ public partial class MainPageViewModel : ObservableObject
         return analysis.Ocr.Detections
             .Where(detection => TextsMatch(detection.Text, text))
             .OrderBy(GetTopY)
-            .FirstOrDefault()
-            ?? analysis.Ocr.Detections
-                .OrderBy(GetTopY)
-                .FirstOrDefault();
+            .FirstOrDefault();
     }
 
     private static double GetTopY(OcrDetectionRecord? detection)
