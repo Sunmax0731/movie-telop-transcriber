@@ -7,37 +7,50 @@
     <ScrollViewer>
         <StackPanel Padding="16" Spacing="14" Width="500">
             <StackPanel Spacing="4">
-                <TextBlock Text="Settings" Style="{StaticResource AppPageTitleTextStyle}" />
+                <TextBlock Text="{x:Bind ViewModel.UiText.SettingsSection, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
                 <TextBlock
-                    Text="Main window remains available while this window is open."
+                    Text="{x:Bind ViewModel.UiText.SettingsWindowDescription, Mode=OneWay}"
                     Style="{StaticResource AppSecondaryTextStyle}"
                     TextWrapping="WrapWholeWords" />
             </StackPanel>
 
             <TextBox
-                Header="Frame interval (sec)"
+                Header="{x:Bind ViewModel.UiText.FrameInterval, Mode=OneWay}"
                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
                 Text="{x:Bind ViewModel.FrameIntervalText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
+            <ComboBox
+                Header="{x:Bind ViewModel.UiText.Language, Mode=OneWay}"
+                HorizontalAlignment="Stretch"
+                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
+                SelectedItem="{x:Bind ViewModel.SelectedLanguageOption, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:LanguageOption">
+                        <TextBlock Text="{x:Bind DisplayName}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
             <TextBox
-                Header="OCR engine"
+                Header="{x:Bind ViewModel.UiText.OcrEngine, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.OcrEngineText, Mode=OneWay}" />
 
             <TextBox
-                Header="Current video"
+                Header="{x:Bind ViewModel.UiText.CurrentVideo, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.VideoPath, Mode=OneWay}"
                 TextWrapping="Wrap" />
 
             <TextBox
-                Header="Work directory"
+                Header="{x:Bind ViewModel.UiText.WorkDirectory, Mode=OneWay}"
                 IsReadOnly="True"
                 Text="{x:Bind ViewModel.WorkDirectoryText, Mode=OneWay}"
                 TextWrapping="Wrap" />
 
             <StackPanel Spacing="8">
-                <TextBlock Text="Current setting summary" Style="{StaticResource AppSectionTitleTextStyle}" />
+                <TextBlock Text="{x:Bind ViewModel.UiText.CurrentSettingSummary, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                 <ItemsRepeater ItemsSource="{x:Bind ViewModel.SettingItems, Mode=OneWay}">
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:SettingItem">
