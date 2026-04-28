@@ -9,7 +9,7 @@
         HorizontalScrollMode="Auto"
         VerticalScrollBarVisibility="Auto"
         VerticalScrollMode="Auto">
-        <StackPanel Padding="16" Spacing="16" MinWidth="1280">
+        <StackPanel Padding="16" Spacing="16" MinWidth="900">
             <StackPanel Spacing="4">
                 <TextBlock Text="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
                 <TextBlock
@@ -20,9 +20,8 @@
 
             <Grid ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="360" />
-                    <ColumnDefinition Width="440" />
-                    <ColumnDefinition Width="440" />
+                    <ColumnDefinition Width="380" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -47,6 +46,19 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
+                        <StackPanel Spacing="6">
+                            <TextBox
+                                Header="{x:Bind ViewModel.UiText.OutputDirectory, Mode=OneWay}"
+                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                                Text="{x:Bind ViewModel.OutputRootDirectoryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                TextWrapping="Wrap"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.OutputSettingDescription, Mode=OneWay}" />
+                            <Button
+                                HorizontalAlignment="Stretch"
+                                Command="{x:Bind ViewModel.SelectOutputRootDirectoryCommand}"
+                                Content="{x:Bind ViewModel.UiText.BrowseButton, Mode=OneWay}"
+                                IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
@@ -140,107 +152,6 @@
                     </StackPanel>
                 </Border>
 
-                <Border
-                    Grid.Column="2"
-                    Padding="14"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="10">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="{x:Bind ViewModel.UiText.ExportInfoTitle, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
-
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.OutputDirectory, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}" Content="Copy" />
-                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.ExportDirectoryText, Mode=OneWay}" Content="Open" />
-                        </Grid>
-
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.JsonOutput, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}" Content="Copy" />
-                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.JsonOutputPathText, Mode=OneWay}" Content="Open" />
-                        </Grid>
-
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.SegmentsCsv, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}" Content="Copy" />
-                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.SegmentsCsvOutputPathText, Mode=OneWay}" Content="Open" />
-                        </Grid>
-
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.FramesCsv, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}" Content="Copy" />
-                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.FramesCsvOutputPathText, Mode=OneWay}" Content="Open" />
-                        </Grid>
-
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.RunLog, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}" Content="Copy" />
-                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}" Content="Open" />
-                        </Grid>
-
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Header="{x:Bind ViewModel.UiText.RunSummary, Mode=OneWay}"
-                                IsReadOnly="True"
-                                Text="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}"
-                                TextWrapping="Wrap" />
-                            <Button Grid.Column="1" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.CopyPathCommand}" CommandParameter="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}" Content="Copy" />
-                            <Button Grid.Column="2" MinWidth="64" VerticalAlignment="Bottom" Command="{x:Bind ViewModel.OpenPathLocationCommand}" CommandParameter="{x:Bind ViewModel.RunSummaryPathText, Mode=OneWay}" Content="Open" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
             </Grid>
         </StackPanel>
     </ScrollViewer>

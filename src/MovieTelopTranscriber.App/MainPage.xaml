@@ -43,7 +43,8 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="340" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="340" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="{Binding RightPaneWidth, ElementName=RootPage}" />
             </Grid.ColumnDefinitions>
 
             <Border
@@ -256,55 +257,132 @@
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="8">
-                    <Grid RowSpacing="8">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="{x:Bind ViewModel.UiText.Timeline, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
-                        <Grid
-                            Grid.Row="1"
-                            Padding="8,0"
-                            ColumnSpacing="6">
+                    <ScrollViewer
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Bind ViewModel.UiText.Activity, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.ProgressDetailText, Mode=OneWay}"
+                                Style="{StaticResource AppSecondaryTextStyle}"
+                                TextWrapping="WrapWholeWords" />
+                            <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
+                            <StackPanel Spacing="6">
+                                <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                            <Border
+                                Padding="10"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="6">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <Border
+                Grid.Column="2"
+                Background="Transparent"
+                PointerMoved="OnRightPaneSplitterPointerMoved"
+                PointerPressed="OnRightPaneSplitterPointerPressed"
+                PointerReleased="OnRightPaneSplitterPointerReleased">
+                <Border
+                    Width="2"
+                    HorizontalAlignment="Center"
+                    Background="{ThemeResource CardStrokeColorDefaultBrush}"
+                    CornerRadius="1" />
+            </Border>
+
+            <Border
+                Grid.Column="3"
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="{x:Bind ViewModel.UiText.Timeline, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
+                    <ScrollViewer
+                        Grid.Row="1"
+                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollMode="Auto"
+                        VerticalScrollBarVisibility="Disabled"
+                        VerticalScrollMode="Disabled">
+                        <Grid Padding="8,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="{Binding TimelineTimeColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="{Binding TimelineFrameColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="{Binding TimelineTextColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="{Binding TimelineDetailColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="{Binding TimelineConfidenceColumnWidth, ElementName=RootPage}" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="時刻" Style="{StaticResource AppMetaLabelTextStyle}" />
-                            <Border Grid.Column="1" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="time" />
+                            <Border Grid.Column="1" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="time">
+                                <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+                            </Border>
                             <TextBlock Grid.Column="2" Text="フレーム" Style="{StaticResource AppMetaLabelTextStyle}" />
-                            <Border Grid.Column="3" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="frame" />
+                            <Border Grid.Column="3" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="frame">
+                                <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+                            </Border>
                             <TextBlock Grid.Column="4" Text="テキスト" Style="{StaticResource AppMetaLabelTextStyle}" />
-                            <Border Grid.Column="5" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="text" />
+                            <Border Grid.Column="5" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="text">
+                                <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+                            </Border>
                             <TextBlock Grid.Column="6" Text="詳細" Style="{StaticResource AppMetaLabelTextStyle}" />
-                            <Border Grid.Column="7" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="detail" />
+                            <Border Grid.Column="7" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="detail">
+                                <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+                            </Border>
                             <TextBlock Grid.Column="8" Text="認識精度" Style="{StaticResource AppMetaLabelTextStyle}" />
                         </Grid>
+                    </ScrollViewer>
+                    <ScrollViewer
+                        Grid.Row="2"
+                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollMode="Auto"
+                        VerticalScrollBarVisibility="Auto"
+                        VerticalScrollMode="Auto">
                         <ListView
-                            Grid.Row="2"
                             HorizontalContentAlignment="Stretch"
                             ItemsSource="{x:Bind ViewModel.TimelineSegments, Mode=OneWay}"
                             SelectedItem="{x:Bind ViewModel.SelectedTimelineSegment, Mode=TwoWay}">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="models:TimelineSegment">
-                                    <Grid Padding="8,8" ColumnSpacing="6">
+                                    <Grid Padding="8,8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="{Binding TimelineTimeColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="8" />
                                             <ColumnDefinition Width="{Binding TimelineFrameColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="8" />
                                             <ColumnDefinition Width="{Binding TimelineTextColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="8" />
                                             <ColumnDefinition Width="{Binding TimelineDetailColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="8" />
                                             <ColumnDefinition Width="{Binding TimelineConfidenceColumnWidth, ElementName=RootPage}" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" TextWrapping="WrapWholeWords" />
@@ -322,63 +400,25 @@
                                                 HorizontalAlignment="Right"
                                                 Text="{x:Bind ConfidenceLabel}"
                                                 Style="{StaticResource AppSecondaryTextStyle}" />
-                                            <ProgressBar
-                                                Minimum="0"
-                                                Maximum="100"
-                                                Value="{x:Bind ConfidencePercent}"
-                                                Foreground="{x:Bind ConfidenceBrush}" />
+                                            <Border
+                                                Width="100"
+                                                Height="8"
+                                                HorizontalAlignment="Stretch"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                CornerRadius="4">
+                                                <Border
+                                                    Width="{x:Bind ConfidenceGaugeWidth}"
+                                                    HorizontalAlignment="Left"
+                                                    Background="{x:Bind ConfidenceBrush}"
+                                                    CornerRadius="4" />
+                                            </Border>
                                         </StackPanel>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                    </Grid>
-                </Border>
-            </Grid>
-
-            <Border
-                Grid.Column="2"
-                Padding="16"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <ScrollViewer
-                    HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{x:Bind ViewModel.UiText.Activity, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
-                        <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                        <TextBlock
-                            Text="{x:Bind ViewModel.ProgressDetailText, Mode=OneWay}"
-                            Style="{StaticResource AppSecondaryTextStyle}"
-                            TextWrapping="WrapWholeWords" />
-                        <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-                        <StackPanel Spacing="6">
-                            <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                            <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                            <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                        </StackPanel>
-                        <Border
-                            Padding="10"
-                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                            CornerRadius="6">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
-                                <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
-                                <TextBlock
-                                    Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
-                                    Style="{StaticResource AppSecondaryTextStyle}"
-                                    TextWrapping="WrapWholeWords" />
-                                <TextBlock
-                                    Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
-                                    Style="{StaticResource AppSecondaryTextStyle}"
-                                    TextWrapping="WrapWholeWords" />
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
 

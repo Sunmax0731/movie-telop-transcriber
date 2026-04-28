@@ -22,23 +22,28 @@ namespace MovieTelopTranscriber.App;
 public sealed partial class MainPage : Page
 {
     public static readonly DependencyProperty TimelineTimeColumnWidthProperty =
-        DependencyProperty.Register(nameof(TimelineTimeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(118)));
+        DependencyProperty.Register(nameof(TimelineTimeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
 
     public static readonly DependencyProperty TimelineFrameColumnWidthProperty =
-        DependencyProperty.Register(nameof(TimelineFrameColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(118)));
+        DependencyProperty.Register(nameof(TimelineFrameColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(96)));
 
     public static readonly DependencyProperty TimelineTextColumnWidthProperty =
-        DependencyProperty.Register(nameof(TimelineTextColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(260)));
+        DependencyProperty.Register(nameof(TimelineTextColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(160)));
 
     public static readonly DependencyProperty TimelineDetailColumnWidthProperty =
-        DependencyProperty.Register(nameof(TimelineDetailColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(190)));
+        DependencyProperty.Register(nameof(TimelineDetailColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(110)));
 
     public static readonly DependencyProperty TimelineConfidenceColumnWidthProperty =
-        DependencyProperty.Register(nameof(TimelineConfidenceColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(130)));
+        DependencyProperty.Register(nameof(TimelineConfidenceColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(104)));
+
+    public static readonly DependencyProperty RightPaneWidthProperty =
+        DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(560)));
 
     private SettingsWindow? _settingsWindow;
     private string? _activeTimelineColumnResize;
     private double _lastTimelineResizeX;
+    private bool _isResizingRightPane;
+    private double _lastRightPaneResizeX;
 
     public MainPageViewModel ViewModel { get; } = new();
 
@@ -70,6 +75,12 @@ public sealed partial class MainPage : Page
     {
         get => (GridLength)GetValue(TimelineConfidenceColumnWidthProperty);
         set => SetValue(TimelineConfidenceColumnWidthProperty, value);
+    }
+
+    public GridLength RightPaneWidth
+    {
+        get => (GridLength)GetValue(RightPaneWidthProperty);
+        set => SetValue(RightPaneWidthProperty, value);
     }
 
     public MainPage()
@@ -165,21 +176,57 @@ public sealed partial class MainPage : Page
         _activeTimelineColumnResize = null;
     }
 
+    private void OnRightPaneSplitterPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        _isResizingRightPane = true;
+        _lastRightPaneResizeX = e.GetCurrentPoint(this).Position.X;
+        element.CapturePointer(e.Pointer);
+    }
+
+    private void OnRightPaneSplitterPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_isResizingRightPane)
+        {
+            return;
+        }
+
+        var currentX = e.GetCurrentPoint(this).Position.X;
+        var delta = currentX - _lastRightPaneResizeX;
+        _lastRightPaneResizeX = currentX;
+        RightPaneWidth = ResizeGridLength(RightPaneWidth, -delta, 360);
+        e.Handled = true;
+    }
+
+    private void OnRightPaneSplitterPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element)
+        {
+            element.ReleasePointerCapture(e.Pointer);
+        }
+
+        _isResizingRightPane = false;
+    }
+
     private void ResizeTimelineColumn(string columnKey, double delta)
     {
         switch (columnKey)
         {
             case "time":
-                TimelineTimeColumnWidth = ResizeGridLength(TimelineTimeColumnWidth, delta, 90);
+                TimelineTimeColumnWidth = ResizeGridLength(TimelineTimeColumnWidth, delta, 72);
                 break;
             case "frame":
-                TimelineFrameColumnWidth = ResizeGridLength(TimelineFrameColumnWidth, delta, 90);
+                TimelineFrameColumnWidth = ResizeGridLength(TimelineFrameColumnWidth, delta, 84);
                 break;
             case "text":
-                TimelineTextColumnWidth = ResizeGridLength(TimelineTextColumnWidth, delta, 180);
+                TimelineTextColumnWidth = ResizeGridLength(TimelineTextColumnWidth, delta, 120);
                 break;
             case "detail":
-                TimelineDetailColumnWidth = ResizeGridLength(TimelineDetailColumnWidth, delta, 130);
+                TimelineDetailColumnWidth = ResizeGridLength(TimelineDetailColumnWidth, delta, 90);
                 break;
         }
     }

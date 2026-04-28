@@ -17,6 +17,8 @@ public sealed record TimelineSegment(
 {
     public double ConfidencePercent => Confidence is null ? 0d : Math.Clamp(Confidence.Value * 100d, 0d, 100d);
 
+    public double ConfidenceGaugeWidth => ConfidencePercent;
+
     public string ConfidenceLabel => Confidence is null ? "-" : $"{Confidence.Value:P0}";
 
     public string FrameLabel => FrameIndex is null ? "-" : $"Frame {FrameIndex.Value:D6}";

@@ -130,6 +130,9 @@ public partial class MainPageViewModel : ObservableObject
     public partial string FrameIntervalText { get; set; } = "1.0";
 
     [ObservableProperty]
+    public partial string OutputRootDirectoryText { get; set; } = OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory();
+
+    [ObservableProperty]
     public partial bool PaddlePreprocessEnabled { get; set; } = ReadBoolEnvironment(PaddlePreprocessEnvironmentVariable, true);
 
     [ObservableProperty]
@@ -257,6 +260,11 @@ public partial class MainPageViewModel : ObservableObject
         RefreshStaticCollections();
     }
 
+    partial void OnOutputRootDirectoryTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
     partial void OnPaddlePreprocessEnabledChanged(bool value)
     {
         RefreshStaticCollections();
@@ -337,6 +345,31 @@ public partial class MainPageViewModel : ObservableObject
         }
 
         await LoadVideoAsync(file.Path);
+    }
+
+    [RelayCommand]
+    private async Task SelectOutputRootDirectoryAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        var picker = new FolderPicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+        };
+        picker.FileTypeFilter.Add("*");
+
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, App.WindowHandle);
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder is null)
+        {
+            return;
+        }
+
+        OutputRootDirectoryText = folder.Path;
+        StatusMessage = $"Output folder set: {folder.Path}";
     }
 
     [RelayCommand]
@@ -469,7 +502,7 @@ public partial class MainPageViewModel : ObservableObject
                     ProgressValue = value * 0.6d;
                     ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames);
                 });
-                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress);
+                result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, OutputRootDirectoryText);
                 _latestFrameExtractionResult = result;
             }
             else
@@ -651,7 +684,7 @@ public partial class MainPageViewModel : ObservableObject
         SettingItems.Add(new SettingItem(UiText.OcrEngineSettingLabel, _frameAnalysisService.EngineName, UiText.OcrEngineSettingDescription));
         SettingItems.Add(new SettingItem("PaddleOCR 前処理", FormatPaddlePreprocessSummary(), "フルフレームを拡大せず、コントラスト補正とシャープ化を適用してから OCR に渡します。"));
         SettingItems.Add(new SettingItem("PaddleOCR 検出", FormatPaddleDetectionSummary(), "検出閾値や向き補正を設定できます。空欄の値は PaddleOCR の既定値を使います。"));
-        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, "work/runs/<run_id>", UiText.OutputSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, Path.Combine(OutputRootDirectoryText, "<run_id>"), UiText.OutputSettingDescription));
     }
 
     private void ResetDynamicCollections()
