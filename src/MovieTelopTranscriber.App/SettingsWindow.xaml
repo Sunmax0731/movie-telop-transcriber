@@ -10,14 +10,6 @@
         VerticalScrollBarVisibility="Disabled"
         VerticalScrollMode="Disabled">
         <StackPanel Padding="16" Spacing="16" MinWidth="900">
-            <StackPanel Spacing="4">
-                <TextBlock Text="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" Style="{StaticResource AppPageTitleTextStyle}" />
-                <TextBlock
-                    Text="{x:Bind ViewModel.UiText.SettingsOutputWindowDescription, Mode=OneWay}"
-                    Style="{StaticResource AppSecondaryTextStyle}"
-                    TextWrapping="WrapWholeWords" />
-            </StackPanel>
-
             <Grid ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="380" />

@@ -123,7 +123,7 @@
             <Grid Grid.Column="1" RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="200" />
+                    <RowDefinition Height="300" />
                 </Grid.RowDefinitions>
 
                 <Border
@@ -234,7 +234,9 @@
                     CornerRadius="8">
                     <ScrollViewer
                         HorizontalScrollBarVisibility="Disabled"
-                        VerticalScrollBarVisibility="Auto">
+                        HorizontalScrollMode="Disabled"
+                        VerticalScrollBarVisibility="Disabled"
+                        VerticalScrollMode="Disabled">
                         <StackPanel Spacing="8">
                             <TextBlock Text="{x:Bind ViewModel.UiText.Activity, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <TextBlock Text="{x:Bind ViewModel.ActivityMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
@@ -310,15 +312,24 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{x:Bind ViewModel.UiText.Timeline, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                         <Button
                             Grid.Column="1"
+                            Width="76"
+                            Click="OnCopyTimelineClicked"
+                            Content="{x:Bind ViewModel.UiText.TimelineCopy, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
+                        <Button
+                            Grid.Column="2"
+                            Width="76"
                             Click="OnEditTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineEdit, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
                         <Button
-                            Grid.Column="2"
+                            Grid.Column="3"
+                            Width="76"
                             Click="OnDeleteTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineDelete, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
@@ -329,35 +340,35 @@
                         HorizontalScrollMode="Auto"
                         VerticalScrollBarVisibility="Disabled"
                         VerticalScrollMode="Disabled">
-                        <Grid Padding="8,0">
+                        <Grid Padding="8,0" RightTapped="OnTimelineHeaderRightTapped">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="{Binding TimelineTimeColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineFrameColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineTextColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineDetailColumnWidth, ElementName=RootPage}" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="{Binding TimelineConfidenceColumnWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTimeColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTimeSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineFrameColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineFrameSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTextColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineTextSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineDetailColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineDetailSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineConfidenceColumnActualWidth, ElementName=RootPage}" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="時刻" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.UiText.TimelineColumnTime, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="1" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="time">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="2" Text="フレーム" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.UiText.TimelineColumnFrame, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="3" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="frame">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="4" Text="テキスト" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="4" Text="{x:Bind ViewModel.UiText.TimelineColumnText, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="5" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="text">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="6" Text="詳細" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="6" Text="{x:Bind ViewModel.UiText.TimelineColumnDetail, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <Border Grid.Column="7" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="detail">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="8" Text="認識精度" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="8" Text="{x:Bind ViewModel.UiText.TimelineColumnConfidence, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                         </Grid>
                     </ScrollViewer>
                     <ScrollViewer
@@ -375,15 +386,15 @@
                                 <DataTemplate x:DataType="models:TimelineSegment">
                                     <Grid Padding="8,8">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="{Binding TimelineTimeColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineFrameColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineTextColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineDetailColumnWidth, ElementName=RootPage}" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="{Binding TimelineConfidenceColumnWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTimeColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTimeSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineFrameColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineFrameSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTextColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineTextSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineDetailColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineDetailSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineConfidenceColumnActualWidth, ElementName=RootPage}" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" TextWrapping="WrapWholeWords" />
                                         <TextBlock Grid.Column="2" Text="{x:Bind FrameLabel}" Style="{StaticResource AppSecondaryTextStyle}" TextWrapping="WrapWholeWords" />

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.Services;
@@ -19,6 +20,12 @@ public partial class MainPageViewModel : ObservableObject
         Ocr,
         Export
     }
+
+    private sealed record ProgressFrameState(
+        string StageLabel,
+        double Percent,
+        int TotalFrames,
+        Stopwatch Stopwatch);
 
     private const double DefaultFrameIntervalSeconds = 1.0d;
     private const double DefaultPaddleContrast = 1.1d;
@@ -59,6 +66,8 @@ public partial class MainPageViewModel : ObservableObject
     private double _latestFrameIntervalSeconds = 1.0d;
     private bool _isSynchronizingSelection;
     private bool _isUpdatingPreviewSequence;
+    private readonly DispatcherQueue? _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+    private ProgressFrameState? _activeProgressFrameState;
 
     public MainPageViewModel()
     {
@@ -501,6 +510,22 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void CopySelectedTimelineText()
+    {
+        var text = SelectedTimelineSegment?.Text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            StatusMessage = "No selected telop text is available to copy.";
+            return;
+        }
+
+        var package = new DataPackage();
+        package.SetText(text.Trim());
+        Clipboard.SetContent(package);
+        StatusMessage = "Copied selected telop text.";
+    }
+
+    [RelayCommand]
     private void OpenPathLocation(string? path)
     {
         var normalizedPath = NormalizeActionPath(path);
@@ -822,11 +847,15 @@ public partial class MainPageViewModel : ObservableObject
         StatusMessage = CreateStartStatus(startStage);
         ActivityMessage = "Pipeline stage is running.";
         var currentStage = "Input validation";
+        CancellationTokenSource? progressTickerCts = null;
+        Task? progressTickerTask = null;
 
         try
         {
             var startedAt = DateTimeOffset.Now;
             var stopwatch = Stopwatch.StartNew();
+            progressTickerCts = new CancellationTokenSource();
+            progressTickerTask = RunProgressTickerAsync(progressTickerCts.Token);
             var intervalSeconds = startStage == AnalysisStartStage.FrameExtraction
                 ? ParseFrameIntervalSeconds()
                 : _latestFrameIntervalSeconds;
@@ -845,7 +874,7 @@ public partial class MainPageViewModel : ObservableObject
                 var progress = new Progress<double>(value =>
                 {
                     ProgressValue = value * 0.6d;
-                    ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames, stopwatch.Elapsed);
+                    SetTimedFrameProgress(UiText.ProgressFrameExtraction, value, expectedFrames, stopwatch);
                 });
                 result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, outputRootDirectory);
                 _latestFrameExtractionResult = result;
@@ -856,7 +885,7 @@ public partial class MainPageViewModel : ObservableObject
                 result = _latestFrameExtractionResult!;
                 ProgressValue = startStage == AnalysisStartStage.Ocr ? 10d : 70d;
                 ProgressDetailText = startStage == AnalysisStartStage.Ocr
-                    ? $"OCR: 0 / {result.Frames.Count} frames (0%)"
+                    ? FormatFrameProgress(UiText.ProgressOcr, 0d, result.Frames.Count, null, UiText)
                     : $"Output: preparing {result.Frames.Count} analyzed frames.";
             }
 
@@ -871,11 +900,12 @@ public partial class MainPageViewModel : ObservableObject
                 var ocrProgress = new Progress<double>(value =>
                 {
                     ProgressValue = 60d + (value * 0.3d);
-                    ProgressDetailText = FormatFrameProgress("OCR", value, result.Frames.Count, stopwatch.Elapsed);
+                    SetTimedFrameProgress(UiText.ProgressOcr, value, result.Frames.Count, stopwatch);
                 });
                 _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
 
                 currentStage = "Attribute analysis";
+                _activeProgressFrameState = null;
                 ProgressDetailText = $"Attribute analysis: {_latestFrameAnalyses.Count} frames analyzed.";
                 _latestSegments = _segmentMerger.Merge(_latestFrameAnalyses, intervalSeconds);
             }
@@ -950,6 +980,24 @@ public partial class MainPageViewModel : ObservableObject
         }
         finally
         {
+            _activeProgressFrameState = null;
+            if (progressTickerCts is not null)
+            {
+                progressTickerCts.Cancel();
+            }
+
+            if (progressTickerTask is not null)
+            {
+                try
+                {
+                    await progressTickerTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            progressTickerCts?.Dispose();
             IsBusy = false;
         }
     }
@@ -1144,19 +1192,61 @@ public partial class MainPageViewModel : ObservableObject
         return Math.Abs(lastTimestampMs - durationMs) < 0.5d ? baseCount : baseCount + 1;
     }
 
-    private static string FormatFrameProgress(string stage, double percent, int totalFrames, TimeSpan? elapsed = null)
+    private void SetTimedFrameProgress(string stageLabel, double percent, int totalFrames, Stopwatch stopwatch)
+    {
+        var state = new ProgressFrameState(stageLabel, percent, totalFrames, stopwatch);
+        _activeProgressFrameState = state;
+        ProgressDetailText = FormatFrameProgress(state.StageLabel, state.Percent, state.TotalFrames, state.Stopwatch.Elapsed, UiText);
+    }
+
+    private async Task RunProgressTickerAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                var state = _activeProgressFrameState;
+                if (state is null)
+                {
+                    continue;
+                }
+
+                var text = FormatFrameProgress(
+                    state.StageLabel,
+                    state.Percent,
+                    state.TotalFrames,
+                    state.Stopwatch.Elapsed,
+                    UiText);
+                if (_dispatcherQueue is null || !_dispatcherQueue.TryEnqueue(() => ProgressDetailText = text))
+                {
+                    ProgressDetailText = text;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private static string FormatFrameProgress(
+        string stage,
+        double percent,
+        int totalFrames,
+        TimeSpan? elapsed,
+        LocalizedUiText uiText)
     {
         var normalizedPercent = Math.Clamp(percent, 0d, 100d);
         var total = Math.Max(1, totalFrames);
         var completed = Math.Clamp((int)Math.Ceiling(total * normalizedPercent / 100d), 0, total);
-        var progress = $"{stage}: {completed} / {total} frames ({normalizedPercent:F0}%)";
+        var progress = $"{stage}: {completed} / {total} {uiText.ProgressFramesUnit} ({normalizedPercent:F0}%)";
         if (elapsed is null)
         {
             return progress;
         }
 
         var remaining = EstimateRemaining(elapsed.Value, completed, total);
-        return $"{progress} / elapsed {FormatDuration(elapsed.Value)} / remaining {FormatDuration(remaining)}";
+        return $"{progress} / {uiText.ProgressElapsed} {FormatDuration(elapsed.Value)} / {uiText.ProgressRemaining} {FormatDuration(remaining)}";
     }
 
     private static TimeSpan EstimateRemaining(TimeSpan elapsed, int completedFrames, int totalFrames)
@@ -1633,7 +1723,7 @@ public partial class MainPageViewModel : ObservableObject
     private static string FormatSegmentStyleSummary(SegmentRecord segment)
     {
         var fontSize = segment.FontSize is null ? "size unknown" : $"{segment.FontSize:F1}{segment.FontSizeUnit}";
-        return $"{segment.TextType} / {fontSize} / {segment.SourceFrameCount} frame(s)";
+        return $"{segment.TextType} / {fontSize}";
     }
 
     private static string FormatSegmentDetail(SegmentRecord segment)
@@ -1643,9 +1733,7 @@ public partial class MainPageViewModel : ObservableObject
             new[] { segment.TextColor, segment.StrokeColor, segment.BackgroundColor }
                 .Where(value => !string.IsNullOrWhiteSpace(value)));
 
-        return string.IsNullOrWhiteSpace(colors)
-            ? $"{segment.SourceFrameCount} frame(s)"
-            : colors;
+        return string.IsNullOrWhiteSpace(colors) ? "-" : colors;
     }
 
     private static string FormatDetectionDetail(OcrDetectionRecord detection, string imagePath)

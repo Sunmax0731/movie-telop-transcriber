@@ -143,7 +143,7 @@ class PaddleOcrWorker:
         try:
             result = ocr.predict(ocr_image_path)
             payload = extract_result_payload(result)
-            detections = self._create_detections(request, payload, lang, coordinate_scale)
+            detections = self._create_detections(request, payload, lang, coordinate_scale, ocr_image_path)
         finally:
             if temporary_image_path:
                 try:
@@ -223,6 +223,7 @@ class PaddleOcrWorker:
         payload: dict[str, Any],
         lang: str,
         coordinate_scale: float,
+        ocr_image_path: str,
     ) -> list[dict[str, Any]]:
         texts = payload.get("rec_texts") or []
         scores = payload.get("rec_scores") or []
@@ -233,8 +234,13 @@ class PaddleOcrWorker:
 
         for index, text in enumerate(texts):
             polygon = polys[index] if index < len(polys) else []
-            normalized_text = str(text).strip()
-            if self._normalize_small_kana and lang == "japan":
+            raw_text = str(text).strip()
+            if raw_text:
+                normalized_text = raw_text
+            else:
+                normalized_text = infer_symbol_text_from_region(ocr_image_path, polygon)
+
+            if normalized_text and self._normalize_small_kana and lang == "japan":
                 normalized_text = normalize_japanese_small_kana(normalized_text)
             normalized_text = normalize_symbol_text(normalized_text, polygon)
 
@@ -369,20 +375,111 @@ def replace_common_small_kana_words(text: str) -> str:
     return text
 
 
+DOUBLE_CIRCLE_SYMBOL = "\u25ce"
+CIRCLE_SYMBOLS = {DOUBLE_CIRCLE_SYMBOL, "\u3007", "\u25cb", "\u25ef"}
+
+
 def normalize_symbol_text(text: str, polygon: Any) -> str:
     """Preserve common telop symbols that Japanese OCR may read as plain circles."""
 
-    if text in {"◎", "〇", "○", "◯"}:
-        return "◎"
+    if text in CIRCLE_SYMBOLS:
+        return DOUBLE_CIRCLE_SYMBOL
 
     if text in {"O", "o", "0"} and is_near_square_polygon(polygon):
-        return "◎"
+        return DOUBLE_CIRCLE_SYMBOL
 
     return text
 
 
 def is_symbol_candidate(text: str) -> bool:
-    return text in {"◎", "〇", "○", "◯"}
+    return text in CIRCLE_SYMBOLS
+
+
+def infer_symbol_text_from_region(image_path: str, polygon: Any) -> str:
+    """Infer an unrecognized double-circle symbol from a detected OCR region."""
+
+    if not is_symbol_sized_polygon(polygon):
+        return ""
+
+    try:
+        import cv2
+    except Exception:  # noqa: BLE001 - OpenCV is optional for symbol fallback.
+        return ""
+
+    try:
+        image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            return ""
+
+        points = list(polygon)
+        xs = [int(round(float(point[0]))) for point in points]
+        ys = [int(round(float(point[1]))) for point in points]
+        pad = 3
+        min_x = max(0, min(xs) - pad)
+        min_y = max(0, min(ys) - pad)
+        max_x = min(image.shape[1], max(xs) + pad)
+        max_y = min(image.shape[0], max(ys) + pad)
+        if max_x <= min_x or max_y <= min_y:
+            return ""
+
+        crop = image[min_y:max_y, min_x:max_x]
+        if crop.size == 0:
+            return ""
+
+        blurred = cv2.medianBlur(crop, 3)
+        min_side = min(crop.shape[0], crop.shape[1])
+        min_radius = max(3, int(round(min_side * 0.18)))
+        max_radius = max(min_radius + 1, int(round(min_side * 0.55)))
+        circles = cv2.HoughCircles(
+            blurred,
+            cv2.HOUGH_GRADIENT,
+            dp=1.2,
+            minDist=max(4, min_side // 2),
+            param1=80,
+            param2=12,
+            minRadius=min_radius,
+            maxRadius=max_radius,
+        )
+        if circles is not None and len(circles[0]) > 0:
+            return DOUBLE_CIRCLE_SYMBOL
+
+        edges = cv2.Canny(blurred, 60, 160)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            perimeter = cv2.arcLength(contour, True)
+            if perimeter <= 0 or area < max(8, crop.size * 0.03):
+                continue
+
+            circularity = 4.0 * 3.141592653589793 * area / (perimeter * perimeter)
+            if circularity >= 0.45:
+                return DOUBLE_CIRCLE_SYMBOL
+    except Exception:  # noqa: BLE001 - fallback must never fail OCR.
+        return ""
+
+    return ""
+
+
+def is_symbol_sized_polygon(polygon: Any) -> bool:
+    try:
+        points = list(polygon)
+        xs = [float(point[0]) for point in points]
+        ys = [float(point[1]) for point in points]
+    except Exception:  # noqa: BLE001 - symbol normalization must never fail OCR.
+        return False
+
+    if not xs or not ys:
+        return False
+
+    width = max(xs) - min(xs)
+    height = max(ys) - min(ys)
+    if width <= 0 or height <= 0:
+        return False
+
+    ratio = width / height
+    min_side = min(width, height)
+    max_side = max(width, height)
+    return 0.55 <= ratio <= 1.8 and 8 <= min_side <= 90 and max_side <= 120
 
 
 def is_near_square_polygon(polygon: Any) -> bool:

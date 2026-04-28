@@ -97,7 +97,7 @@ public sealed class TimelineSegment : ObservableObject
 
     public string ConfidenceLabel => Confidence is null ? "-" : $"{Confidence.Value:P0}";
 
-    public string FrameLabel => FrameIndex is null ? "-" : $"Frame {FrameIndex.Value:D6}";
+    public string FrameLabel => FrameIndex is null ? "-" : $"{FrameIndex.Value:D6}";
 
     public SolidColorBrush ConfidenceBrush
     {
