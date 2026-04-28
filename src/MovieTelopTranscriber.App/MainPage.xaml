@@ -332,13 +332,13 @@
                             Width="72"
                             Click="OnMergeTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineMerge, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
+                            Visibility="Collapsed" />
                         <Button
                             Grid.Column="4"
                             Width="72"
                             Click="OnSplitTimelineClicked"
                             Content="{x:Bind ViewModel.UiText.TimelineSplit, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.TimelineSelectionActionsVisibility, Mode=OneWay}" />
+                            Visibility="Collapsed" />
                         <Button
                             Grid.Column="5"
                             Width="72"
