@@ -17,4 +17,7 @@ public sealed record RunSummaryRecord(
     string OutputDirectory,
     string JsonPath,
     string SegmentsCsvPath,
-    string FramesCsvPath);
+    string FramesCsvPath,
+    string SrtPath,
+    string VttPath,
+    string AssPath);

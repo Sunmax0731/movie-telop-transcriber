@@ -1287,7 +1287,7 @@ public partial class MainPageViewModel : ObservableObject
             PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
 
             currentStage = "Output";
-            ProgressDetailText = $"Output: writing JSON/CSV for {result.Frames.Count} frames.";
+            ProgressDetailText = $"Output: writing JSON, CSV, and subtitles for {result.Frames.Count} frames.";
             stopwatch.Stop();
             _latestExport = await _exportPackageWriter.WriteAsync(
                 metadata,
@@ -1447,6 +1447,7 @@ public partial class MainPageViewModel : ObservableObject
         SettingItems.Add(new SettingItem(UiText.PaddlePreprocessSettingTitle, FormatPaddlePreprocessSummary(), UiText.PaddlePreprocessSettingDescription));
         SettingItems.Add(new SettingItem(UiText.PaddleDetectionSettingTitle, FormatPaddleDetectionSummary(), UiText.PaddleDetectionSettingDescription));
         SettingItems.Add(new SettingItem(UiText.OutputSettingLabel, FormatOutputRootPreview(), UiText.OutputSettingDescription));
+        SettingItems.Add(new SettingItem(UiText.OutputFormatsSettingLabel, "JSON / CSV / SRT / VTT / ASS", UiText.OutputFormatsSettingDescription));
     }
 
     private void ResetDynamicCollections()
@@ -1479,7 +1480,15 @@ public partial class MainPageViewModel : ObservableObject
         InfoCards.Add(new InfoCardItem(UiText.FramesInfoTitle, frameCount.ToString(), UiText.FramesInfoDescription));
         InfoCards.Add(new InfoCardItem(UiText.OcrInfoTitle, $"{detectionCount} detections", OcrEngineText));
         InfoCards.Add(new InfoCardItem(UiText.SegmentsInfoTitle, segmentCount.ToString(), UiText.SegmentsInfoDescription));
-        InfoCards.Add(new InfoCardItem(UiText.ExportInfoTitle, ExportDirectoryText, UiText.ExportInfoDescription, IsActionablePath(ExportDirectoryText), UiText.TimelineCopy));
+        var canOpenExportDirectory = IsActionablePath(ExportDirectoryText);
+        InfoCards.Add(new InfoCardItem(
+            UiText.ExportInfoTitle,
+            ExportDirectoryText,
+            UiText.ExportInfoDescription,
+            canOpenExportDirectory,
+            UiText.TimelineCopy,
+            canOpenExportDirectory,
+            UiText.OpenPathButton));
     }
 
     private string FormatOutputRootPreview()

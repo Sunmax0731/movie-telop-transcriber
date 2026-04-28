@@ -42,7 +42,10 @@ public sealed class RunLogWriter
             exportWriteResult.OutputDirectory,
             exportWriteResult.JsonPath,
             exportWriteResult.SegmentsCsvPath,
-            exportWriteResult.FramesCsvPath);
+            exportWriteResult.FramesCsvPath,
+            exportWriteResult.SrtPath,
+            exportWriteResult.VttPath,
+            exportWriteResult.AssPath);
 
         var summaryPath = Path.Combine(logsDirectory, "summary.json");
         await using (var stream = File.Create(summaryPath))
@@ -76,6 +79,9 @@ public sealed class RunLogWriter
         builder.AppendLine($"json_path={summary.JsonPath}");
         builder.AppendLine($"segments_csv_path={summary.SegmentsCsvPath}");
         builder.AppendLine($"frames_csv_path={summary.FramesCsvPath}");
+        builder.AppendLine($"srt_path={summary.SrtPath}");
+        builder.AppendLine($"vtt_path={summary.VttPath}");
+        builder.AppendLine($"ass_path={summary.AssPath}");
         return builder.ToString();
     }
 }

@@ -56,7 +56,16 @@ public sealed class ExportPackageWriter
         var framesCsvPath = Path.Combine(outputDirectory, "frames.csv");
         await File.WriteAllTextAsync(framesCsvPath, BuildFramesCsv(package.Frames), new UTF8Encoding(false), cancellationToken);
 
-        return new ExportWriteResult(outputDirectory, jsonPath, segmentsCsvPath, framesCsvPath);
+        var srtPath = Path.Combine(outputDirectory, "segments.srt");
+        await File.WriteAllTextAsync(srtPath, BuildSrt(segments), new UTF8Encoding(false), cancellationToken);
+
+        var vttPath = Path.Combine(outputDirectory, "segments.vtt");
+        await File.WriteAllTextAsync(vttPath, BuildVtt(segments), new UTF8Encoding(false), cancellationToken);
+
+        var assPath = Path.Combine(outputDirectory, "segments.ass");
+        await File.WriteAllTextAsync(assPath, BuildAss(segments), new UTF8Encoding(false), cancellationToken);
+
+        return new ExportWriteResult(outputDirectory, jsonPath, segmentsCsvPath, framesCsvPath, srtPath, vttPath, assPath);
     }
 
     private static string BuildSegmentsCsv(IReadOnlyList<SegmentRecord> segments)
@@ -126,6 +135,77 @@ public sealed class ExportPackageWriter
         return builder.ToString();
     }
 
+    private static string BuildSrt(IReadOnlyList<SegmentRecord> segments)
+    {
+        var builder = new StringBuilder();
+        var index = 1;
+        foreach (var segment in segments.Where(HasSubtitleText))
+        {
+            var endTimestampMs = NormalizeEndTimestampMs(segment.StartTimestampMs, segment.EndTimestampMs);
+            builder.AppendLine(index.ToString(CultureInfo.InvariantCulture));
+            builder.AppendLine($"{FormatSrtTimestamp(segment.StartTimestampMs)} --> {FormatSrtTimestamp(endTimestampMs)}");
+            builder.AppendLine(NormalizeSubtitleText(segment.Text));
+            builder.AppendLine();
+            index++;
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildVtt(IReadOnlyList<SegmentRecord> segments)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("WEBVTT");
+        builder.AppendLine();
+
+        foreach (var segment in segments.Where(HasSubtitleText))
+        {
+            var endTimestampMs = NormalizeEndTimestampMs(segment.StartTimestampMs, segment.EndTimestampMs);
+            builder.AppendLine($"{FormatVttTimestamp(segment.StartTimestampMs)} --> {FormatVttTimestamp(endTimestampMs)}");
+            builder.AppendLine(NormalizeSubtitleText(segment.Text));
+            builder.AppendLine();
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildAss(IReadOnlyList<SegmentRecord> segments)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("[Script Info]");
+        builder.AppendLine("ScriptType: v4.00+");
+        builder.AppendLine("Collisions: Normal");
+        builder.AppendLine("PlayResX: 1920");
+        builder.AppendLine("PlayResY: 1080");
+        builder.AppendLine("Timer: 100.0000");
+        builder.AppendLine();
+        builder.AppendLine("[V4+ Styles]");
+        builder.AppendLine("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding");
+        builder.AppendLine("Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,0,2,40,40,40,1");
+        builder.AppendLine();
+        builder.AppendLine("[Events]");
+        builder.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
+
+        foreach (var segment in segments.Where(HasSubtitleText))
+        {
+            var endTimestampMs = NormalizeEndTimestampMs(segment.StartTimestampMs, segment.EndTimestampMs);
+            builder.AppendLine(string.Join(
+                ',',
+                "Dialogue: 0",
+                FormatAssTimestamp(segment.StartTimestampMs),
+                FormatAssTimestamp(endTimestampMs),
+                "Default",
+                string.Empty,
+                "0",
+                "0",
+                "0",
+                string.Empty,
+                EscapeAssText(segment.Text)));
+        }
+
+        return builder.ToString();
+    }
+
     private static string Csv(string? value)
     {
         if (string.IsNullOrEmpty(value))
@@ -144,6 +224,54 @@ public sealed class ExportPackageWriter
     private static string? FormatNullable(double? value)
     {
         return value?.ToString("0.####", CultureInfo.InvariantCulture);
+    }
+
+    private static bool HasSubtitleText(SegmentRecord segment)
+    {
+        return !string.IsNullOrWhiteSpace(segment.Text);
+    }
+
+    private static long NormalizeEndTimestampMs(long startTimestampMs, long endTimestampMs)
+    {
+        return endTimestampMs > startTimestampMs ? endTimestampMs : startTimestampMs + 1000;
+    }
+
+    private static string NormalizeSubtitleText(string text)
+    {
+        var lines = text
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n', StringSplitOptions.TrimEntries)
+            .Where(line => !string.IsNullOrWhiteSpace(line));
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string EscapeAssText(string text)
+    {
+        return NormalizeSubtitleText(text)
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("{", "\\{", StringComparison.Ordinal)
+            .Replace("}", "\\}", StringComparison.Ordinal)
+            .Replace(Environment.NewLine, "\\N", StringComparison.Ordinal);
+    }
+
+    private static string FormatSrtTimestamp(long timestampMs)
+    {
+        var time = TimeSpan.FromMilliseconds(Math.Max(0, timestampMs));
+        return $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00},{time.Milliseconds:000}";
+    }
+
+    private static string FormatVttTimestamp(long timestampMs)
+    {
+        var time = TimeSpan.FromMilliseconds(Math.Max(0, timestampMs));
+        return $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}";
+    }
+
+    private static string FormatAssTimestamp(long timestampMs)
+    {
+        var time = TimeSpan.FromMilliseconds(Math.Max(0, timestampMs));
+        var centiseconds = time.Milliseconds / 10;
+        return $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}.{centiseconds:00}";
     }
 
     private static string GetApplicationVersion()
