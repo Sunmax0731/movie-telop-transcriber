@@ -232,18 +232,19 @@ class PaddleOcrWorker:
         detections: list[dict[str, Any]] = []
 
         for index, text in enumerate(texts):
+            polygon = polys[index] if index < len(polys) else []
             normalized_text = str(text).strip()
             if self._normalize_small_kana and lang == "japan":
                 normalized_text = normalize_japanese_small_kana(normalized_text)
+            normalized_text = normalize_symbol_text(normalized_text, polygon)
 
             if not normalized_text:
                 continue
 
             confidence = to_float(scores[index]) if index < len(scores) else None
-            if confidence is not None and confidence < self._min_score:
+            if confidence is not None and confidence < self._min_score and not is_symbol_candidate(normalized_text):
                 continue
 
-            polygon = polys[index] if index < len(polys) else []
             detections.append(
                 {
                     "detection_id": f"paddleocr-{frame_index:06d}-{timestamp_ms:08d}ms-{index + 1:02d}",
@@ -366,6 +367,42 @@ def replace_common_small_kana_words(text: str) -> str:
     for source, replacement in replacements.items():
         text = text.replace(source, replacement)
     return text
+
+
+def normalize_symbol_text(text: str, polygon: Any) -> str:
+    """Preserve common telop symbols that Japanese OCR may read as plain circles."""
+
+    if text in {"◎", "〇", "○", "◯"}:
+        return "◎"
+
+    if text in {"O", "o", "0"} and is_near_square_polygon(polygon):
+        return "◎"
+
+    return text
+
+
+def is_symbol_candidate(text: str) -> bool:
+    return text in {"◎", "〇", "○", "◯"}
+
+
+def is_near_square_polygon(polygon: Any) -> bool:
+    try:
+        points = list(polygon)
+        xs = [float(point[0]) for point in points]
+        ys = [float(point[1]) for point in points]
+    except Exception:  # noqa: BLE001 - symbol normalization must never fail OCR.
+        return False
+
+    if not xs or not ys:
+        return False
+
+    width = max(xs) - min(xs)
+    height = max(ys) - min(ys)
+    if width <= 0 or height <= 0:
+        return False
+
+    ratio = width / height
+    return 0.65 <= ratio <= 1.55
 
 
 def extract_result_payload(result: Any) -> dict[str, Any]:

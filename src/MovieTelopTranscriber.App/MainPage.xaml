@@ -195,6 +195,24 @@
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Slider
+                                    Minimum="0"
+                                    Maximum="{x:Bind ViewModel.PreviewSequenceMaximum, Mode=OneWay}"
+                                    IsEnabled="{x:Bind ViewModel.HasPreviewSequence, Mode=OneWay}"
+                                    Value="{x:Bind ViewModel.PreviewSequenceValue, Mode=TwoWay}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    MinWidth="52"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
+                                    Text="{x:Bind ViewModel.PreviewSequenceLabel, Mode=OneWay}"
+                                    TextAlignment="Right" />
+                            </Grid>
                             <TextBlock Text="{x:Bind ViewModel.UiText.SelectedItem, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                             <TextBlock
                                 Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
@@ -225,29 +243,36 @@
                                 Style="{StaticResource AppSecondaryTextStyle}"
                                 TextWrapping="WrapWholeWords" />
                             <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-                            <StackPanel Spacing="6">
-                                <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                            </StackPanel>
-                            <Border
-                                Padding="10"
-                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                CornerRadius="6">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
-                                    <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
-                                    <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
-                                    <TextBlock
-                                        Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
-                                        Style="{StaticResource AppSecondaryTextStyle}"
-                                        TextWrapping="WrapWholeWords" />
-                                    <TextBlock
-                                        Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
-                                        Style="{StaticResource AppSecondaryTextStyle}"
-                                        TextWrapping="WrapWholeWords" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="0.9*" />
+                                    <ColumnDefinition Width="1.1*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="6">
+                                    <Button Command="{x:Bind ViewModel.RerunFrameExtractionCommand}" Content="{x:Bind ViewModel.UiText.RerunFrames, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                    <Button Command="{x:Bind ViewModel.RerunOcrCommand}" Content="{x:Bind ViewModel.UiText.RerunOcr, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                    <Button Command="{x:Bind ViewModel.RerunExportCommand}" Content="{x:Bind ViewModel.UiText.ExportOnly, Mode=OneWay}" HorizontalAlignment="Stretch" />
                                 </StackPanel>
-                            </Border>
+                                <Border
+                                    Grid.Column="1"
+                                    Padding="10"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="6">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{x:Bind ViewModel.UiText.LastFailure, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                        <TextBlock Text="{x:Bind ViewModel.LastFailedStageText, Mode=OneWay}" />
+                                        <TextBlock Text="{x:Bind ViewModel.LastErrorCodeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                        <TextBlock
+                                            Text="{x:Bind ViewModel.LastErrorMessageText, Mode=OneWay}"
+                                            Style="{StaticResource AppSecondaryTextStyle}"
+                                            TextWrapping="WrapWholeWords" />
+                                        <TextBlock
+                                            Text="{x:Bind ViewModel.RunLogPathText, Mode=OneWay}"
+                                            Style="{StaticResource AppSecondaryTextStyle}"
+                                            TextWrapping="WrapWholeWords" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>

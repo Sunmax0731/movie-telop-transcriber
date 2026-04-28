@@ -20,6 +20,12 @@ public partial class MainPageViewModel : ObservableObject
         Export
     }
 
+    private const double DefaultFrameIntervalSeconds = 1.0d;
+    private const double DefaultPaddleContrast = 1.1d;
+    private const double DefaultPaddleTextDetThresh = 0.3d;
+    private const double DefaultPaddleTextDetBoxThresh = 0.6d;
+    private const double DefaultPaddleTextDetUnclipRatio = 1.5d;
+    private const double DefaultPaddleTextDetLimitSideLen = 960d;
     private const string FixedPaddleUpscale = "1";
     private const string PaddlePreprocessEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PREPROCESS";
     private const string PaddleUpscaleEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_UPSCALE";
@@ -52,6 +58,7 @@ public partial class MainPageViewModel : ObservableObject
     private ExportWriteResult? _latestExport;
     private double _latestFrameIntervalSeconds = 1.0d;
     private bool _isSynchronizingSelection;
+    private bool _isUpdatingPreviewSequence;
 
     public MainPageViewModel()
     {
@@ -108,6 +115,18 @@ public partial class MainPageViewModel : ObservableObject
     public partial string PreviewDetailText { get; set; } = "No frame selected.";
 
     [ObservableProperty]
+    public partial double PreviewSequenceValue { get; set; }
+
+    [ObservableProperty]
+    public partial double PreviewSequenceMaximum { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasPreviewSequence { get; set; }
+
+    [ObservableProperty]
+    public partial string PreviewSequenceLabel { get; set; } = "-";
+
+    [ObservableProperty]
     public partial string ActivityMessage { get; set; } = "Select a video file to load metadata and extract frames.";
 
     [ObservableProperty]
@@ -131,6 +150,9 @@ public partial class MainPageViewModel : ObservableObject
     public partial string FrameIntervalText { get; set; } = "1.0";
 
     [ObservableProperty]
+    public partial double FrameIntervalValue { get; set; } = DefaultFrameIntervalSeconds;
+
+    [ObservableProperty]
     public partial string OutputRootDirectoryText { get; set; } = OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory();
 
     [ObservableProperty]
@@ -140,19 +162,34 @@ public partial class MainPageViewModel : ObservableObject
     public partial string PaddleContrastText { get; set; } = ReadEnvironment(PaddleContrastEnvironmentVariable, "1.1");
 
     [ObservableProperty]
+    public partial double PaddleContrastValue { get; set; } = ReadDoubleSetting(PaddleContrastEnvironmentVariable, DefaultPaddleContrast);
+
+    [ObservableProperty]
     public partial bool PaddleSharpenEnabled { get; set; } = ReadBoolEnvironment(PaddleSharpenEnvironmentVariable, true);
 
     [ObservableProperty]
     public partial string PaddleTextDetThreshText { get; set; } = ReadEnvironment(PaddleTextDetThreshEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
+    public partial double PaddleTextDetThreshValue { get; set; } = ReadDoubleSetting(PaddleTextDetThreshEnvironmentVariable, DefaultPaddleTextDetThresh);
+
+    [ObservableProperty]
     public partial string PaddleTextDetBoxThreshText { get; set; } = ReadEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial double PaddleTextDetBoxThreshValue { get; set; } = ReadDoubleSetting(PaddleTextDetBoxThreshEnvironmentVariable, DefaultPaddleTextDetBoxThresh);
 
     [ObservableProperty]
     public partial string PaddleTextDetUnclipRatioText { get; set; } = ReadEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
+    public partial double PaddleTextDetUnclipRatioValue { get; set; } = ReadDoubleSetting(PaddleTextDetUnclipRatioEnvironmentVariable, DefaultPaddleTextDetUnclipRatio);
+
+    [ObservableProperty]
     public partial string PaddleTextDetLimitSideLenText { get; set; } = ReadEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, string.Empty);
+
+    [ObservableProperty]
+    public partial double PaddleTextDetLimitSideLenValue { get; set; } = ReadDoubleSetting(PaddleTextDetLimitSideLenEnvironmentVariable, DefaultPaddleTextDetLimitSideLen);
 
     [ObservableProperty]
     public partial bool PaddleUseTextlineOrientation { get; set; } = ReadBoolEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, false);
@@ -260,8 +297,30 @@ public partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanInteract));
     }
 
+    partial void OnPreviewSequenceValueChanged(double value)
+    {
+        if (_isUpdatingPreviewSequence || _latestFrameAnalyses.Count == 0)
+        {
+            return;
+        }
+
+        SelectPreviewFrameByIndex((int)Math.Round(value));
+    }
+
+    partial void OnFrameIntervalValueChanged(double value)
+    {
+        FrameIntervalText = FormatSettingNumber(value, "0.##");
+        RefreshStaticCollections();
+    }
+
     partial void OnFrameIntervalTextChanged(string value)
     {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleContrastValueChanged(double value)
+    {
+        PaddleContrastText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
     }
 
@@ -290,8 +349,20 @@ public partial class MainPageViewModel : ObservableObject
         RefreshStaticCollections();
     }
 
+    partial void OnPaddleTextDetThreshValueChanged(double value)
+    {
+        PaddleTextDetThreshText = FormatSettingNumber(value, "0.##");
+        RefreshStaticCollections();
+    }
+
     partial void OnPaddleTextDetBoxThreshTextChanged(string value)
     {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetBoxThreshValueChanged(double value)
+    {
+        PaddleTextDetBoxThreshText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
     }
 
@@ -300,8 +371,20 @@ public partial class MainPageViewModel : ObservableObject
         RefreshStaticCollections();
     }
 
+    partial void OnPaddleTextDetUnclipRatioValueChanged(double value)
+    {
+        PaddleTextDetUnclipRatioText = FormatSettingNumber(value, "0.#");
+        RefreshStaticCollections();
+    }
+
     partial void OnPaddleTextDetLimitSideLenTextChanged(string value)
     {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleTextDetLimitSideLenValueChanged(double value)
+    {
+        PaddleTextDetLimitSideLenText = Math.Round(value).ToString(CultureInfo.InvariantCulture);
         RefreshStaticCollections();
     }
 
@@ -447,6 +530,29 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ResetSettingsDefaults()
+    {
+        SelectedLanguageOption = ResolveDefaultLanguageOption();
+        FrameIntervalValue = DefaultFrameIntervalSeconds;
+        PaddlePreprocessEnabled = true;
+        PaddleContrastValue = DefaultPaddleContrast;
+        PaddleSharpenEnabled = true;
+        PaddleTextDetThreshText = string.Empty;
+        PaddleTextDetBoxThreshText = string.Empty;
+        PaddleTextDetUnclipRatioText = string.Empty;
+        PaddleTextDetLimitSideLenText = string.Empty;
+        PaddleTextDetThreshValue = DefaultPaddleTextDetThresh;
+        PaddleTextDetBoxThreshValue = DefaultPaddleTextDetBoxThresh;
+        PaddleTextDetUnclipRatioValue = DefaultPaddleTextDetUnclipRatio;
+        PaddleTextDetLimitSideLenValue = DefaultPaddleTextDetLimitSideLen;
+        PaddleUseTextlineOrientation = false;
+        PaddleUseDocUnwarping = false;
+        ApplyPaddleOcrEnvironment();
+        RefreshStaticCollections();
+        StatusMessage = "Settings were reset to defaults.";
+    }
+
+    [RelayCommand]
     private void EditSelectedTimelineSegment()
     {
         if (SelectedTimelineSegment?.CanEdit != true)
@@ -513,7 +619,19 @@ public partial class MainPageViewModel : ObservableObject
                 .Select((analysis, index) => new { analysis, index })
                 .FirstOrDefault(item => string.Equals(item.analysis.Frame.ImagePath, currentPath, StringComparison.OrdinalIgnoreCase))
                 ?.index ?? -1;
-        var next = _latestFrameAnalyses[(currentIndex + 1) % _latestFrameAnalyses.Count];
+        SelectPreviewFrameByIndex(currentIndex + 1);
+        return true;
+    }
+
+    private void SelectPreviewFrameByIndex(int index)
+    {
+        if (_latestFrameAnalyses.Count == 0)
+        {
+            return;
+        }
+
+        var normalizedIndex = ((index % _latestFrameAnalyses.Count) + _latestFrameAnalyses.Count) % _latestFrameAnalyses.Count;
+        var next = _latestFrameAnalyses[normalizedIndex];
         var matchingTimelineRow = TimelineSegments.FirstOrDefault(row => row.FrameIndex == next.Frame.FrameIndex);
 
         if (matchingTimelineRow is not null)
@@ -524,8 +642,6 @@ public partial class MainPageViewModel : ObservableObject
         {
             UpdatePreview(next.Frame.FrameIndex, next.Frame.TimestampMs, null, null);
         }
-
-        return true;
     }
 
     private void ApplyTimelineTextChange(TimelineSegment segment, string newText)
@@ -729,7 +845,7 @@ public partial class MainPageViewModel : ObservableObject
                 var progress = new Progress<double>(value =>
                 {
                     ProgressValue = value * 0.6d;
-                    ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames);
+                    ProgressDetailText = FormatFrameProgress("Frame extraction", value, expectedFrames, stopwatch.Elapsed);
                 });
                 result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, outputRootDirectory);
                 _latestFrameExtractionResult = result;
@@ -755,7 +871,7 @@ public partial class MainPageViewModel : ObservableObject
                 var ocrProgress = new Progress<double>(value =>
                 {
                     ProgressValue = 60d + (value * 0.3d);
-                    ProgressDetailText = FormatFrameProgress("OCR", value, result.Frames.Count);
+                    ProgressDetailText = FormatFrameProgress("OCR", value, result.Frames.Count, stopwatch.Elapsed);
                 });
                 _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
 
@@ -1028,12 +1144,38 @@ public partial class MainPageViewModel : ObservableObject
         return Math.Abs(lastTimestampMs - durationMs) < 0.5d ? baseCount : baseCount + 1;
     }
 
-    private static string FormatFrameProgress(string stage, double percent, int totalFrames)
+    private static string FormatFrameProgress(string stage, double percent, int totalFrames, TimeSpan? elapsed = null)
     {
         var normalizedPercent = Math.Clamp(percent, 0d, 100d);
         var total = Math.Max(1, totalFrames);
         var completed = Math.Clamp((int)Math.Ceiling(total * normalizedPercent / 100d), 0, total);
-        return $"{stage}: {completed} / {total} frames ({normalizedPercent:F0}%)";
+        var progress = $"{stage}: {completed} / {total} frames ({normalizedPercent:F0}%)";
+        if (elapsed is null)
+        {
+            return progress;
+        }
+
+        var remaining = EstimateRemaining(elapsed.Value, completed, total);
+        return $"{progress} / elapsed {FormatDuration(elapsed.Value)} / remaining {FormatDuration(remaining)}";
+    }
+
+    private static TimeSpan EstimateRemaining(TimeSpan elapsed, int completedFrames, int totalFrames)
+    {
+        if (completedFrames <= 0 || totalFrames <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        var remainingFrames = Math.Max(0, totalFrames - completedFrames);
+        var millisecondsPerFrame = elapsed.TotalMilliseconds / completedFrames;
+        return TimeSpan.FromMilliseconds(Math.Max(0d, millisecondsPerFrame * remainingFrames));
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalHours >= 1d
+            ? $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}"
+            : $"{duration.Minutes:00}:{duration.Seconds:00}";
     }
 
     private static string CreateStartStatus(AnalysisStartStage startStage)
@@ -1335,6 +1477,7 @@ public partial class MainPageViewModel : ObservableObject
         PreviewImagePath = analysis.Frame.ImagePath;
         PreviewImageWidth = _latestMetadata?.Width ?? 0;
         PreviewImageHeight = _latestMetadata?.Height ?? 0;
+        UpdatePreviewSequence(analysis);
 
         PreviewDetections.Clear();
         foreach (var detection in analysis.Ocr.Detections)
@@ -1364,6 +1507,39 @@ public partial class MainPageViewModel : ObservableObject
         PreviewDetections.Clear();
         PreviewState = state;
         PreviewDetailText = detail;
+        _isUpdatingPreviewSequence = true;
+        try
+        {
+            PreviewSequenceValue = 0d;
+            PreviewSequenceMaximum = 0d;
+            HasPreviewSequence = false;
+            PreviewSequenceLabel = "-";
+        }
+        finally
+        {
+            _isUpdatingPreviewSequence = false;
+        }
+    }
+
+    private void UpdatePreviewSequence(FrameAnalysisResult analysis)
+    {
+        var index = _latestFrameAnalyses
+            .Select((item, itemIndex) => new { item, itemIndex })
+            .FirstOrDefault(item => string.Equals(item.item.Frame.ImagePath, analysis.Frame.ImagePath, StringComparison.OrdinalIgnoreCase))
+            ?.itemIndex ?? 0;
+
+        _isUpdatingPreviewSequence = true;
+        try
+        {
+            PreviewSequenceMaximum = Math.Max(0, _latestFrameAnalyses.Count - 1);
+            PreviewSequenceValue = Math.Clamp(index, 0, PreviewSequenceMaximum);
+            HasPreviewSequence = _latestFrameAnalyses.Count > 0;
+            PreviewSequenceLabel = $"{index + 1} / {_latestFrameAnalyses.Count}";
+        }
+        finally
+        {
+            _isUpdatingPreviewSequence = false;
+        }
     }
 
     private FrameAnalysisResult? ResolvePreviewAnalysis(int? frameIndex, long? timestampMs, string? selectedText)
@@ -1462,21 +1638,19 @@ public partial class MainPageViewModel : ObservableObject
 
     private static string FormatSegmentDetail(SegmentRecord segment)
     {
-        var confidence = segment.Confidence is null ? "confidence unknown" : $"confidence {segment.Confidence:P1}";
         var colors = string.Join(
             " / ",
             new[] { segment.TextColor, segment.StrokeColor, segment.BackgroundColor }
                 .Where(value => !string.IsNullOrWhiteSpace(value)));
 
         return string.IsNullOrWhiteSpace(colors)
-            ? confidence
-            : $"{confidence} / {colors}";
+            ? $"{segment.SourceFrameCount} frame(s)"
+            : colors;
     }
 
     private static string FormatDetectionDetail(OcrDetectionRecord detection, string imagePath)
     {
-        var confidence = detection.Confidence is null ? "confidence unknown" : $"confidence {detection.Confidence:P1}";
-        return $"{confidence} / {Path.GetFileName(imagePath)}";
+        return Path.GetFileName(imagePath);
     }
 
     private static OcrDetectionRecord? FindDetectionForText(FrameAnalysisResult analysis, string text)
@@ -1507,7 +1681,7 @@ public partial class MainPageViewModel : ObservableObject
     {
         return double.TryParse(FrameIntervalText, out var seconds) && seconds > 0
             ? seconds
-            : 1.0d;
+            : DefaultFrameIntervalSeconds;
     }
 
     private void ApplyPaddleOcrEnvironment()
@@ -1543,10 +1717,23 @@ public partial class MainPageViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(value) ? "既定" : value.Trim();
     }
 
+    private static string FormatSettingNumber(double value, string format)
+    {
+        return value.ToString(format, CultureInfo.InvariantCulture);
+    }
+
     private static string ReadEnvironment(string name, string defaultValue)
     {
         var value = Environment.GetEnvironmentVariable(name);
         return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
+    }
+
+    private static double ReadDoubleSetting(string name, double defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : defaultValue;
     }
 
     private static bool ReadBoolEnvironment(string name, bool defaultValue)
