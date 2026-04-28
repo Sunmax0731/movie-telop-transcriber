@@ -66,6 +66,7 @@
 - 未指定時はフレーム同名の `.ocr.json` サイドカーを読み込み、サイドカーがない場合は空検出として処理を継続する。
 - Windows 標準 OCR を使う baseline worker は `src/MovieTelopTranscriber.Ocr.Windows/` に実装済み。
 - PaddleOCR PP-OCRv5 worker は `tools/ocr/paddle_ocr_worker.py` と `PaddleOcrWorkerClient` で実装済み。`MOVIE_TELOP_OCR_ENGINE=paddleocr` で利用する。
+- PaddleOCR worker は日本語 OCR 結果で通常サイズとして認識された小書き仮名を保守的に補正する。
 - Windows OCR の手動検証では日本語テロップの認識精度が不足したため、#72 では PaddleOCR PP-OCRv5 worker を採用する。
 - 中間成果物は `work/runs/<run_id>/frames`、`ocr`、`attributes` に分けて保存する。
 - 最終成果物は `work/runs/<run_id>/output/segments.json`、`segments.csv`、`frames.csv` として保存する。
