@@ -89,10 +89,11 @@
 - `tools/release/`: 配布物作成スクリプト
 
 ## 現在工程
-1. リリース
-2. リリース工程の親 Issue: `#18`
+1. 初期リリース `v0.1.0` 公開済み
+2. リリース工程の親 Issue `#18` は完了整理対象
 3. テスト工程の親 Issue `#21` と個別 Issue `#42` から `#47` は完了済み
-4. 現在の個別 Issue: `#51` GitHub リリースと配布物公開を行う
+4. リリース工程の個別 Issue `#48`、`#49`、`#50`、`#51` は完了済み
+5. 現在残っている主な open Issue は `#98` タイムライン結合・分割 UI とプレビュー同期のリリース後対応
 
 ## 実装メモ
 - 動画メタデータ読込とフレーム抽出を実装済み。
@@ -129,4 +130,5 @@
 - 導入手順は `docs/12_導入手順書.md` に整理済み。Release build 出力、.NET 10 Desktop Runtime、PaddleOCR Python 環境、モデル事前配置、初回確認、導入失敗時の確認項目を扱う。
 - 初期リリースの対象バージョンは `v0.1.0` とする。`segments.json` の `run_metadata.application_version` はアセンブリの informational version を使い、`0.1.0` として出力する。
 - リリースノートは `docs/13_リリースノート.md` に整理済み。GitHub Release 本文と配布物公開で参照する。
-- リリース工程では、GitHub Release と配布物公開を次に確定する。
+- GitHub Release `v0.1.0` は公開済み。配布 asset は `movie-telop-transcriber-win-x64-v0.1.0.zip` と `.zip.sha256`。
+- リリース後の次の主タスクは `#98` タイムライン結合・分割 UI とプレビュー同期の再設計。
