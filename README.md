@@ -23,13 +23,19 @@
 - OCR モデル: `PP-OCRv5_server_det`、`PP-OCRv5_server_rec`
 
 ### 導入方法
-推奨は、インストールしたい親ディレクトリで配布物に含まれる `Install-MovieTelopTranscriber.cmd` を実行する方法です。内部では PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成し、アプリ本体の配置、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル取得、起動設定ファイル作成までをまとめて実行します。
+最短手順は次の 3 ステップです。
 
-PowerShell から直接実行する場合は次を使います。
+1. 配布 zip を展開する。
+2. インストールしたい親ディレクトリで `Install-MovieTelopTranscriber.cmd` をダブルクリックする。
+3. 作成された `MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動する。
+
+`Install-MovieTelopTranscriber.cmd` は内部で PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成します。その中へアプリ本体、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル、起動設定ファイルをまとめて配置します。
+
+PowerShell から直接実行する場合は、配布物を展開したフォルダで次を使います。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\install\Install-MovieTelopTranscriber.ps1
+  -File .\Install-MovieTelopTranscriber.ps1
 ```
 
 既定の配置先は次のとおりです。
@@ -42,24 +48,24 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 | 起動スクリプト | `<実行ディレクトリ>\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1` |
 | OCR モデル | `%USERPROFILE%\.paddlex\official_models` |
 
-再インストールする場合は `-Force` を付けます。
+同じ場所へ再インストールする場合は `-Force` を付けます。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
+  -File .\Install-MovieTelopTranscriber.ps1 `
   -Force
 ```
 
-配置先を変える場合は `-InstallRoot` と `-OcrRuntimeRoot` を指定します。
+配布物の場所とは別のディレクトリへ入れたい場合は `-InstallRoot` と `-OcrRuntimeRoot` を指定します。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
+  -File .\Install-MovieTelopTranscriber.ps1 `
   -InstallRoot D:\Tools\movie-telop-transcriber `
   -OcrRuntimeRoot D:\Tools\movie-telop-ocr-runtime
 ```
 
-手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
+配布 zip ではなくリポジトリ内の開発用スクリプトを直接使う場合は `tools/install/Install-MovieTelopTranscriber.ps1` を実行します。手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
 
 ### 起動方法
 インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` または `<実行ディレクトリ>\MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動できます。
