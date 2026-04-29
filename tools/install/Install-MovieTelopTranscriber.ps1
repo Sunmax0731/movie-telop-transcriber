@@ -1,8 +1,8 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$Version = "0.1.1",
-    [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "Programs\MovieTelopTranscriber"),
-    [string]$OcrRuntimeRoot = (Join-Path $env:LOCALAPPDATA "Programs\MovieTelopTranscriber\ocr-runtime"),
+    [string]$InstallRoot,
+    [string]$OcrRuntimeRoot,
     [string]$DownloadRoot = (Join-Path $env:TEMP "movie-telop-transcriber-install"),
     [string]$PackageZipPath,
     [string]$ReleaseAssetUrl,
@@ -26,7 +26,15 @@ if ([string]::IsNullOrWhiteSpace($ReleaseAssetUrl)) {
     $ReleaseAssetUrl = "https://github.com/$repository/releases/download/v$Version/$packageName.zip"
 }
 
+$defaultInstallRoot = Join-Path (Get-Location).Path "MovieTelopTranscriber"
+if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
+    $InstallRoot = $defaultInstallRoot
+}
+
 $InstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
+if ([string]::IsNullOrWhiteSpace($OcrRuntimeRoot)) {
+    $OcrRuntimeRoot = Join-Path $InstallRoot "ocr-runtime"
+}
 $OcrRuntimeRoot = [System.IO.Path]::GetFullPath($OcrRuntimeRoot)
 $DownloadRoot = [System.IO.Path]::GetFullPath($DownloadRoot)
 $downloadZipPath = Join-Path $DownloadRoot "$packageName.zip"

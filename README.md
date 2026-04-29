@@ -23,7 +23,7 @@
 - OCR モデル: `PP-OCRv5_server_det`、`PP-OCRv5_server_rec`
 
 ### 導入方法
-推奨は配布物に含まれる `Install-MovieTelopTranscriber.cmd` をダブルクリックして開始する方法です。内部では PowerShell インストーラを呼び出し、アプリ本体の配置、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル取得、起動設定ファイル作成までをまとめて実行します。
+推奨は、インストールしたい親ディレクトリで配布物に含まれる `Install-MovieTelopTranscriber.cmd` を実行する方法です。内部では PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成し、アプリ本体の配置、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル取得、起動設定ファイル作成までをまとめて実行します。
 
 PowerShell から直接実行する場合は次を使います。
 
@@ -36,10 +36,10 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 | 種別 | 既定パス |
 | --- | --- |
-| アプリ本体 | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber` |
-| OCR runtime | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\ocr-runtime` |
-| 起動設定ファイル | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\app\movie-telop-transcriber.settings.json` |
-| 起動スクリプト | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1` |
+| アプリ本体 | `<実行ディレクトリ>\MovieTelopTranscriber` |
+| OCR runtime | `<実行ディレクトリ>\MovieTelopTranscriber\ocr-runtime` |
+| 起動設定ファイル | `<実行ディレクトリ>\MovieTelopTranscriber\app\movie-telop-transcriber.settings.json` |
+| 起動スクリプト | `<実行ディレクトリ>\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1` |
 | OCR モデル | `%USERPROFILE%\.paddlex\official_models` |
 
 再インストールする場合は `-Force` を付けます。
@@ -62,7 +62,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
 
 ### 起動方法
-インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` または `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動できます。
+インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` または `<実行ディレクトリ>\MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動できます。
 
 アプリは起動時に `movie-telop-transcriber.settings.json` を読み込み、PaddleOCR 用 Python、worker script、OCR 設定を解決します。PowerShell 起動スクリプトは互換用として残りますが、通常利用では不要です。
 
