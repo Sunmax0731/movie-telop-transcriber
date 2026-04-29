@@ -1699,7 +1699,10 @@ public partial class MainPageViewModel : ObservableObject
                 {
                     var rangeLabel = $"{FormatTimestamp(segment.StartTimestampMs)} - {FormatTimestamp(segment.EndTimestampMs)}";
                     var previewAnalysis = FindPreviewAnalysisForSegment(segment, frameAnalyses);
-                    var previewDetection = previewAnalysis is null ? null : FindDetectionForText(previewAnalysis, segment.Text);
+                    var segmentDetectionIds = FindDetectionIdsForSegment(segment, frameAnalyses);
+                    var previewDetection = previewAnalysis is null
+                        ? null
+                        : FindDetectionForSegmentPreview(previewAnalysis, segment.Text, segmentDetectionIds);
                     var frameIndex = previewAnalysis?.Frame.FrameIndex;
                     var timestampMs = previewAnalysis?.Frame.TimestampMs;
                     var timelineRow = new TimelineSegment(
@@ -1712,7 +1715,8 @@ public partial class MainPageViewModel : ObservableObject
                         frameIndex,
                         timestampMs,
                         segment.SegmentId,
-                        previewDetection?.DetectionId);
+                        previewDetection?.DetectionId,
+                        segmentDetectionIds);
                     var resultRow = new ResultRow(
                         rangeLabel,
                         segment.TextType,
@@ -1721,7 +1725,8 @@ public partial class MainPageViewModel : ObservableObject
                         frameIndex,
                         timestampMs,
                         segment.SegmentId,
-                        previewDetection?.DetectionId);
+                        previewDetection?.DetectionId,
+                        segmentDetectionIds);
 
                     return new
                     {
@@ -1845,7 +1850,8 @@ public partial class MainPageViewModel : ObservableObject
             selection.TimestampMs,
             selection.SegmentId,
             selection.Text,
-            selection.DetectionId);
+            selection.DetectionId,
+            selection.DetectionIds);
     }
 
     private void UpdatePreviewFromResultSelection(ResultRow? selection)
@@ -1862,7 +1868,8 @@ public partial class MainPageViewModel : ObservableObject
             selection.TimestampMs,
             selection.SegmentId,
             selection.Text,
-            selection.DetectionId);
+            selection.DetectionId,
+            selection.DetectionIds);
     }
 
     private void SyncSelectedResultRow(TimelineSegment selection)
@@ -1947,7 +1954,8 @@ public partial class MainPageViewModel : ObservableObject
         long? timestampMs,
         string? segmentId,
         string? selectedText,
-        string? detectionId = null)
+        string? detectionId = null,
+        IReadOnlyCollection<string>? detectionIds = null)
     {
         var analysis = ResolvePreviewAnalysis(frameIndex, timestampMs, selectedText);
         if (analysis is null)
@@ -1964,7 +1972,7 @@ public partial class MainPageViewModel : ObservableObject
         PreviewDetections.Clear();
         foreach (var detection in analysis.Ocr.Detections)
         {
-            var highlighted = IsHighlightedDetection(detection, detectionId, segmentId, selectedText);
+            var highlighted = IsHighlightedDetection(detection, detectionId, detectionIds, segmentId, selectedText);
             PreviewDetections.Add(new PreviewDetectionOverlay(
                 detection.DetectionId,
                 detection.Text,
@@ -2063,9 +2071,15 @@ public partial class MainPageViewModel : ObservableObject
     private static bool IsHighlightedDetection(
         OcrDetectionRecord detection,
         string? detectionId,
+        IReadOnlyCollection<string>? detectionIds,
         string? segmentId,
         string? selectedText)
     {
+        if (detectionIds?.Contains(detection.DetectionId) == true)
+        {
+            return true;
+        }
+
         if (!string.IsNullOrWhiteSpace(detectionId))
         {
             return string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal);
@@ -2074,19 +2088,23 @@ public partial class MainPageViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(segmentId) && !string.IsNullOrWhiteSpace(selectedText))
         {
             return TextsMatch(detection.Text, selectedText)
-                || DetectionTextBelongsToSelectedSegment(detection.Text, selectedText);
+                || DetectionTextIsRelatedToSelectedSegment(detection.Text, selectedText);
         }
 
         return false;
     }
 
-    private static bool DetectionTextBelongsToSelectedSegment(string detectionText, string selectedText)
+    private static bool DetectionTextIsRelatedToSelectedSegment(string detectionText, string selectedText)
     {
         var normalizedDetection = NormalizeTextForSelection(detectionText);
         var normalizedSelection = NormalizeTextForSelection(selectedText);
-        return normalizedDetection.Length > 0
-            && normalizedSelection.Length > normalizedDetection.Length
-            && normalizedSelection.Contains(normalizedDetection, StringComparison.Ordinal);
+        if (normalizedDetection.Length == 0 || normalizedSelection.Length == 0)
+        {
+            return false;
+        }
+
+        return normalizedSelection.Contains(normalizedDetection, StringComparison.Ordinal)
+            || normalizedDetection.Contains(normalizedSelection, StringComparison.Ordinal);
     }
 
     private static FrameAnalysisResult? FindPreviewAnalysisForSegment(
@@ -2107,9 +2125,28 @@ public partial class MainPageViewModel : ObservableObject
         }
 
         return candidates.FirstOrDefault(analysis =>
-                analysis.Ocr.Detections.Any(detection => TextsMatch(detection.Text, segment.Text)))
+                analysis.Ocr.Detections.Any(detection => TextsMatch(detection.Text, segment.Text)
+                    || DetectionTextIsRelatedToSelectedSegment(detection.Text, segment.Text)))
             ?? candidates.FirstOrDefault(analysis => analysis.Ocr.Detections.Count > 0)
             ?? candidates.FirstOrDefault();
+    }
+
+    private static IReadOnlyList<string> FindDetectionIdsForSegment(
+        SegmentRecord segment,
+        IReadOnlyList<FrameAnalysisResult> frameAnalyses)
+    {
+        return frameAnalyses
+            .Where(analysis =>
+                analysis.Frame.TimestampMs >= segment.StartTimestampMs
+                && analysis.Frame.TimestampMs <= segment.EndTimestampMs)
+            .SelectMany(analysis => analysis.Ocr.Detections)
+            .Where(detection => TextsMatch(detection.Text, segment.Text)
+                || DetectionTextIsRelatedToSelectedSegment(detection.Text, segment.Text))
+            .OrderBy(GetTopY)
+            .Select(detection => detection.DetectionId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static bool TextsMatch(string left, string right)
@@ -2149,6 +2186,22 @@ public partial class MainPageViewModel : ObservableObject
             .Where(detection => TextsMatch(detection.Text, text))
             .OrderBy(GetTopY)
             .FirstOrDefault();
+    }
+
+    private static OcrDetectionRecord? FindDetectionForSegmentPreview(
+        FrameAnalysisResult analysis,
+        string text,
+        IReadOnlyCollection<string> detectionIds)
+    {
+        return analysis.Ocr.Detections
+            .Where(detection => detectionIds.Contains(detection.DetectionId))
+            .OrderBy(GetTopY)
+            .FirstOrDefault()
+            ?? FindDetectionForText(analysis, text)
+            ?? analysis.Ocr.Detections
+                .Where(detection => DetectionTextIsRelatedToSelectedSegment(detection.Text, text))
+                .OrderBy(GetTopY)
+                .FirstOrDefault();
     }
 
     private static double GetTopY(OcrDetectionRecord? detection)

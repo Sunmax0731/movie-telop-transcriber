@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -20,7 +23,8 @@ public sealed class TimelineSegment : ObservableObject
         int? frameIndex = null,
         long? timestampMs = null,
         string? segmentId = null,
-        string? detectionId = null)
+        string? detectionId = null,
+        IReadOnlyList<string>? detectionIds = null)
     {
         RangeLabel = rangeLabel;
         _text = text;
@@ -32,6 +36,8 @@ public sealed class TimelineSegment : ObservableObject
         TimestampMs = timestampMs;
         SegmentId = segmentId;
         DetectionId = detectionId;
+        DetectionIds = detectionIds?.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().ToArray()
+            ?? (string.IsNullOrWhiteSpace(detectionId) ? Array.Empty<string>() : [detectionId]);
     }
 
     public string RangeLabel { get; }
@@ -62,6 +68,8 @@ public sealed class TimelineSegment : ObservableObject
     public string? SegmentId { get; }
 
     public string? DetectionId { get; }
+
+    public IReadOnlyList<string> DetectionIds { get; }
 
     public bool IsEditing
     {

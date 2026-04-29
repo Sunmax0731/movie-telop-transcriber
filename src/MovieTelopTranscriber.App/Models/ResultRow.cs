@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace MovieTelopTranscriber.App.Models;
 
 public sealed record ResultRow(
@@ -8,4 +10,5 @@ public sealed record ResultRow(
     int? FrameIndex = null,
     long? TimestampMs = null,
     string? SegmentId = null,
-    string? DetectionId = null);
+    string? DetectionId = null,
+    IReadOnlyList<string>? DetectionIds = null);
