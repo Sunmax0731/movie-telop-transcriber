@@ -97,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 - `text_color`、`stroke_color`、`text_type` は暫定ラベルであり、厳密な色値や意味分類ではない。
 - `font_family` と `background_color` は `null` を許容する。
 - SRT / VTT はテキストと時刻のみ、ASS は標準スタイルのみを使う。
-- タイムラインの結合 / 分割 UI は、プレビュー同期の再設計まで非表示にしている。
+- タイムラインの結合 / 分割 UI は、編集後セグメントに関連する OCR detection 群をプレビューで強調する。
 
 ## 開発者向け
 
