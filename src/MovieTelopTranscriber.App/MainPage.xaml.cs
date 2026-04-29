@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Reflection;
+using System.Text;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -22,7 +24,8 @@ namespace MovieTelopTranscriber.App;
 /// </summary>
 public sealed partial class MainPage : Page
 {
-    private const double MinimumRightPaneWidth = 720;
+    private const double MinimumRightPaneWidth = 730;
+    private const double MinimumActivityPaneHeight = 160;
 
     public static readonly DependencyProperty TimelineTimeColumnWidthProperty =
         DependencyProperty.Register(nameof(TimelineTimeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
@@ -372,7 +375,7 @@ public sealed partial class MainPage : Page
         var currentY = e.GetCurrentPoint(this).Position.Y;
         var delta = currentY - _lastActivityPaneResizeY;
         _lastActivityPaneResizeY = currentY;
-        ActivityPaneHeight = ResizeGridLength(ActivityPaneHeight, -delta, 150);
+        ActivityPaneHeight = ResizeGridLength(ActivityPaneHeight, -delta, MinimumActivityPaneHeight);
         e.Handled = true;
     }
 
@@ -544,6 +547,78 @@ public sealed partial class MainPage : Page
         }
 
         UpdatePreviewPlaybackButtonContent();
+    }
+
+    private async void OnShowVersionInfoClicked(object sender, RoutedEventArgs e)
+    {
+        var assembly = typeof(App).Assembly;
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "0.0.0";
+        var settingsPath = App.LaunchSettingsPath ?? "(not found)";
+        var ocrDevice = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE") ?? "cpu";
+        var ocrEngine = Environment.GetEnvironmentVariable("MOVIE_TELOP_OCR_ENGINE") ?? "paddleocr";
+        var message = $"アプリバージョン: {version}\nビルド出力: {AppContext.BaseDirectory}\n設定ファイル: {settingsPath}\nOCR device: {ocrDevice}\nOCR エンジン: {ocrEngine}";
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "バージョン情報",
+            CloseButtonText = "閉じる",
+            DefaultButton = ContentDialogButton.Close,
+            Content = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.WrapWholeWords,
+                Width = 720
+            }
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    private async void OnShowLicensesClicked(object sender, RoutedEventArgs e)
+    {
+        var pythonPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON");
+        var licenseText = new StringBuilder()
+            .AppendLine("同梱または設定対象の主な構成:")
+            .AppendLine("- Microsoft Windows App SDK 1.8.260416003")
+            .AppendLine("- CommunityToolkit.Mvvm 8.4.2")
+            .AppendLine("- OpenCvSharp4.Windows 4.13.0.20260302")
+            .AppendLine("- PaddleOCR worker script (tools/ocr/paddle_ocr_worker.py)")
+            .AppendLine()
+            .AppendLine("OCR runtime の想定:")
+            .AppendLine("- CPU: PaddlePaddle 3.2.0 + PaddleOCR 3.5.0")
+            .AppendLine("- GPU: PaddlePaddle GPU 3.2.2 + PaddleOCR 3.5.0");
+
+        if (!string.IsNullOrWhiteSpace(pythonPath))
+        {
+            var sitePackages = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(pythonPath) ?? AppContext.BaseDirectory, "..", "Lib", "site-packages"));
+            licenseText
+                .AppendLine()
+                .AppendLine("詳細なライセンスファイル:")
+                .AppendLine(sitePackages);
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "ライセンス",
+            CloseButtonText = "閉じる",
+            DefaultButton = ContentDialogButton.Close,
+            Content = new ScrollViewer
+            {
+                Width = 760,
+                Height = 420,
+                Content = new TextBlock
+                {
+                    Text = licenseText.ToString(),
+                    TextWrapping = TextWrapping.WrapWholeWords
+                }
+            }
+        };
+
+        await dialog.ShowAsync();
     }
 
     private void OnPreviewPlaybackTimerTick(object? sender, object e)

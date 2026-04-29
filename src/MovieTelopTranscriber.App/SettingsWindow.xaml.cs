@@ -14,7 +14,7 @@ public sealed partial class SettingsWindow : Window
 
         Title = "Settings - Movie Telop Transcriber";
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Resize(new SizeInt32(1120, 480));
+        AppWindow.Resize(new SizeInt32(1480, 620));
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;

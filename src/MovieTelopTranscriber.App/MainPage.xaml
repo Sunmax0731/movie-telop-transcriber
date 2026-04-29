@@ -37,6 +37,10 @@
                     <ToggleMenuFlyoutItem x:Name="TimelineConfidenceColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="confidence" Text="{x:Bind ViewModel.UiText.TimelineColumnConfidence, Mode=OneWay}" />
                 </MenuFlyoutSubItem>
             </MenuBarItem>
+            <MenuBarItem Title="ヘルプ">
+                <MenuFlyoutItem Click="OnShowLicensesClicked" Text="ライセンス" />
+                <MenuFlyoutItem Click="OnShowVersionInfoClicked" Text="バージョン情報" />
+            </MenuBarItem>
         </MenuBar>
 
         <Border
