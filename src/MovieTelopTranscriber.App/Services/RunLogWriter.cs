@@ -116,6 +116,7 @@ public sealed class RunLogWriter
         builder.AppendLine($"ass_path={summary.AssPath}");
         builder.AppendLine($"ocr_performance_path={summary.OcrPerformancePath}");
         builder.AppendLine($"ocr_warmup_status={summary.Performance.OcrWarmupStatus}");
+        builder.AppendLine($"ocr_worker_count={summary.Performance.OcrWorkerCount}");
         builder.AppendLine($"frame_extraction_ms={summary.Performance.FrameExtractionMs:F1}");
         builder.AppendLine($"ocr_total_ms={summary.Performance.OcrTotalMs:F1}");
         builder.AppendLine($"segment_merge_ms={summary.Performance.SegmentMergeMs:F1}");

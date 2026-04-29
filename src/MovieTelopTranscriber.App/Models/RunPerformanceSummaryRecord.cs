@@ -2,6 +2,7 @@ namespace MovieTelopTranscriber.App.Models;
 
 public sealed record RunPerformanceSummaryRecord(
     string OcrWarmupStatus,
+    int OcrWorkerCount,
     double FrameExtractionMs,
     double OcrTotalMs,
     double SegmentMergeMs,

@@ -46,6 +46,7 @@ public partial class MainPageViewModel : ObservableObject
     private const string PaddleMinTextSizeEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE";
     private const string PaddleUseTextlineOrientationEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION";
     private const string PaddleUseDocUnwarpingEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING";
+    private const string PaddleWorkerCountEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_WORKER_COUNT";
 
     private readonly OpenCvVideoProcessingService _videoProcessingService = new();
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
@@ -110,6 +111,8 @@ public partial class MainPageViewModel : ObservableObject
 
     public ObservableCollection<PreviewDetectionOverlay> PreviewDetections { get; }
 
+    public IReadOnlyList<int> PaddleWorkerCountOptions { get; } = [1, 2];
+
     public event EventHandler? SettingsWindowRequested;
 
     [ObservableProperty]
@@ -168,6 +171,8 @@ public partial class MainPageViewModel : ObservableObject
 
     public bool CanInteract => !IsBusy;
 
+    public bool IsPaddleWorkerCountEditable => CanInteract && IsGpuDevice(Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE"));
+
     [ObservableProperty]
     public partial string FrameIntervalText { get; set; } = "1.0";
 
@@ -224,6 +229,9 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool PaddleUseDocUnwarping { get; set; } = ReadBoolEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, false);
+
+    [ObservableProperty]
+    public partial int PaddleWorkerCount { get; set; } = ReadPaddleWorkerCountSetting();
 
     [ObservableProperty]
     public partial LanguageOption SelectedLanguageOption { get; set; } = SupportedLanguageOptions[1];
@@ -323,6 +331,7 @@ public partial class MainPageViewModel : ObservableObject
     partial void OnIsBusyChanged(bool value)
     {
         OnPropertyChanged(nameof(CanInteract));
+        OnPropertyChanged(nameof(IsPaddleWorkerCountEditable));
     }
 
     partial void OnPreviewSequenceValueChanged(double value)
@@ -452,6 +461,19 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleUseDocUnwarpingChanged(bool value)
     {
+        RefreshStaticCollections();
+        OnUserSettingsChanged();
+    }
+
+    partial void OnPaddleWorkerCountChanged(int value)
+    {
+        var normalized = NormalizePaddleWorkerCount(value);
+        if (normalized != value)
+        {
+            PaddleWorkerCount = normalized;
+            return;
+        }
+
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -683,6 +705,7 @@ public partial class MainPageViewModel : ObservableObject
         PaddleMinTextSizeValue = DefaultPaddleMinTextSize;
         PaddleUseTextlineOrientation = false;
         PaddleUseDocUnwarping = false;
+        PaddleWorkerCount = 1;
         ApplyPaddleOcrEnvironment();
         RefreshStaticCollections();
         StatusMessage = "Settings were reset to defaults.";
@@ -1606,6 +1629,8 @@ public partial class MainPageViewModel : ObservableObject
             currentStage = "Logging";
             ProgressDetailText = $"Logging: writing run summary for {result.Frames.Count} frames.";
             var performanceSummary = BuildPerformanceSummary(
+                OcrEngineText,
+                ResolveEffectivePaddleWorkerCount(OcrEngineText),
                 warmupResult,
                 _latestFrameAnalyses,
                 frameExtractionDurationMs,
@@ -2032,7 +2057,8 @@ public partial class MainPageViewModel : ObservableObject
                 Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN") ?? string.Empty,
                 Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE") ?? string.Empty,
                 Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING") ?? string.Empty
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING") ?? string.Empty,
+                Environment.GetEnvironmentVariable(PaddleWorkerCountEnvironmentVariable) ?? string.Empty
             });
     }
 
@@ -2960,6 +2986,7 @@ public partial class MainPageViewModel : ObservableObject
         App.LaunchSettings.PaddleOcr.MinTextSize = ParseOptionalDouble(PaddleMinTextSizeText, 0.0d, 200.0d);
         App.LaunchSettings.PaddleOcr.UseTextlineOrientation = PaddleUseTextlineOrientation;
         App.LaunchSettings.PaddleOcr.UseDocUnwarping = PaddleUseDocUnwarping;
+        App.LaunchSettings.PaddleOcr.WorkerCount = NormalizePaddleWorkerCount(PaddleWorkerCount);
 
         App.LaunchSettings.Ui ??= new UserInterfaceSettings();
         App.LaunchSettings.Ui.Language = SelectedLanguageOption.Code;
@@ -2989,9 +3016,12 @@ public partial class MainPageViewModel : ObservableObject
         SetDoubleEnvironment(PaddleMinTextSizeEnvironmentVariable, PaddleMinTextSizeText, 0.0d, 200.0d);
         SetEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, PaddleUseTextlineOrientation ? "true" : "false");
         SetEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, PaddleUseDocUnwarping ? "true" : "false");
+        SetEnvironment(PaddleWorkerCountEnvironmentVariable, NormalizePaddleWorkerCount(PaddleWorkerCount).ToString(CultureInfo.InvariantCulture));
     }
 
     private static RunPerformanceSummaryRecord BuildPerformanceSummary(
+        string ocrEngine,
+        int ocrWorkerCount,
         OcrWorkerWarmupResult warmupResult,
         IReadOnlyList<FrameAnalysisResult> frameAnalyses,
         double frameExtractionDurationMs,
@@ -3011,6 +3041,7 @@ public partial class MainPageViewModel : ObservableObject
 
         return new RunPerformanceSummaryRecord(
             warmupResult.Status,
+            string.Equals(ocrEngine, "paddleocr", StringComparison.OrdinalIgnoreCase) ? ocrWorkerCount : 1,
             frameExtractionDurationMs,
             ocrDurationMs,
             segmentMergeDurationMs,
@@ -3040,9 +3071,12 @@ public partial class MainPageViewModel : ObservableObject
 
     private string FormatPaddleDetectionSummary()
     {
+        var workerSummary = IsGpuDevice(Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE"))
+            ? $"{NormalizePaddleWorkerCount(PaddleWorkerCount)} workers"
+            : "CPU fixed to 1 worker";
         var orientation = PaddleUseTextlineOrientation ? "orientation ON" : "orientation OFF";
         var unwarping = PaddleUseDocUnwarping ? "unwarp ON" : "unwarp OFF";
-        return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / min size {FormatSettingValue(PaddleMinTextSizeText)} / {orientation} / {unwarping}";
+        return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / min size {FormatSettingValue(PaddleMinTextSizeText)} / {workerSummary} / {orientation} / {unwarping}";
     }
 
     private string FormatSettingValue(string value)
@@ -3137,6 +3171,14 @@ public partial class MainPageViewModel : ObservableObject
         Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
     }
 
+    private static int ReadPaddleWorkerCountSetting()
+    {
+        var value = Environment.GetEnvironmentVariable(PaddleWorkerCountEnvironmentVariable);
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? NormalizePaddleWorkerCount(parsed)
+            : 1;
+    }
+
     private static double? ParseOptionalDouble(string text, double minimum, double maximum)
     {
         if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
@@ -3155,6 +3197,27 @@ public partial class MainPageViewModel : ObservableObject
         }
 
         return Math.Clamp(value, minimum, maximum);
+    }
+
+    private static bool IsGpuDevice(string? device)
+    {
+        return !string.IsNullOrWhiteSpace(device)
+            && device.Trim().StartsWith("gpu", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int NormalizePaddleWorkerCount(int value)
+    {
+        var normalized = Math.Clamp(value, 1, 2);
+        return IsGpuDevice(Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE"))
+            ? normalized
+            : 1;
+    }
+
+    private int ResolveEffectivePaddleWorkerCount(string ocrEngine)
+    {
+        return string.Equals(ocrEngine, "paddleocr", StringComparison.OrdinalIgnoreCase)
+            ? NormalizePaddleWorkerCount(PaddleWorkerCount)
+            : 1;
     }
 
     private static string ResolveSavedPath(string path)

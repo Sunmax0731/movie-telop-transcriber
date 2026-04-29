@@ -167,6 +167,7 @@ function Write-AppLaunchSettings {
             preprocess = $true
             contrast = 1.1
             sharpen = $true
+            workerCount = 1
         }
         ui = [ordered]@{
             language = "ja"
