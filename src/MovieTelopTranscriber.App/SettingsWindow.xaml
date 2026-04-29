@@ -107,6 +107,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <StackPanel
@@ -184,15 +185,30 @@
                                 </Grid>
                                 <Slider Minimum="16" Maximum="4096" StepFrequency="16" TickFrequency="512" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" SnapsTo="StepValues" Value="{x:Bind ViewModel.PaddleTextDetLimitSideLenValue, Mode=TwoWay}" />
                             </StackPanel>
-                            <CheckBox
+                            <StackPanel
                                 Grid.Row="3"
                                 Grid.Column="0"
+                                Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleMinTextSizeDescription, Mode=OneWay}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleMinTextSizeLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleMinTextSizeText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="200" StepFrequency="1" TickFrequency="20" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleMinTextSizeValue, Mode=TwoWay}" />
+                            </StackPanel>
+                            <CheckBox
+                                Grid.Row="3"
+                                Grid.Column="1"
                                 Content="{x:Bind ViewModel.UiText.PaddleUseTextlineOrientationLabel, Mode=OneWay}"
                                 IsChecked="{x:Bind ViewModel.PaddleUseTextlineOrientation, Mode=TwoWay}"
                                 IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
                                 ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleUseTextlineOrientationDescription, Mode=OneWay}" />
                             <CheckBox
-                                Grid.Row="3"
+                                Grid.Row="4"
                                 Grid.Column="1"
                                 Content="{x:Bind ViewModel.UiText.PaddleUseDocUnwarpingLabel, Mode=OneWay}"
                                 IsChecked="{x:Bind ViewModel.PaddleUseDocUnwarping, Mode=TwoWay}"

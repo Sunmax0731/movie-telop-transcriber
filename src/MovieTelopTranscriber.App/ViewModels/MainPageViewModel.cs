@@ -33,6 +33,7 @@ public partial class MainPageViewModel : ObservableObject
     private const double DefaultPaddleTextDetBoxThresh = 0.6d;
     private const double DefaultPaddleTextDetUnclipRatio = 1.5d;
     private const double DefaultPaddleTextDetLimitSideLen = 960d;
+    private const double DefaultPaddleMinTextSize = 0d;
     private const string FixedPaddleUpscale = "1";
     private const string PaddlePreprocessEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PREPROCESS";
     private const string PaddleUpscaleEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_UPSCALE";
@@ -42,6 +43,7 @@ public partial class MainPageViewModel : ObservableObject
     private const string PaddleTextDetBoxThreshEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH";
     private const string PaddleTextDetUnclipRatioEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO";
     private const string PaddleTextDetLimitSideLenEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN";
+    private const string PaddleMinTextSizeEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE";
     private const string PaddleUseTextlineOrientationEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION";
     private const string PaddleUseDocUnwarpingEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING";
 
@@ -202,6 +204,12 @@ public partial class MainPageViewModel : ObservableObject
 
     [ObservableProperty]
     public partial double PaddleTextDetLimitSideLenValue { get; set; } = ReadDoubleSetting(PaddleTextDetLimitSideLenEnvironmentVariable, DefaultPaddleTextDetLimitSideLen);
+
+    [ObservableProperty]
+    public partial string PaddleMinTextSizeText { get; set; } = ReadEnvironment(PaddleMinTextSizeEnvironmentVariable, "0");
+
+    [ObservableProperty]
+    public partial double PaddleMinTextSizeValue { get; set; } = ReadDoubleSetting(PaddleMinTextSizeEnvironmentVariable, DefaultPaddleMinTextSize);
 
     [ObservableProperty]
     public partial bool PaddleUseTextlineOrientation { get; set; } = ReadBoolEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, false);
@@ -400,6 +408,17 @@ public partial class MainPageViewModel : ObservableObject
         RefreshStaticCollections();
     }
 
+    partial void OnPaddleMinTextSizeTextChanged(string value)
+    {
+        RefreshStaticCollections();
+    }
+
+    partial void OnPaddleMinTextSizeValueChanged(double value)
+    {
+        PaddleMinTextSizeText = FormatSettingNumber(value, "0.#");
+        RefreshStaticCollections();
+    }
+
     partial void OnPaddleUseTextlineOrientationChanged(bool value)
     {
         RefreshStaticCollections();
@@ -569,10 +588,12 @@ public partial class MainPageViewModel : ObservableObject
         PaddleTextDetBoxThreshText = string.Empty;
         PaddleTextDetUnclipRatioText = string.Empty;
         PaddleTextDetLimitSideLenText = string.Empty;
+        PaddleMinTextSizeText = "0";
         PaddleTextDetThreshValue = DefaultPaddleTextDetThresh;
         PaddleTextDetBoxThreshValue = DefaultPaddleTextDetBoxThresh;
         PaddleTextDetUnclipRatioValue = DefaultPaddleTextDetUnclipRatio;
         PaddleTextDetLimitSideLenValue = DefaultPaddleTextDetLimitSideLen;
+        PaddleMinTextSizeValue = DefaultPaddleMinTextSize;
         PaddleUseTextlineOrientation = false;
         PaddleUseDocUnwarping = false;
         ApplyPaddleOcrEnvironment();
@@ -2434,6 +2455,7 @@ public partial class MainPageViewModel : ObservableObject
         SetDoubleEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, PaddleTextDetBoxThreshText, 0.0d, 1.0d);
         SetDoubleEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, PaddleTextDetUnclipRatioText, 0.1d, 10.0d);
         SetIntEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, PaddleTextDetLimitSideLenText, 16, 4096);
+        SetDoubleEnvironment(PaddleMinTextSizeEnvironmentVariable, PaddleMinTextSizeText, 0.0d, 200.0d);
         SetEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, PaddleUseTextlineOrientation ? "true" : "false");
         SetEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, PaddleUseDocUnwarping ? "true" : "false");
     }
@@ -2449,7 +2471,7 @@ public partial class MainPageViewModel : ObservableObject
     {
         var orientation = PaddleUseTextlineOrientation ? "orientation ON" : "orientation OFF";
         var unwarping = PaddleUseDocUnwarping ? "unwarp ON" : "unwarp OFF";
-        return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / {orientation} / {unwarping}";
+        return $"det {FormatSettingValue(PaddleTextDetThreshText)} / box {FormatSettingValue(PaddleTextDetBoxThreshText)} / unclip {FormatSettingValue(PaddleTextDetUnclipRatioText)} / limit {FormatSettingValue(PaddleTextDetLimitSideLenText)} / min size {FormatSettingValue(PaddleMinTextSizeText)} / {orientation} / {unwarping}";
     }
 
     private string FormatSettingValue(string value)

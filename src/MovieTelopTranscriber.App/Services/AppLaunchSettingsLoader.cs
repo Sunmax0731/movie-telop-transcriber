@@ -62,6 +62,7 @@ internal static class AppLaunchSettingsLoader
         SetInt("MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN", settings.PaddleOcr.TextDetLimitSideLen);
         SetBool("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION", settings.PaddleOcr.UseTextlineOrientation);
         SetBool("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING", settings.PaddleOcr.UseDocUnwarping);
+        SetDouble("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE", settings.PaddleOcr.MinTextSize);
     }
 
     private static void SetPath(string environmentVariable, string? value, string settingsPath)
@@ -191,7 +192,8 @@ internal static class AppLaunchSettingsLoader
                     TextDetUnclipRatio = ReadDouble(paddle, "textDetUnclipRatio"),
                     TextDetLimitSideLen = ReadInt(paddle, "textDetLimitSideLen"),
                     UseTextlineOrientation = ReadBool(paddle, "useTextlineOrientation"),
-                    UseDocUnwarping = ReadBool(paddle, "useDocUnwarping")
+                    UseDocUnwarping = ReadBool(paddle, "useDocUnwarping"),
+                    MinTextSize = ReadDouble(paddle, "minTextSize")
                 }
                 : null
         };

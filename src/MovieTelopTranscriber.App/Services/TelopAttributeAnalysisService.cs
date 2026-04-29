@@ -1,10 +1,13 @@
 using MovieTelopTranscriber.App.Models;
 using OpenCvSharp;
+using System.Globalization;
 
 namespace MovieTelopTranscriber.App.Services;
 
 public sealed class TelopAttributeAnalysisService
 {
+    private const string MinTextSizeEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE";
+
     private sealed record TelopStyleEstimate(
         string? TextColor,
         string? StrokeColor,
@@ -33,23 +36,32 @@ public sealed class TelopAttributeAnalysisService
         }
 
         using var frameImage = File.Exists(frameImagePath) ? Cv2.ImRead(frameImagePath, ImreadModes.Color) : new Mat();
+        var minimumTextSize = ResolveMinimumTextSize();
         var detections = ocrResponse.Detections
             .Where(detection => !string.IsNullOrWhiteSpace(detection.Text))
             .Select(detection =>
             {
+                var fontSize = EstimateFontSize(detection.BoundingBox);
+                if (minimumTextSize > 0d && (!fontSize.HasValue || fontSize.Value < minimumTextSize))
+                {
+                    return null;
+                }
+
                 var style = EstimateStyle(frameImage, detection.BoundingBox);
                 return new TelopAttributeRecord(
                     detection.DetectionId,
                     detection.Text,
                     detection.Confidence,
                     null,
-                    EstimateFontSize(detection.BoundingBox),
+                    fontSize,
                     "px",
                     style.TextColor,
                     style.StrokeColor,
                     style.BackgroundColor,
                     style.TextType);
             })
+            .Where(detection => detection is not null)
+            .Select(detection => detection!)
             .ToArray();
 
         return new AttributeAnalysisResult(
@@ -71,6 +83,14 @@ public sealed class TelopAttributeAnalysisService
         var maxY = boundingBox.Max(point => point.Y);
         var height = Math.Abs(maxY - minY);
         return height > 0 ? Math.Round(height, 1) : null;
+    }
+
+    private static double ResolveMinimumTextSize()
+    {
+        var value = Environment.GetEnvironmentVariable(MinTextSizeEnvironmentVariable);
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && parsed > 0d
+            ? parsed
+            : 0d;
     }
 
     private static TelopStyleEstimate EstimateStyle(Mat frameImage, IReadOnlyList<OcrBoundingPoint> boundingBox)
