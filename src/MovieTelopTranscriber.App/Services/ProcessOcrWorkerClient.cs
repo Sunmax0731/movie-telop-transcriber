@@ -17,7 +17,7 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
 
     private bool HasConfiguredWorker => !string.IsNullOrWhiteSpace(WorkerPath);
 
-    public async Task<OcrWorkerResponse> RecognizeAsync(
+    public async Task<OcrWorkerExecutionResult> RecognizeAsync(
         OcrWorkerRequest request,
         string ocrDirectory,
         CancellationToken cancellationToken = default)
@@ -27,7 +27,9 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
         var requestPath = Path.Combine(ocrDirectory, $"{request.RequestId}.request.json");
         var responsePath = Path.Combine(ocrDirectory, $"{request.RequestId}.response.json");
 
+        var requestWriteStopwatch = Stopwatch.StartNew();
         await WriteJsonAsync(requestPath, request, cancellationToken);
+        requestWriteStopwatch.Stop();
 
         var workerPath = WorkerPath;
         if (!string.IsNullOrWhiteSpace(workerPath))
@@ -35,18 +37,28 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
             var workerResponse = await RunExternalWorkerAsync(workerPath, request, requestPath, responsePath, cancellationToken);
             if (!File.Exists(responsePath))
             {
-                await WriteJsonAsync(responsePath, workerResponse, cancellationToken);
+                await WriteJsonAsync(responsePath, workerResponse.Response, cancellationToken);
             }
 
-            return workerResponse;
+            return workerResponse with
+            {
+                RequestWriteMs = requestWriteStopwatch.Elapsed.TotalMilliseconds
+            };
         }
 
         var sidecarPath = Path.ChangeExtension(request.ImagePath, ".ocr.json");
         if (File.Exists(sidecarPath))
         {
+            var responseReadStopwatch = Stopwatch.StartNew();
             var sidecarResponse = await ReadResponseAsync(sidecarPath, request, cancellationToken);
+            responseReadStopwatch.Stop();
             await WriteJsonAsync(responsePath, sidecarResponse, cancellationToken);
-            return sidecarResponse;
+            return new OcrWorkerExecutionResult(
+                sidecarResponse,
+                requestWriteStopwatch.Elapsed.TotalMilliseconds,
+                0d,
+                0d,
+                responseReadStopwatch.Elapsed.TotalMilliseconds);
         }
 
         var missingSidecarResponse = CreateErrorResponse(
@@ -56,10 +68,15 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
             $"Set {EngineEnvironmentVariable}=paddleocr, configure {WorkerPathEnvironmentVariable}, provide movie-telop-transcriber.settings.json, or provide sidecar file: {sidecarPath}",
             true);
         await WriteJsonAsync(responsePath, missingSidecarResponse, cancellationToken);
-        return missingSidecarResponse;
+        return new OcrWorkerExecutionResult(
+            missingSidecarResponse,
+            requestWriteStopwatch.Elapsed.TotalMilliseconds,
+            0d,
+            0d,
+            0d);
     }
 
-    private static async Task<OcrWorkerResponse> RunExternalWorkerAsync(
+    private static async Task<OcrWorkerExecutionResult> RunExternalWorkerAsync(
         string workerPath,
         OcrWorkerRequest request,
         string requestPath,
@@ -68,7 +85,7 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
     {
         if (!File.Exists(workerPath))
         {
-            return CreateErrorResponse(
+            return CreateFailureResult(
                 request,
                 "OCR_WORKER_NOT_FOUND",
                 "OCR worker executable was not found.",
@@ -90,7 +107,7 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
         using var process = Process.Start(startInfo);
         if (process is null)
         {
-            return CreateErrorResponse(
+            return CreateFailureResult(
                 request,
                 "OCR_WORKER_START_FAILED",
                 "OCR worker process could not be started.",
@@ -98,34 +115,62 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
                 true);
         }
 
+        var workerExecutionStopwatch = Stopwatch.StartNew();
         var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken);
+        workerExecutionStopwatch.Stop();
 
         var stdout = await stdoutTask;
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
         {
-            return CreateErrorResponse(
+            return CreateFailureResult(
                 request,
                 "OCR_PROCESS_FAILED",
                 "OCR worker returned a non-zero exit code.",
                 $"exit_code={process.ExitCode}; stdout={stdout}; stderr={stderr}",
-                true);
+                true,
+                workerExecutionStopwatch.Elapsed.TotalMilliseconds);
         }
 
         if (!File.Exists(responsePath))
         {
-            return CreateErrorResponse(
+            return CreateFailureResult(
                 request,
                 "OCR_RESPONSE_NOT_FOUND",
                 "OCR worker completed without writing a response file.",
                 responsePath,
-                true);
+                true,
+                workerExecutionStopwatch.Elapsed.TotalMilliseconds);
         }
 
-        return await ReadResponseAsync(responsePath, request, cancellationToken);
+        var responseReadStopwatch = Stopwatch.StartNew();
+        var response = await ReadResponseAsync(responsePath, request, cancellationToken);
+        responseReadStopwatch.Stop();
+        return new OcrWorkerExecutionResult(
+            response,
+            0d,
+            0d,
+            workerExecutionStopwatch.Elapsed.TotalMilliseconds,
+            responseReadStopwatch.Elapsed.TotalMilliseconds);
+    }
+
+    private static OcrWorkerExecutionResult CreateFailureResult(
+        OcrWorkerRequest request,
+        string code,
+        string message,
+        string? details,
+        bool recoverable,
+        double workerExecutionMs = 0d)
+    {
+        return new OcrWorkerExecutionResult(
+            CreateErrorResponse(request, code, message, details, recoverable),
+            0d,
+            0d,
+            workerExecutionMs,
+            0d);
     }
 
     private static async Task<OcrWorkerResponse> ReadResponseAsync(

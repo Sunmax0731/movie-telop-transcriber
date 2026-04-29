@@ -20,4 +20,6 @@ public sealed record RunSummaryRecord(
     string FramesCsvPath,
     string SrtPath,
     string VttPath,
-    string AssPath);
+    string AssPath,
+    string OcrPerformancePath,
+    RunPerformanceSummaryRecord Performance);
