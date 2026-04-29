@@ -15,6 +15,8 @@
 - `segments.json`、`segments.csv`、`frames.csv`、`segments.srt`、`segments.vtt`、`segments.ass` を出力する。
 - 処理ログと中間成果物を run 単位で保存し、後から確認できるようにする。
 
+機能説明と使い方の具体例は [docs/16_利用ガイド.md](docs/16_利用ガイド.md) を参照してください。
+
 ### 動作環境
 - Windows x64
 - .NET 10 Desktop Runtime x64
@@ -32,8 +34,12 @@
 
 `Install-MovieTelopTranscriber.cmd` は内部で PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成します。その中へアプリ本体、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル、起動設定ファイルをまとめて配置します。
 
+![配布 zip を展開した直後の構成](docs/images/install-package-root.png)
+
 配布 zip を展開した直下にも `app` フォルダは含まれますが、こちらは導入用同梱物です。通常起動は必ず `MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` またはスタートメニューの `Movie Telop Transcriber` を使います。
 また、インストーラを実行したディレクトリには、導入後のアプリ本体を指す `Movie Telop Transcriber.lnk` も作成します。
+
+![インストール完了後に作成される起動ショートカット](docs/images/install-launch-shortcut.png)
 
 PowerShell から直接実行する場合は、配布物を展開したフォルダで次を使います。
 
@@ -71,11 +77,20 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 配布 zip ではなくリポジトリ内の開発用スクリプトを直接使う場合は `tools/install/Install-MovieTelopTranscriber.ps1` を実行します。手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
 画面イメージも [docs/12_導入手順書.md](docs/12_導入手順書.md) に掲載しています。
+利用者向けのユースケースと画面説明は [docs/16_利用ガイド.md](docs/16_利用ガイド.md) に整理しています。
 
 ### 起動方法
 インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` または `<実行ディレクトリ>\MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動できます。
 
 アプリは起動時に `movie-telop-transcriber.settings.json` を読み込み、PaddleOCR 用 Python、worker script、OCR 設定を解決します。PowerShell 起動スクリプトは互換用として残りますが、通常利用では不要です。
+
+起動直後の画面:
+
+![起動直後のメイン画面](docs/images/app-main-empty.png)
+
+設定画面:
+
+![設定画面](docs/images/app-settings.png)
 
 ### アンインストール
 導入先の `MovieTelopTranscriber` フォルダにある `Uninstall-MovieTelopTranscriber.cmd` を実行すると、アプリ本体、OCR runtime、起動設定、スタートメニューショートカット、インストーラ実行ディレクトリに作成した `Movie Telop Transcriber.lnk`、導入先を指すユーザー環境変数を削除します。
@@ -230,6 +245,7 @@ python tools\validation\evaluate_qcds_report.py `
 - [docs/13_リリースノート.md](docs/13_リリースノート.md)
 - [docs/14_設定ファイル仕様.md](docs/14_設定ファイル仕様.md)
 - [docs/15_プロジェクトファイル仕様.md](docs/15_プロジェクトファイル仕様.md)
+- [docs/16_利用ガイド.md](docs/16_利用ガイド.md)
 - [docs/spec/04_出力仕様.md](docs/spec/04_出力仕様.md)
 - [docs/spec/06_QCDS評価仕様.md](docs/spec/06_QCDS評価仕様.md)
 - [docs/spec/07_テロップ属性リリース範囲.md](docs/spec/07_テロップ属性リリース範囲.md)
