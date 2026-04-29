@@ -7,11 +7,14 @@ namespace MovieTelopTranscriber.App.Services;
 internal static class AppLaunchSettingsLoader
 {
     private const string SettingsFileName = "movie-telop-transcriber.settings.json";
+    private const string InstallRootName = "MovieTelopTranscriber";
+    private const string InstallManifestFileName = "movie-telop-transcriber.installation.json";
+    private const string InstallerCommandFileName = "Install-MovieTelopTranscriber.cmd";
 
     public static void Apply()
     {
-        var settingsPath = Path.Combine(AppContext.BaseDirectory, SettingsFileName);
-        if (!File.Exists(settingsPath))
+        var settingsPath = FindSettingsPath();
+        if (settingsPath is null)
         {
             return;
         }
@@ -114,6 +117,43 @@ internal static class AppLaunchSettingsLoader
         Environment.SetEnvironmentVariable(
             environmentVariable,
             value.Value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static string? FindSettingsPath()
+    {
+        var baseSettingsPath = Path.Combine(AppContext.BaseDirectory, SettingsFileName);
+        if (File.Exists(baseSettingsPath))
+        {
+            return baseSettingsPath;
+        }
+
+        var baseDirectory = new DirectoryInfo(AppContext.BaseDirectory);
+        if (!string.Equals(baseDirectory.Name, "app", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var packageRoot = baseDirectory.Parent;
+        if (packageRoot is null)
+        {
+            return null;
+        }
+
+        var installerCommandPath = Path.Combine(packageRoot.FullName, InstallerCommandFileName);
+        if (!File.Exists(installerCommandPath))
+        {
+            return null;
+        }
+
+        var siblingInstallRoot = Path.Combine(packageRoot.FullName, InstallRootName);
+        var siblingManifestPath = Path.Combine(siblingInstallRoot, InstallManifestFileName);
+        var siblingSettingsPath = Path.Combine(siblingInstallRoot, "app", SettingsFileName);
+        if (File.Exists(siblingManifestPath) && File.Exists(siblingSettingsPath))
+        {
+            return siblingSettingsPath;
+        }
+
+        return null;
     }
 
     private static string ResolvePath(string value, string settingsPath)

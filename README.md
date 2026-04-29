@@ -31,6 +31,9 @@
 
 `Install-MovieTelopTranscriber.cmd` は内部で PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成します。その中へアプリ本体、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル、起動設定ファイルをまとめて配置します。
 
+配布 zip を展開した直下にも `app` フォルダは含まれますが、こちらは導入用同梱物です。通常起動は必ず `MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` またはスタートメニューの `Movie Telop Transcriber` を使います。
+また、インストーラを実行したディレクトリには、導入後のアプリ本体を指す `Movie Telop Transcriber.lnk` も作成します。
+
 PowerShell から直接実行する場合は、配布物を展開したフォルダで次を使います。
 
 ```powershell
@@ -73,7 +76,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 アプリは起動時に `movie-telop-transcriber.settings.json` を読み込み、PaddleOCR 用 Python、worker script、OCR 設定を解決します。PowerShell 起動スクリプトは互換用として残りますが、通常利用では不要です。
 
 ### アンインストール
-導入先の `MovieTelopTranscriber` フォルダにある `Uninstall-MovieTelopTranscriber.cmd` を実行すると、アプリ本体、OCR runtime、起動設定、ショートカット、導入先を指すユーザー環境変数を削除します。
+導入先の `MovieTelopTranscriber` フォルダにある `Uninstall-MovieTelopTranscriber.cmd` を実行すると、アプリ本体、OCR runtime、起動設定、スタートメニューショートカット、インストーラ実行ディレクトリに作成した `Movie Telop Transcriber.lnk`、導入先を指すユーザー環境変数を削除します。
 
 PaddleOCR モデルキャッシュは、この導入で新規取得したものだけを削除します。共有キャッシュ全体を削除したい場合は、PowerShell から `Uninstall-MovieTelopTranscriber.ps1 -RemoveSharedModelCache` を実行します。
 

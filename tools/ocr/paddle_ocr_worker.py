@@ -313,7 +313,7 @@ class PaddleOcrWorker:
 def resolve_language(language_hint: str) -> str:
     configured = os.environ.get("MOVIE_TELOP_PADDLEOCR_LANG")
     if configured:
-        return configured
+        language_hint = configured
 
     normalized = (language_hint or "").strip().lower()
     if normalized.startswith("ja"):
