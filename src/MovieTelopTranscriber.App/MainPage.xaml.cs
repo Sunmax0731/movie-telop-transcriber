@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Reflection;
 using System.Text;
@@ -7,11 +7,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.UI.Xaml.Shapes;
 using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.ViewModels;
-using Windows.Foundation;
 using Windows.System;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -24,8 +21,9 @@ namespace MovieTelopTranscriber.App;
 /// </summary>
 public sealed partial class MainPage : Page
 {
-    private const double MinimumRightPaneWidth = 730;
+    private const double MinimumRightPaneWidth = 750;
     private const double MinimumActivityPaneHeight = 160;
+    private const double DetachedCenterPaneWidth = 380;
 
     public static readonly DependencyProperty TimelineTimeColumnWidthProperty =
         DependencyProperty.Register(nameof(TimelineTimeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
@@ -85,6 +83,7 @@ public sealed partial class MainPage : Page
         DependencyProperty.Register(nameof(ActivityPaneHeight), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(160)));
 
     private SettingsWindow? _settingsWindow;
+    private PreviewWindow? _previewWindow;
     private string? _activeTimelineColumnResize;
     private double _lastTimelineResizeX;
     private bool _isResizingRightPane;
@@ -221,10 +220,10 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         ViewModel.SettingsWindowRequested += OnSettingsWindowRequested;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-        ViewModel.PreviewDetections.CollectionChanged += OnPreviewDetectionsChanged;
         _previewPlaybackTimer.Tick += OnPreviewPlaybackTimerTick;
         RefreshTimelineColumnWidths();
-        UpdatePreviewImage();
+        UpdatePreviewPlaybackButtonContent();
+        UpdatePreviewPopOutButtonState();
     }
 
     private void OnSettingsWindowRequested(object? sender, EventArgs e)
@@ -240,45 +239,11 @@ public sealed partial class MainPage : Page
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainPageViewModel.PreviewImagePath))
-        {
-            UpdatePreviewImage();
-            return;
-        }
-
-        if (e.PropertyName is nameof(MainPageViewModel.PreviewImageWidth)
-            or nameof(MainPageViewModel.PreviewImageHeight))
-        {
-            RedrawPreviewOverlay();
-            return;
-        }
-
         if (e.PropertyName is nameof(MainPageViewModel.UiText))
         {
             UpdatePreviewPlaybackButtonContent();
+            UpdatePreviewPopOutButtonState();
         }
-    }
-
-    private void OnPreviewDetectionsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        RedrawPreviewOverlay();
-    }
-
-    private void OnPreviewFrameContainerSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        RedrawPreviewOverlay();
-    }
-
-    private void OnPreviewFrameImageOpened(object sender, RoutedEventArgs e)
-    {
-        RedrawPreviewOverlay();
-    }
-
-    private void OnPreviewFrameImageFailed(object sender, ExceptionRoutedEventArgs e)
-    {
-        PreviewOverlayCanvas.Children.Clear();
-        PreviewFrameImage.Source = null;
-        UpdatePreviewVisibility(hasImage: false);
     }
 
     private void OnTimelineColumnSplitterPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -549,6 +514,31 @@ public sealed partial class MainPage : Page
         UpdatePreviewPlaybackButtonContent();
     }
 
+    private void OnPreviewPopOutClicked(object sender, RoutedEventArgs e)
+    {
+        if (_previewWindow is null)
+        {
+            _previewWindow = new PreviewWindow(ViewModel);
+            _previewWindow.Closed += OnPreviewWindowClosed;
+            _previewWindow.Activate();
+            SetPreviewDetachedState(isDetached: true);
+            return;
+        }
+
+        _previewWindow.Close();
+    }
+
+    private void OnPreviewWindowClosed(object sender, WindowEventArgs args)
+    {
+        if (_previewWindow is not null)
+        {
+            _previewWindow.Closed -= OnPreviewWindowClosed;
+            _previewWindow = null;
+        }
+
+        SetPreviewDetachedState(isDetached: false);
+    }
+
     private async void OnShowVersionInfoClicked(object sender, RoutedEventArgs e)
     {
         var assembly = typeof(App).Assembly;
@@ -558,7 +548,7 @@ public sealed partial class MainPage : Page
         var settingsPath = App.LaunchSettingsPath ?? "(not found)";
         var ocrDevice = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE") ?? "cpu";
         var ocrEngine = Environment.GetEnvironmentVariable("MOVIE_TELOP_OCR_ENGINE") ?? "paddleocr";
-        var message = $"アプリバージョン: {version}\nビルド出力: {AppContext.BaseDirectory}\n設定ファイル: {settingsPath}\nOCR device: {ocrDevice}\nOCR エンジン: {ocrEngine}";
+        var message = $"アプリバージョン: {version}`nビルド出力先: {AppContext.BaseDirectory}`n設定ファイル: {settingsPath}`nOCR device: {ocrDevice}`nOCR エンジン: {ocrEngine}";
 
         var dialog = new ContentDialog
         {
@@ -581,13 +571,13 @@ public sealed partial class MainPage : Page
     {
         var pythonPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON");
         var licenseText = new StringBuilder()
-            .AppendLine("同梱または設定対象の主な構成:")
+            .AppendLine("組み込みまたは設定検出対象の主な依存:")
             .AppendLine("- Microsoft Windows App SDK 1.8.260416003")
             .AppendLine("- CommunityToolkit.Mvvm 8.4.2")
             .AppendLine("- OpenCvSharp4.Windows 4.13.0.20260302")
             .AppendLine("- PaddleOCR worker script (tools/ocr/paddle_ocr_worker.py)")
             .AppendLine()
-            .AppendLine("OCR runtime の想定:")
+            .AppendLine("OCR runtime の詳細")
             .AppendLine("- CPU: PaddlePaddle 3.2.0 + PaddleOCR 3.5.0")
             .AppendLine("- GPU: PaddlePaddle GPU 3.2.2 + PaddleOCR 3.5.0");
 
@@ -636,6 +626,26 @@ public sealed partial class MainPage : Page
         PreviewPlaybackButton.Content = _isPreviewPlaying
             ? ViewModel.UiText.PreviewPause
             : ViewModel.UiText.PreviewPlay;
+    }
+
+    private void UpdatePreviewPopOutButtonState()
+    {
+        var isDetached = _previewWindow is not null;
+        PreviewPopOutButton.Content = new FontIcon
+        {
+            Glyph = isDetached ? "\uE73E" : "\uE8A7"
+        };
+        ToolTipService.SetToolTip(PreviewPopOutButton, isDetached
+            ? "プレビューをメイン画面へ戻す"
+            : "プレビューを別画面で開く");
+    }
+
+    private void SetPreviewDetachedState(bool isDetached)
+    {
+        EmbeddedPreviewFrameView.Visibility = isDetached ? Visibility.Collapsed : Visibility.Visible;
+        PreviewDetachedStatePanel.Visibility = isDetached ? Visibility.Visible : Visibility.Collapsed;
+        CenterPaneColumn.Width = isDetached ? new GridLength(DetachedCenterPaneWidth) : new GridLength(1, GridUnitType.Star);
+        UpdatePreviewPopOutButtonState();
     }
 
     private void FocusTimelineEditingTextBox()
@@ -822,121 +832,4 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void UpdatePreviewImage()
-    {
-        var imagePath = ViewModel.PreviewImagePath;
-        if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
-        {
-            PreviewFrameImage.Source = null;
-            PreviewOverlayCanvas.Children.Clear();
-            UpdatePreviewVisibility(hasImage: false);
-            return;
-        }
-
-        PreviewFrameImage.Source = new BitmapImage(new System.Uri(System.IO.Path.GetFullPath(imagePath), UriKind.Absolute));
-        UpdatePreviewVisibility(hasImage: true);
-        RedrawPreviewOverlay();
-    }
-
-    private void UpdatePreviewVisibility(bool hasImage)
-    {
-        PreviewFrameImage.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
-        PreviewOverlayCanvas.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
-        PreviewEmptyState.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
-    }
-
-    private void RedrawPreviewOverlay()
-    {
-        PreviewOverlayCanvas.Children.Clear();
-
-        var sourceWidth = ViewModel.PreviewImageWidth;
-        var sourceHeight = ViewModel.PreviewImageHeight;
-        if (sourceWidth <= 0 || sourceHeight <= 0 || ViewModel.PreviewDetections.Count == 0)
-        {
-            return;
-        }
-
-        var containerWidth = PreviewFrameContainer.ActualWidth;
-        var containerHeight = PreviewFrameContainer.ActualHeight;
-        if (containerWidth <= 0 || containerHeight <= 0)
-        {
-            return;
-        }
-
-        PreviewOverlayCanvas.Width = containerWidth;
-        PreviewOverlayCanvas.Height = containerHeight;
-
-        var scale = Math.Min(containerWidth / sourceWidth, containerHeight / sourceHeight);
-        var displayWidth = sourceWidth * scale;
-        var displayHeight = sourceHeight * scale;
-        var offsetX = (containerWidth - displayWidth) / 2d;
-        var offsetY = (containerHeight - displayHeight) / 2d;
-
-        foreach (var detection in ViewModel.PreviewDetections)
-        {
-            DrawDetectionOverlay(detection, scale, offsetX, offsetY);
-        }
-    }
-
-    private void DrawDetectionOverlay(
-        PreviewDetectionOverlay detection,
-        double scale,
-        double offsetX,
-        double offsetY)
-    {
-        if (detection.BoundingBox.Count == 0)
-        {
-            return;
-        }
-
-        var strokeBrush = detection.IsHighlighted
-            ? new SolidColorBrush(Colors.OrangeRed)
-            : new SolidColorBrush(Colors.DeepSkyBlue);
-        var fillBrush = detection.IsHighlighted
-            ? new SolidColorBrush(ColorHelper.FromArgb(36, 255, 69, 0))
-            : new SolidColorBrush(ColorHelper.FromArgb(24, 0, 191, 255));
-
-        var polygon = new Polygon
-        {
-            Stroke = strokeBrush,
-            StrokeThickness = detection.IsHighlighted ? 3 : 2,
-            Fill = fillBrush,
-            Points = new PointCollection()
-        };
-
-        foreach (var point in detection.BoundingBox)
-        {
-            polygon.Points.Add(new Point(offsetX + (point.X * scale), offsetY + (point.Y * scale)));
-        }
-
-        PreviewOverlayCanvas.Children.Add(polygon);
-
-        var minX = detection.BoundingBox.Min(point => point.X);
-        var minY = detection.BoundingBox.Min(point => point.Y);
-        var label = new Border
-        {
-            Background = new SolidColorBrush(ColorHelper.FromArgb(224, 16, 16, 16)),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6, 2, 6, 3),
-            Child = new TextBlock
-            {
-                Foreground = new SolidColorBrush(Colors.White),
-                FontSize = 11,
-                Text = CreateDetectionLabel(detection),
-                TextTrimming = Microsoft.UI.Xaml.TextTrimming.CharacterEllipsis,
-                MaxWidth = 220
-            }
-        };
-
-        Canvas.SetLeft(label, offsetX + (minX * scale));
-        Canvas.SetTop(label, Math.Max(0, offsetY + (minY * scale) - 24));
-        PreviewOverlayCanvas.Children.Add(label);
-    }
-
-    private static string CreateDetectionLabel(PreviewDetectionOverlay detection)
-    {
-        return detection.Confidence is null
-            ? detection.Text
-            : $"{detection.Text} ({detection.Confidence:P0})";
-    }
 }
