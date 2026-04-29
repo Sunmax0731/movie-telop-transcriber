@@ -122,6 +122,9 @@ Copy-RepoFileMatch -Directory "docs" -Filter "10_PaddleOCR*.md" -DestinationDire
 Copy-RepoFileMatch -Directory "docs" -Filter "11_*.md" -DestinationDirectory "docs"
 Copy-RepoFileMatch -Directory "docs" -Filter "12_*.md" -DestinationDirectory "docs"
 Copy-RepoFileMatch -Directory "docs" -Filter "13_*.md" -DestinationDirectory "docs"
+Copy-RepoFile -Source "docs\images\app-main-empty.png" -Destination "docs\images\app-main-empty.png"
+Copy-RepoFile -Source "docs\images\app-settings.png" -Destination "docs\images\app-settings.png"
+Copy-RepoFile -Source "docs\images\app-analysis-result.png" -Destination "docs\images\app-analysis-result.png"
 Copy-RepoFileMatch -Directory "docs\spec" -Filter "04_*.md" -DestinationDirectory "docs\spec"
 Copy-RepoFileMatch -Directory "docs\spec" -Filter "06_QCDS*.md" -DestinationDirectory "docs\spec"
 Copy-RepoFileMatch -Directory "docs\spec" -Filter "07_*.md" -DestinationDirectory "docs\spec"
@@ -142,6 +145,9 @@ $requiredPackageFiles = @(
     "Uninstall-MovieTelopTranscriber.ps1",
     "Uninstall-MovieTelopTranscriber.cmd",
     "docs\README.md",
+    "docs\images\app-main-empty.png",
+    "docs\images\app-settings.png",
+    "docs\images\app-analysis-result.png",
     "samples\basic_telop\README.md",
     "samples\basic_telop\sample_basic_telop.mp4",
     "samples\basic_telop\ground_truth.json"

@@ -69,6 +69,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 配布 zip ではなくリポジトリ内の開発用スクリプトを直接使う場合は `tools/install/Install-MovieTelopTranscriber.ps1` を実行します。手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
+画面イメージも [docs/12_導入手順書.md](docs/12_導入手順書.md) に掲載しています。
 
 ### 起動方法
 インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` または `<実行ディレクトリ>\MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動できます。
