@@ -31,6 +31,7 @@
 - PaddleOCR モデル本体
 
 これらは installer または別手順で準備する。
+`self-contained publish` は 2026-04-30 の再検証でも採用しなかったため、この manifest の対象外とする。
 
 ## 6. 利用者向けの最小確認手順
 1. zip を展開する

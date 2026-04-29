@@ -28,27 +28,6 @@ public partial class MainPageViewModel : ObservableObject
         Stopwatch Stopwatch);
 
     private const double DefaultFrameIntervalSeconds = 1.0d;
-    private const double DefaultPaddleContrast = 1.1d;
-    private const double DefaultPaddleTextDetThresh = 0.3d;
-    private const double DefaultPaddleTextDetBoxThresh = 0.6d;
-    private const double DefaultPaddleTextDetUnclipRatio = 1.5d;
-    private const double DefaultPaddleTextDetLimitSideLen = 960d;
-    private const double DefaultPaddleMinTextSize = 0d;
-    private const string FixedPaddleUpscale = "1";
-    private const string PaddlePreprocessEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_PREPROCESS";
-    private const string PaddleUpscaleEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_UPSCALE";
-    private const string PaddleContrastEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_CONTRAST";
-    private const string PaddleSharpenEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_SHARPEN";
-    private const string PaddleTextDetThreshEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH";
-    private const string PaddleTextDetBoxThreshEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH";
-    private const string PaddleTextDetUnclipRatioEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO";
-    private const string PaddleTextDetLimitSideLenEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN";
-    private const string PaddleMinTextSizeEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE";
-    private const string PaddleUseTextlineOrientationEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION";
-    private const string PaddleUseDocUnwarpingEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING";
-    private const string PaddleDeviceEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_DEVICE";
-    private const string PaddleWorkerCountEnvironmentVariable = "MOVIE_TELOP_PADDLEOCR_WORKER_COUNT";
-
     private readonly OpenCvVideoProcessingService _videoProcessingService = new();
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
     private readonly TelopSegmentMerger _segmentMerger = new();
@@ -98,9 +77,14 @@ public partial class MainPageViewModel : ObservableObject
         PreviewDetections = new ObservableCollection<PreviewDetectionOverlay>();
 
         SelectedLanguageOption = ResolveDefaultLanguageOption();
-        ApplySavedUserInterfaceSettings();
+        ApplyStoredUiState(MainPageUserSettingsCoordinator.ResolveSavedUserInterfaceSettings(
+            App.LaunchSettings.Ui,
+            LanguageOptions,
+            App.LaunchSettingsPath));
         UiText = LocalizedUiText.ForLanguage(SelectedLanguageOption.Code);
-        SelectedPaddleDeviceOption = ResolvePaddleDeviceOption(Environment.GetEnvironmentVariable(PaddleDeviceEnvironmentVariable));
+        SelectedPaddleDeviceOption = MainPageUserSettingsCoordinator.ResolvePaddleDeviceOption(
+            Environment.GetEnvironmentVariable(MainPageUserSettingsCoordinator.PaddleDeviceEnvironmentVariable),
+            SupportedPaddleDeviceOptions);
         ApplyPaddleOcrEnvironment();
         RefreshStaticCollections();
         ResetDynamicCollections();
@@ -181,7 +165,7 @@ public partial class MainPageViewModel : ObservableObject
 
     public bool CanInteract => !IsBusy;
 
-    public bool IsPaddleWorkerCountEditable => CanInteract && IsGpuDevice(SelectedPaddleDeviceOption.Key);
+    public bool IsPaddleWorkerCountEditable => CanInteract && MainPageUserSettingsCoordinator.IsGpuDevice(SelectedPaddleDeviceOption.Key);
 
     [ObservableProperty]
     public partial string FrameIntervalText { get; set; } = "1.0";
@@ -193,58 +177,58 @@ public partial class MainPageViewModel : ObservableObject
     public partial string OutputRootDirectoryText { get; set; } = OpenCvVideoProcessingService.ResolveDefaultRunsRootDirectory();
 
     [ObservableProperty]
-    public partial bool PaddlePreprocessEnabled { get; set; } = ReadBoolEnvironment(PaddlePreprocessEnvironmentVariable, true);
+    public partial bool PaddlePreprocessEnabled { get; set; } = MainPageUserSettingsCoordinator.ReadBoolEnvironment(MainPageUserSettingsCoordinator.PaddlePreprocessEnvironmentVariable, true);
 
     [ObservableProperty]
-    public partial string PaddleContrastText { get; set; } = ReadEnvironment(PaddleContrastEnvironmentVariable, "1.1");
+    public partial string PaddleContrastText { get; set; } = MainPageUserSettingsCoordinator.ReadEnvironment(MainPageUserSettingsCoordinator.PaddleContrastEnvironmentVariable, "1.1");
 
     [ObservableProperty]
-    public partial double PaddleContrastValue { get; set; } = ReadDoubleSetting(PaddleContrastEnvironmentVariable, DefaultPaddleContrast);
+    public partial double PaddleContrastValue { get; set; } = MainPageUserSettingsCoordinator.ReadDoubleSetting(MainPageUserSettingsCoordinator.PaddleContrastEnvironmentVariable, MainPageUserSettingsCoordinator.DefaultPaddleContrast);
 
     [ObservableProperty]
-    public partial bool PaddleSharpenEnabled { get; set; } = ReadBoolEnvironment(PaddleSharpenEnvironmentVariable, true);
+    public partial bool PaddleSharpenEnabled { get; set; } = MainPageUserSettingsCoordinator.ReadBoolEnvironment(MainPageUserSettingsCoordinator.PaddleSharpenEnvironmentVariable, true);
 
     [ObservableProperty]
-    public partial string PaddleTextDetThreshText { get; set; } = ReadEnvironment(PaddleTextDetThreshEnvironmentVariable, string.Empty);
+    public partial string PaddleTextDetThreshText { get; set; } = MainPageUserSettingsCoordinator.ReadEnvironment(MainPageUserSettingsCoordinator.PaddleTextDetThreshEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
-    public partial double PaddleTextDetThreshValue { get; set; } = ReadDoubleSetting(PaddleTextDetThreshEnvironmentVariable, DefaultPaddleTextDetThresh);
+    public partial double PaddleTextDetThreshValue { get; set; } = MainPageUserSettingsCoordinator.ReadDoubleSetting(MainPageUserSettingsCoordinator.PaddleTextDetThreshEnvironmentVariable, MainPageUserSettingsCoordinator.DefaultPaddleTextDetThresh);
 
     [ObservableProperty]
-    public partial string PaddleTextDetBoxThreshText { get; set; } = ReadEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, string.Empty);
+    public partial string PaddleTextDetBoxThreshText { get; set; } = MainPageUserSettingsCoordinator.ReadEnvironment(MainPageUserSettingsCoordinator.PaddleTextDetBoxThreshEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
-    public partial double PaddleTextDetBoxThreshValue { get; set; } = ReadDoubleSetting(PaddleTextDetBoxThreshEnvironmentVariable, DefaultPaddleTextDetBoxThresh);
+    public partial double PaddleTextDetBoxThreshValue { get; set; } = MainPageUserSettingsCoordinator.ReadDoubleSetting(MainPageUserSettingsCoordinator.PaddleTextDetBoxThreshEnvironmentVariable, MainPageUserSettingsCoordinator.DefaultPaddleTextDetBoxThresh);
 
     [ObservableProperty]
-    public partial string PaddleTextDetUnclipRatioText { get; set; } = ReadEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, string.Empty);
+    public partial string PaddleTextDetUnclipRatioText { get; set; } = MainPageUserSettingsCoordinator.ReadEnvironment(MainPageUserSettingsCoordinator.PaddleTextDetUnclipRatioEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
-    public partial double PaddleTextDetUnclipRatioValue { get; set; } = ReadDoubleSetting(PaddleTextDetUnclipRatioEnvironmentVariable, DefaultPaddleTextDetUnclipRatio);
+    public partial double PaddleTextDetUnclipRatioValue { get; set; } = MainPageUserSettingsCoordinator.ReadDoubleSetting(MainPageUserSettingsCoordinator.PaddleTextDetUnclipRatioEnvironmentVariable, MainPageUserSettingsCoordinator.DefaultPaddleTextDetUnclipRatio);
 
     [ObservableProperty]
-    public partial string PaddleTextDetLimitSideLenText { get; set; } = ReadEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, string.Empty);
+    public partial string PaddleTextDetLimitSideLenText { get; set; } = MainPageUserSettingsCoordinator.ReadEnvironment(MainPageUserSettingsCoordinator.PaddleTextDetLimitSideLenEnvironmentVariable, string.Empty);
 
     [ObservableProperty]
-    public partial double PaddleTextDetLimitSideLenValue { get; set; } = ReadDoubleSetting(PaddleTextDetLimitSideLenEnvironmentVariable, DefaultPaddleTextDetLimitSideLen);
+    public partial double PaddleTextDetLimitSideLenValue { get; set; } = MainPageUserSettingsCoordinator.ReadDoubleSetting(MainPageUserSettingsCoordinator.PaddleTextDetLimitSideLenEnvironmentVariable, MainPageUserSettingsCoordinator.DefaultPaddleTextDetLimitSideLen);
 
     [ObservableProperty]
-    public partial string PaddleMinTextSizeText { get; set; } = ReadEnvironment(PaddleMinTextSizeEnvironmentVariable, "0");
+    public partial string PaddleMinTextSizeText { get; set; } = MainPageUserSettingsCoordinator.ReadEnvironment(MainPageUserSettingsCoordinator.PaddleMinTextSizeEnvironmentVariable, "0");
 
     [ObservableProperty]
-    public partial double PaddleMinTextSizeValue { get; set; } = ReadDoubleSetting(PaddleMinTextSizeEnvironmentVariable, DefaultPaddleMinTextSize);
+    public partial double PaddleMinTextSizeValue { get; set; } = MainPageUserSettingsCoordinator.ReadDoubleSetting(MainPageUserSettingsCoordinator.PaddleMinTextSizeEnvironmentVariable, MainPageUserSettingsCoordinator.DefaultPaddleMinTextSize);
 
     [ObservableProperty]
-    public partial bool PaddleUseTextlineOrientation { get; set; } = ReadBoolEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, false);
+    public partial bool PaddleUseTextlineOrientation { get; set; } = MainPageUserSettingsCoordinator.ReadBoolEnvironment(MainPageUserSettingsCoordinator.PaddleUseTextlineOrientationEnvironmentVariable, false);
 
     [ObservableProperty]
-    public partial bool PaddleUseDocUnwarping { get; set; } = ReadBoolEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, false);
+    public partial bool PaddleUseDocUnwarping { get; set; } = MainPageUserSettingsCoordinator.ReadBoolEnvironment(MainPageUserSettingsCoordinator.PaddleUseDocUnwarpingEnvironmentVariable, false);
 
     [ObservableProperty]
     public partial SelectionOption SelectedPaddleDeviceOption { get; set; } = SupportedPaddleDeviceOptions[0];
 
     [ObservableProperty]
-    public partial int PaddleWorkerCount { get; set; } = ReadPaddleWorkerCountSetting();
+    public partial int PaddleWorkerCount { get; set; } = MainPageUserSettingsCoordinator.ReadPaddleWorkerCountSetting();
 
     [ObservableProperty]
     public partial LanguageOption SelectedLanguageOption { get; set; } = SupportedLanguageOptions[1];
@@ -359,7 +343,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnFrameIntervalValueChanged(double value)
     {
-        FrameIntervalText = FormatSettingNumber(value, "0.##");
+        FrameIntervalText = MainPageUserSettingsCoordinator.FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -372,7 +356,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleContrastValueChanged(double value)
     {
-        PaddleContrastText = FormatSettingNumber(value, "0.##");
+        PaddleContrastText = MainPageUserSettingsCoordinator.FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -409,7 +393,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleTextDetThreshValueChanged(double value)
     {
-        PaddleTextDetThreshText = FormatSettingNumber(value, "0.##");
+        PaddleTextDetThreshText = MainPageUserSettingsCoordinator.FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -422,7 +406,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleTextDetBoxThreshValueChanged(double value)
     {
-        PaddleTextDetBoxThreshText = FormatSettingNumber(value, "0.##");
+        PaddleTextDetBoxThreshText = MainPageUserSettingsCoordinator.FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -435,7 +419,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleTextDetUnclipRatioValueChanged(double value)
     {
-        PaddleTextDetUnclipRatioText = FormatSettingNumber(value, "0.#");
+        PaddleTextDetUnclipRatioText = MainPageUserSettingsCoordinator.FormatSettingNumber(value, "0.#");
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -461,7 +445,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleMinTextSizeValueChanged(double value)
     {
-        PaddleMinTextSizeText = FormatSettingNumber(value, "0.#");
+        PaddleMinTextSizeText = MainPageUserSettingsCoordinator.FormatSettingNumber(value, "0.#");
         RefreshStaticCollections();
         OnUserSettingsChanged();
     }
@@ -480,7 +464,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnSelectedPaddleDeviceOptionChanged(SelectionOption value)
     {
-        PaddleWorkerCount = NormalizePaddleWorkerCount(PaddleWorkerCount, value.Key);
+        PaddleWorkerCount = MainPageUserSettingsCoordinator.NormalizePaddleWorkerCount(PaddleWorkerCount, value.Key);
         OnPropertyChanged(nameof(IsPaddleWorkerCountEditable));
         RefreshStaticCollections();
         OnUserSettingsChanged();
@@ -488,7 +472,7 @@ public partial class MainPageViewModel : ObservableObject
 
     partial void OnPaddleWorkerCountChanged(int value)
     {
-        var normalized = NormalizePaddleWorkerCount(value, SelectedPaddleDeviceOption.Key);
+        var normalized = MainPageUserSettingsCoordinator.NormalizePaddleWorkerCount(value, SelectedPaddleDeviceOption.Key);
         if (normalized != value)
         {
             PaddleWorkerCount = normalized;
@@ -712,18 +696,18 @@ public partial class MainPageViewModel : ObservableObject
         SelectedLanguageOption = ResolveDefaultLanguageOption();
         FrameIntervalValue = DefaultFrameIntervalSeconds;
         PaddlePreprocessEnabled = true;
-        PaddleContrastValue = DefaultPaddleContrast;
+        PaddleContrastValue = MainPageUserSettingsCoordinator.DefaultPaddleContrast;
         PaddleSharpenEnabled = true;
         PaddleTextDetThreshText = string.Empty;
         PaddleTextDetBoxThreshText = string.Empty;
         PaddleTextDetUnclipRatioText = string.Empty;
         PaddleTextDetLimitSideLenText = string.Empty;
         PaddleMinTextSizeText = "0";
-        PaddleTextDetThreshValue = DefaultPaddleTextDetThresh;
-        PaddleTextDetBoxThreshValue = DefaultPaddleTextDetBoxThresh;
-        PaddleTextDetUnclipRatioValue = DefaultPaddleTextDetUnclipRatio;
-        PaddleTextDetLimitSideLenValue = DefaultPaddleTextDetLimitSideLen;
-        PaddleMinTextSizeValue = DefaultPaddleMinTextSize;
+        PaddleTextDetThreshValue = MainPageUserSettingsCoordinator.DefaultPaddleTextDetThresh;
+        PaddleTextDetBoxThreshValue = MainPageUserSettingsCoordinator.DefaultPaddleTextDetBoxThresh;
+        PaddleTextDetUnclipRatioValue = MainPageUserSettingsCoordinator.DefaultPaddleTextDetUnclipRatio;
+        PaddleTextDetLimitSideLenValue = MainPageUserSettingsCoordinator.DefaultPaddleTextDetLimitSideLen;
+        PaddleMinTextSizeValue = MainPageUserSettingsCoordinator.DefaultPaddleMinTextSize;
         PaddleUseTextlineOrientation = false;
         PaddleUseDocUnwarping = false;
         PaddleWorkerCount = 1;
@@ -1763,7 +1747,9 @@ public partial class MainPageViewModel : ObservableObject
             _timelineEdits.AddRange(loadResult.ExportPackage.Edits);
             ClearPipelineFailure();
 
-            ApplyProjectUiSettings(loadResult.Manifest.Ui);
+            ApplyStoredUiState(MainPageUserSettingsCoordinator.ResolveProjectUserInterfaceSettings(
+                loadResult.Manifest.Ui,
+                LanguageOptions));
 
             VideoPath = loadResult.Manifest.SourceVideoPath;
             DurationText = FormatTimestamp(loadResult.ExportPackage.SourceVideo.DurationMs);
@@ -1847,7 +1833,24 @@ public partial class MainPageViewModel : ObservableObject
                 _timelineEdits,
                 ParseFrameIntervalSeconds(),
                 OcrEngineText == "-" ? _frameAnalysisService.EngineName : OcrEngineText,
-                BuildCurrentUiSettingsSnapshot(),
+                App.LaunchSettings.Ui?.MainWindow is null
+                    ? new UserInterfaceSettings
+                    {
+                        Language = SelectedLanguageOption.Code,
+                        FrameIntervalSeconds = ParseFrameIntervalSeconds(),
+                        OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText) ? null : OutputRootDirectoryText.Trim()
+                    }
+                    : new UserInterfaceSettings
+                    {
+                        Language = SelectedLanguageOption.Code,
+                        FrameIntervalSeconds = ParseFrameIntervalSeconds(),
+                        OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText) ? null : OutputRootDirectoryText.Trim(),
+                        MainWindow = new MainWindowLaunchSettings
+                        {
+                            Width = App.LaunchSettings.Ui.MainWindow.Width,
+                            Height = App.LaunchSettings.Ui.MainWindow.Height
+                        }
+                    },
                 SelectedTimelineSegment?.SegmentId,
                 SelectedTimelineSegment?.DetectionId);
 
@@ -2079,7 +2082,7 @@ public partial class MainPageViewModel : ObservableObject
                 Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE") ?? string.Empty,
                 Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION") ?? string.Empty,
                 Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING") ?? string.Empty,
-                Environment.GetEnvironmentVariable(PaddleWorkerCountEnvironmentVariable) ?? string.Empty
+                Environment.GetEnvironmentVariable(MainPageUserSettingsCoordinator.PaddleWorkerCountEnvironmentVariable) ?? string.Empty
             });
     }
 
@@ -2876,81 +2879,23 @@ public partial class MainPageViewModel : ObservableObject
             : DefaultFrameIntervalSeconds;
     }
 
-    private void ApplySavedUserInterfaceSettings()
+    private void ApplyStoredUiState(MainPageStoredUiState uiState)
     {
-        var uiSettings = App.LaunchSettings.Ui;
-        if (uiSettings is null)
+        if (uiState.SelectedLanguageOption is not null)
         {
-            return;
+            SelectedLanguageOption = uiState.SelectedLanguageOption;
         }
 
-        if (!string.IsNullOrWhiteSpace(uiSettings.Language))
+        if (uiState.FrameIntervalValue.HasValue && !string.IsNullOrWhiteSpace(uiState.FrameIntervalText))
         {
-            var savedLanguage = LanguageOptions.FirstOrDefault(option =>
-                string.Equals(option.Code, uiSettings.Language, StringComparison.OrdinalIgnoreCase));
-            if (savedLanguage is not null)
-            {
-                SelectedLanguageOption = savedLanguage;
-            }
+            FrameIntervalValue = uiState.FrameIntervalValue.Value;
+            FrameIntervalText = uiState.FrameIntervalText;
         }
 
-        if (uiSettings.FrameIntervalSeconds is > 0)
+        if (!string.IsNullOrWhiteSpace(uiState.OutputRootDirectoryText))
         {
-            FrameIntervalValue = uiSettings.FrameIntervalSeconds.Value;
-            FrameIntervalText = FormatSettingNumber(uiSettings.FrameIntervalSeconds.Value, "0.##");
+            OutputRootDirectoryText = uiState.OutputRootDirectoryText;
         }
-
-        if (!string.IsNullOrWhiteSpace(uiSettings.OutputRootDirectory))
-        {
-            OutputRootDirectoryText = ResolveSavedPath(uiSettings.OutputRootDirectory);
-        }
-    }
-
-    private void ApplyProjectUiSettings(UserInterfaceSettings? uiSettings)
-    {
-        if (uiSettings is null)
-        {
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(uiSettings.Language))
-        {
-            var option = LanguageOptions.FirstOrDefault(item =>
-                string.Equals(item.Code, uiSettings.Language, StringComparison.OrdinalIgnoreCase));
-            if (option is not null)
-            {
-                SelectedLanguageOption = option;
-            }
-        }
-
-        if (uiSettings.FrameIntervalSeconds is > 0)
-        {
-            FrameIntervalValue = uiSettings.FrameIntervalSeconds.Value;
-            FrameIntervalText = FormatSettingNumber(uiSettings.FrameIntervalSeconds.Value, "0.##");
-        }
-
-        if (!string.IsNullOrWhiteSpace(uiSettings.OutputRootDirectory))
-        {
-            OutputRootDirectoryText = uiSettings.OutputRootDirectory;
-        }
-    }
-
-    private UserInterfaceSettings BuildCurrentUiSettingsSnapshot()
-    {
-        var currentWindow = App.LaunchSettings.Ui?.MainWindow;
-        return new UserInterfaceSettings
-        {
-            Language = SelectedLanguageOption.Code,
-            FrameIntervalSeconds = ParseFrameIntervalSeconds(),
-            OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText) ? null : OutputRootDirectoryText.Trim(),
-            MainWindow = currentWindow is null
-                ? null
-                : new MainWindowLaunchSettings
-                {
-                    Width = currentWindow.Width,
-                    Height = currentWindow.Height
-                }
-        };
     }
 
     private void ApplySelectionFromProjectManifest(string? selectedSegmentId, string? selectedDetectionId)
@@ -2981,64 +2926,43 @@ public partial class MainPageViewModel : ObservableObject
         _loadedProjectExtractionDirectory = null;
     }
 
-    private void PersistUserSettings()
+    private MainPageUserSettingsState BuildUserSettingsState()
+    {
+        return new MainPageUserSettingsState(
+            SelectedLanguageOption.Code,
+            ParseFrameIntervalSeconds(),
+            OutputRootDirectoryText,
+            PaddlePreprocessEnabled,
+            PaddleContrastText,
+            PaddleSharpenEnabled,
+            PaddleTextDetThreshText,
+            PaddleTextDetBoxThreshText,
+            PaddleTextDetUnclipRatioText,
+            PaddleTextDetLimitSideLenText,
+            PaddleMinTextSizeText,
+            PaddleUseTextlineOrientation,
+            PaddleUseDocUnwarping,
+            SelectedPaddleDeviceOption.Key,
+            PaddleWorkerCount);
+    }
+
+    private void OnUserSettingsChanged()
     {
         if (!_settingsPersistenceReady)
         {
             return;
         }
 
-        App.LaunchSettings.OcrEngine ??= Environment.GetEnvironmentVariable("MOVIE_TELOP_OCR_ENGINE") ?? "paddleocr";
-        App.LaunchSettings.OcrWorkerPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_OCR_WORKER");
-        App.LaunchSettings.PaddleOcr ??= new PaddleOcrLaunchSettings();
-        App.LaunchSettings.PaddleOcr.PythonPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON");
-        App.LaunchSettings.PaddleOcr.ScriptPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SCRIPT");
-        App.LaunchSettings.PaddleOcr.Device = SelectedPaddleDeviceOption.Key;
-        App.LaunchSettings.PaddleOcr.Language = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_LANG");
-        App.LaunchSettings.PaddleOcr.MinScore = ReadEnvironmentDouble("MOVIE_TELOP_PADDLEOCR_MIN_SCORE");
-        App.LaunchSettings.PaddleOcr.NormalizeSmallKana = ReadEnvironmentBool("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA");
-        App.LaunchSettings.PaddleOcr.Preprocess = PaddlePreprocessEnabled;
-        App.LaunchSettings.PaddleOcr.Contrast = ParseOptionalDouble(PaddleContrastText, 0.1d, 4.0d);
-        App.LaunchSettings.PaddleOcr.Sharpen = PaddleSharpenEnabled;
-        App.LaunchSettings.PaddleOcr.TextDetThresh = ParseOptionalDouble(PaddleTextDetThreshText, 0.0d, 1.0d);
-        App.LaunchSettings.PaddleOcr.TextDetBoxThresh = ParseOptionalDouble(PaddleTextDetBoxThreshText, 0.0d, 1.0d);
-        App.LaunchSettings.PaddleOcr.TextDetUnclipRatio = ParseOptionalDouble(PaddleTextDetUnclipRatioText, 0.1d, 10.0d);
-        App.LaunchSettings.PaddleOcr.TextDetLimitSideLen = ParseOptionalInt(PaddleTextDetLimitSideLenText, 16, 4096);
-        App.LaunchSettings.PaddleOcr.MinTextSize = ParseOptionalDouble(PaddleMinTextSizeText, 0.0d, 200.0d);
-        App.LaunchSettings.PaddleOcr.UseTextlineOrientation = PaddleUseTextlineOrientation;
-        App.LaunchSettings.PaddleOcr.UseDocUnwarping = PaddleUseDocUnwarping;
-        App.LaunchSettings.PaddleOcr.WorkerCount = NormalizePaddleWorkerCount(PaddleWorkerCount, SelectedPaddleDeviceOption.Key);
-
-        App.LaunchSettings.Ui ??= new UserInterfaceSettings();
-        App.LaunchSettings.Ui.Language = SelectedLanguageOption.Code;
-        App.LaunchSettings.Ui.FrameIntervalSeconds = ParseFrameIntervalSeconds();
-        App.LaunchSettings.Ui.OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText)
-            ? null
-            : OutputRootDirectoryText.Trim();
-
-        AppLaunchSettingsLoader.Save(App.LaunchSettings, App.LaunchSettingsPath);
-    }
-
-    private void OnUserSettingsChanged()
-    {
-        PersistUserSettings();
+        MainPageUserSettingsCoordinator.PersistUserSettings(
+            App.LaunchSettings,
+            App.LaunchSettingsPath,
+            BuildUserSettingsState(),
+            App.LaunchSettings.Ui?.MainWindow);
     }
 
     private void ApplyPaddleOcrEnvironment()
     {
-        SetEnvironment(PaddleDeviceEnvironmentVariable, SelectedPaddleDeviceOption.Key);
-        SetEnvironment(PaddlePreprocessEnvironmentVariable, PaddlePreprocessEnabled ? "true" : "false");
-        SetEnvironment(PaddleUpscaleEnvironmentVariable, FixedPaddleUpscale);
-        SetDoubleEnvironment(PaddleContrastEnvironmentVariable, PaddleContrastText, 0.1d, 4.0d);
-        SetEnvironment(PaddleSharpenEnvironmentVariable, PaddleSharpenEnabled ? "true" : "false");
-        SetDoubleEnvironment(PaddleTextDetThreshEnvironmentVariable, PaddleTextDetThreshText, 0.0d, 1.0d);
-        SetDoubleEnvironment(PaddleTextDetBoxThreshEnvironmentVariable, PaddleTextDetBoxThreshText, 0.0d, 1.0d);
-        SetDoubleEnvironment(PaddleTextDetUnclipRatioEnvironmentVariable, PaddleTextDetUnclipRatioText, 0.1d, 10.0d);
-        SetIntEnvironment(PaddleTextDetLimitSideLenEnvironmentVariable, PaddleTextDetLimitSideLenText, 16, 4096);
-        SetDoubleEnvironment(PaddleMinTextSizeEnvironmentVariable, PaddleMinTextSizeText, 0.0d, 200.0d);
-        SetEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, PaddleUseTextlineOrientation ? "true" : "false");
-        SetEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, PaddleUseDocUnwarping ? "true" : "false");
-        SetEnvironment(PaddleWorkerCountEnvironmentVariable, NormalizePaddleWorkerCount(PaddleWorkerCount, SelectedPaddleDeviceOption.Key).ToString(CultureInfo.InvariantCulture));
+        MainPageUserSettingsCoordinator.ApplyPaddleOcrEnvironment(BuildUserSettingsState());
     }
 
     private static RunPerformanceSummaryRecord BuildPerformanceSummary(
@@ -3088,13 +3012,13 @@ public partial class MainPageViewModel : ObservableObject
     {
         var enabled = PaddlePreprocessEnabled ? "ON" : "OFF";
         var sharpen = PaddleSharpenEnabled ? "sharp ON" : "sharp OFF";
-        return $"{enabled} / scale {FixedPaddleUpscale} / contrast {FormatSettingValue(PaddleContrastText)} / {sharpen}";
+        return $"{enabled} / scale {MainPageUserSettingsCoordinator.FixedPaddleUpscale} / contrast {FormatSettingValue(PaddleContrastText)} / {sharpen}";
     }
 
     private string FormatPaddleDetectionSummary()
     {
-        var workerSummary = IsGpuDevice(SelectedPaddleDeviceOption.Key)
-            ? $"{NormalizePaddleWorkerCount(PaddleWorkerCount, SelectedPaddleDeviceOption.Key)} workers"
+        var workerSummary = MainPageUserSettingsCoordinator.IsGpuDevice(SelectedPaddleDeviceOption.Key)
+            ? $"{MainPageUserSettingsCoordinator.NormalizePaddleWorkerCount(PaddleWorkerCount, SelectedPaddleDeviceOption.Key)} workers"
             : "CPU fixed to 1 worker";
         var orientation = PaddleUseTextlineOrientation ? "orientation ON" : "orientation OFF";
         var unwarping = PaddleUseDocUnwarping ? "unwarp ON" : "unwarp OFF";
@@ -3106,168 +3030,11 @@ public partial class MainPageViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(value) ? UiText.SettingDefaultValue : value.Trim();
     }
 
-    private static string FormatSettingNumber(double value, string format)
-    {
-        return value.ToString(format, CultureInfo.InvariantCulture);
-    }
-
-    private static string ReadEnvironment(string name, string defaultValue)
-    {
-        var value = Environment.GetEnvironmentVariable(name);
-        return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
-    }
-
-    private static double? ReadEnvironmentDouble(string name)
-    {
-        var value = Environment.GetEnvironmentVariable(name);
-        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : null;
-    }
-
-    private static double ReadDoubleSetting(string name, double defaultValue)
-    {
-        var value = Environment.GetEnvironmentVariable(name);
-        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : defaultValue;
-    }
-
-    private static bool? ReadEnvironmentBool(string name)
-    {
-        var value = Environment.GetEnvironmentVariable(name);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        return value.Trim().ToLowerInvariant() switch
-        {
-            "1" or "true" or "yes" or "on" => true,
-            "0" or "false" or "no" or "off" => false,
-            _ => null
-        };
-    }
-
-    private static bool ReadBoolEnvironment(string name, bool defaultValue)
-    {
-        var value = Environment.GetEnvironmentVariable(name);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return defaultValue;
-        }
-
-        return value.Trim().ToLowerInvariant() switch
-        {
-            "1" or "true" or "yes" or "on" => true,
-            "0" or "false" or "no" or "off" => false,
-            _ => defaultValue
-        };
-    }
-
-    private static void SetDoubleEnvironment(string name, string text, double minimum, double maximum)
-    {
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
-        {
-            SetEnvironment(name, null);
-            return;
-        }
-
-        var normalized = Math.Clamp(value, minimum, maximum).ToString(CultureInfo.InvariantCulture);
-        SetEnvironment(name, normalized);
-    }
-
-    private static void SetIntEnvironment(string name, string text, int minimum, int maximum)
-    {
-        if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
-        {
-            SetEnvironment(name, null);
-            return;
-        }
-
-        SetEnvironment(name, Math.Clamp(value, minimum, maximum).ToString(CultureInfo.InvariantCulture));
-    }
-
-    private static void SetEnvironment(string name, string? value)
-    {
-        Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
-    }
-
-    private static int ReadPaddleWorkerCountSetting()
-    {
-        var value = Environment.GetEnvironmentVariable(PaddleWorkerCountEnvironmentVariable);
-        var device = Environment.GetEnvironmentVariable(PaddleDeviceEnvironmentVariable);
-        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-            ? NormalizePaddleWorkerCount(parsed, device)
-            : 1;
-    }
-
-    private static double? ParseOptionalDouble(string text, double minimum, double maximum)
-    {
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
-        {
-            return null;
-        }
-
-        return Math.Clamp(value, minimum, maximum);
-    }
-
-    private static int? ParseOptionalInt(string text, int minimum, int maximum)
-    {
-        if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
-        {
-            return null;
-        }
-
-        return Math.Clamp(value, minimum, maximum);
-    }
-
-    private static bool IsGpuDevice(string? device)
-    {
-        return !string.IsNullOrWhiteSpace(device)
-            && device.Trim().StartsWith("gpu", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static SelectionOption ResolvePaddleDeviceOption(string? device)
-    {
-        var normalizedKey = IsGpuDevice(device) ? "gpu:0" : "cpu";
-        return SupportedPaddleDeviceOptions.First(option => option.Key == normalizedKey);
-    }
-
-    private static int NormalizePaddleWorkerCount(int value, string? device)
-    {
-        var normalized = Math.Clamp(value, 1, 2);
-        return IsGpuDevice(device) ? normalized : 1;
-    }
-
     private int ResolveEffectivePaddleWorkerCount(string ocrEngine)
     {
         return string.Equals(ocrEngine, "paddleocr", StringComparison.OrdinalIgnoreCase)
-            ? NormalizePaddleWorkerCount(PaddleWorkerCount, SelectedPaddleDeviceOption.Key)
+            ? MainPageUserSettingsCoordinator.NormalizePaddleWorkerCount(PaddleWorkerCount, SelectedPaddleDeviceOption.Key)
             : 1;
-    }
-
-    private static string ResolveSavedPath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return path;
-        }
-
-        var settingsPath = App.LaunchSettingsPath;
-        if (string.IsNullOrWhiteSpace(settingsPath))
-        {
-            return Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
-        }
-
-        var expanded = Environment.ExpandEnvironmentVariables(path);
-        if (Path.IsPathRooted(expanded))
-        {
-            return Path.GetFullPath(expanded);
-        }
-
-        var settingsDirectory = Path.GetDirectoryName(settingsPath) ?? AppContext.BaseDirectory;
-        return Path.GetFullPath(Path.Combine(settingsDirectory, expanded));
     }
 
     private static LanguageOption ResolveDefaultLanguageOption()
