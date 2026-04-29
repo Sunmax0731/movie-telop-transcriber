@@ -32,6 +32,14 @@ public sealed class TelopFrameAnalysisService
         return _ocrWorkerClient.WarmupAsync(ocrDirectory, cancellationToken);
     }
 
+    public Task<OcrWorkerWarmupResult> WarmupAsync(
+        string workDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        var ocrDirectory = Path.Combine(workDirectory, "ocr");
+        return _ocrWorkerClient.WarmupAsync(ocrDirectory, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<FrameAnalysisResult>> AnalyzeFramesAsync(
         FrameExtractionResult frameExtractionResult,
         IProgress<double>? progress = null,
