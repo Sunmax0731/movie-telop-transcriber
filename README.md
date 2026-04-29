@@ -31,6 +31,8 @@
 
 `Install-MovieTelopTranscriber.cmd` は内部で PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成します。その中へアプリ本体、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル、起動設定ファイルをまとめて配置します。
 
+配布 zip を展開した直下にも `app` フォルダは含まれますが、こちらは導入用同梱物です。通常起動は必ず `MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` またはスタートメニューの `Movie Telop Transcriber` を使います。
+
 PowerShell から直接実行する場合は、配布物を展開したフォルダで次を使います。
 
 ```powershell
