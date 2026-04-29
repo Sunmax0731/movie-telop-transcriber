@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.1.3",
+    [string]$Version = "0.1.4",
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
     [ValidateSet("x64")]
@@ -30,6 +30,37 @@ $checksumPath = "$zipPath.sha256"
 $installerAssetPath = Join-Path $OutputRoot "Install-MovieTelopTranscriber.ps1"
 $installerChecksumPath = "$installerAssetPath.sha256"
 $packageTimestampUtc = [DateTimeOffset]::Parse("2026-04-29T00:00:00Z").UtcDateTime
+
+function Write-ReleaseAppSettings {
+    $settingsPath = Join-Path $packageRoot "app\movie-telop-transcriber.settings.json"
+    $settingsObject = [ordered]@{
+        ocrEngine = "paddleocr"
+        paddleOcr = [ordered]@{
+            pythonPath = "..\\ocr-runtime\\.venv\\Scripts\\python.exe"
+            scriptPath = "tools\\ocr\\paddle_ocr_worker.py"
+            device = "cpu"
+            language = "ja"
+            minScore = 0.5
+            normalizeSmallKana = $true
+            preprocess = $true
+            contrast = 1.1
+            sharpen = $true
+            workerCount = 1
+        }
+        ui = [ordered]@{
+            language = "ja"
+            frameIntervalSeconds = 1.0
+            outputRootDirectory = ".\\work\\runs"
+            mainWindow = [ordered]@{
+                width = 1800
+                height = 1080
+            }
+        }
+    }
+
+    $json = $settingsObject | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($settingsPath, $json, [System.Text.UTF8Encoding]::new($false))
+}
 
 function Copy-RepoFile {
     param(
@@ -110,6 +141,7 @@ if (Test-Path -LiteralPath $installerChecksumPath) {
 New-Item -ItemType Directory -Path (Join-Path $packageRoot "app") -Force | Out-Null
 Copy-Item -Path (Join-Path $appBuildDir "*") -Destination (Join-Path $packageRoot "app") -Recurse -Force
 Get-ChildItem -LiteralPath (Join-Path $packageRoot "app") -Recurse -Filter "*.pdb" -File | Remove-Item -Force
+Write-ReleaseAppSettings
 
 Copy-RepoFile -Source "README.md" -Destination "docs\README.md"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.ps1" -Destination "Install-MovieTelopTranscriber.ps1"
@@ -139,6 +171,7 @@ $requiredPackageFiles = @(
     "app\MovieTelopTranscriber.App.dll",
     "app\MovieTelopTranscriber.App.deps.json",
     "app\MovieTelopTranscriber.App.runtimeconfig.json",
+    "app\movie-telop-transcriber.settings.json",
     "app\tools\ocr\paddle_ocr_worker.py",
     "Install-MovieTelopTranscriber.ps1",
     "Install-MovieTelopTranscriber.cmd",
