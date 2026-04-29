@@ -8,6 +8,9 @@ namespace MovieTelopTranscriber.App.Services;
 
 public sealed class ExportPackageWriter
 {
+    private static readonly UTF8Encoding Utf8BomEncoding = new(encoderShouldEmitUTF8Identifier: true);
+    private static readonly UTF8Encoding Utf8EncodingNoBom = new(encoderShouldEmitUTF8Identifier: false);
+
     public async Task<ExportWriteResult> WriteAsync(
         VideoMetadata sourceVideo,
         FrameExtractionResult frameExtractionResult,
@@ -51,19 +54,19 @@ public sealed class ExportPackageWriter
         }
 
         var segmentsCsvPath = Path.Combine(outputDirectory, "segments.csv");
-        await File.WriteAllTextAsync(segmentsCsvPath, BuildSegmentsCsv(segments), new UTF8Encoding(false), cancellationToken);
+        await File.WriteAllTextAsync(segmentsCsvPath, BuildSegmentsCsv(segments), Utf8BomEncoding, cancellationToken);
 
         var framesCsvPath = Path.Combine(outputDirectory, "frames.csv");
-        await File.WriteAllTextAsync(framesCsvPath, BuildFramesCsv(package.Frames), new UTF8Encoding(false), cancellationToken);
+        await File.WriteAllTextAsync(framesCsvPath, BuildFramesCsv(package.Frames), Utf8BomEncoding, cancellationToken);
 
         var srtPath = Path.Combine(outputDirectory, "segments.srt");
-        await File.WriteAllTextAsync(srtPath, BuildSrt(segments), new UTF8Encoding(false), cancellationToken);
+        await File.WriteAllTextAsync(srtPath, BuildSrt(segments), Utf8EncodingNoBom, cancellationToken);
 
         var vttPath = Path.Combine(outputDirectory, "segments.vtt");
-        await File.WriteAllTextAsync(vttPath, BuildVtt(segments), new UTF8Encoding(false), cancellationToken);
+        await File.WriteAllTextAsync(vttPath, BuildVtt(segments), Utf8EncodingNoBom, cancellationToken);
 
         var assPath = Path.Combine(outputDirectory, "segments.ass");
-        await File.WriteAllTextAsync(assPath, BuildAss(segments), new UTF8Encoding(false), cancellationToken);
+        await File.WriteAllTextAsync(assPath, BuildAss(segments), Utf8EncodingNoBom, cancellationToken);
 
         return new ExportWriteResult(outputDirectory, jsonPath, segmentsCsvPath, framesCsvPath, srtPath, vttPath, assPath);
     }
