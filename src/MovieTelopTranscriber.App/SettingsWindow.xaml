@@ -7,12 +7,12 @@
     <ScrollViewer
         HorizontalScrollBarVisibility="Disabled"
         HorizontalScrollMode="Disabled"
-        VerticalScrollBarVisibility="Disabled"
-        VerticalScrollMode="Disabled">
-        <StackPanel Padding="16" Spacing="16" MinWidth="900">
+        VerticalScrollBarVisibility="Auto"
+        VerticalScrollMode="Auto">
+        <StackPanel Padding="16" Spacing="16" MinWidth="760">
             <Grid ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="380" />
+                    <ColumnDefinition Width="300" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -134,7 +134,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="text_det_thresh" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleTextDetThreshLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetThreshText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 </Grid>
                                 <Slider Minimum="0" Maximum="1" StepFrequency="0.01" TickFrequency="0.25" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleTextDetThreshValue, Mode=TwoWay}" />
@@ -149,7 +149,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="text_det_box_thresh" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleTextDetBoxThreshLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetBoxThreshText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 </Grid>
                                 <Slider Minimum="0" Maximum="1" StepFrequency="0.01" TickFrequency="0.25" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleTextDetBoxThreshValue, Mode=TwoWay}" />
@@ -164,7 +164,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="text_det_unclip_ratio" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleTextDetUnclipRatioLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetUnclipRatioText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 </Grid>
                                 <Slider Minimum="0.1" Maximum="10" StepFrequency="0.1" TickFrequency="1" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" Value="{x:Bind ViewModel.PaddleTextDetUnclipRatioValue, Mode=TwoWay}" />
@@ -179,7 +179,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="text_det_limit_side_len" Style="{StaticResource AppMetaLabelTextStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.UiText.PaddleTextDetLimitSideLenLabel, Mode=OneWay}" Style="{StaticResource AppMetaLabelTextStyle}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PaddleTextDetLimitSideLenText, Mode=OneWay}" Style="{StaticResource AppSecondaryTextStyle}" />
                                 </Grid>
                                 <Slider Minimum="16" Maximum="4096" StepFrequency="16" TickFrequency="512" IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}" SnapsTo="StepValues" Value="{x:Bind ViewModel.PaddleTextDetLimitSideLenValue, Mode=TwoWay}" />
