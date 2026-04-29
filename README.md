@@ -66,6 +66,11 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 アプリは起動時に `movie-telop-transcriber.settings.json` を読み込み、PaddleOCR 用 Python、worker script、OCR 設定を解決します。PowerShell 起動スクリプトは互換用として残りますが、通常利用では不要です。
 
+### アンインストール
+導入先の `MovieTelopTranscriber` フォルダにある `Uninstall-MovieTelopTranscriber.cmd` を実行すると、アプリ本体、OCR runtime、起動設定、ショートカット、導入先を指すユーザー環境変数を削除します。
+
+PaddleOCR モデルキャッシュは、この導入で新規取得したものだけを削除します。共有キャッシュ全体を削除したい場合は、PowerShell から `Uninstall-MovieTelopTranscriber.ps1 -RemoveSharedModelCache` を実行します。
+
 ### 基本的な使い方
 1. アプリを起動する。
 2. 入力動画を選択する。

@@ -114,6 +114,8 @@ Get-ChildItem -LiteralPath (Join-Path $packageRoot "app") -Recurse -Filter "*.pd
 Copy-RepoFile -Source "README.md" -Destination "docs\README.md"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.ps1" -Destination "Install-MovieTelopTranscriber.ps1"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.cmd" -Destination "Install-MovieTelopTranscriber.cmd"
+Copy-RepoFile -Source "tools\install\Uninstall-MovieTelopTranscriber.ps1" -Destination "Uninstall-MovieTelopTranscriber.ps1"
+Copy-RepoFile -Source "tools\install\Uninstall-MovieTelopTranscriber.cmd" -Destination "Uninstall-MovieTelopTranscriber.cmd"
 Copy-RepoFileMatch -Directory "docs" -Filter "08_*.md" -DestinationDirectory "docs"
 Copy-RepoFileMatch -Directory "docs" -Filter "09_Windows_OCR*.md" -DestinationDirectory "docs"
 Copy-RepoFileMatch -Directory "docs" -Filter "10_PaddleOCR*.md" -DestinationDirectory "docs"
@@ -137,6 +139,8 @@ $requiredPackageFiles = @(
     "app\tools\ocr\paddle_ocr_worker.py",
     "Install-MovieTelopTranscriber.ps1",
     "Install-MovieTelopTranscriber.cmd",
+    "Uninstall-MovieTelopTranscriber.ps1",
+    "Uninstall-MovieTelopTranscriber.cmd",
     "docs\README.md",
     "samples\basic_telop\README.md",
     "samples\basic_telop\sample_basic_telop.mp4",

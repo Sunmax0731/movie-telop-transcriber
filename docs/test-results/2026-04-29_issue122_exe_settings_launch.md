@@ -43,6 +43,14 @@
 - 導入後は `MovieTelopTranscriber.App.exe` をダブルクリックして起動できる。
 - OCR 実行時の設定解決は `settings.json` 側へ寄せられ、PowerShell 起動スクリプトは互換用の位置づけになった。
 
+## 5.1 追加: アンインストーラー確認
+| 項目 | コマンド / 方法 | 結果 |
+| --- | --- | --- |
+| 既定導入先確認 | 任意の親ディレクトリで `Install-MovieTelopTranscriber.ps1 -WhatIf` | 成功。`<親ディレクトリ>\MovieTelopTranscriber` 配下へ導入されることを確認 |
+| アンインストーラー配置 | 既定導入先へローカル導入 | 成功。`Uninstall-MovieTelopTranscriber.ps1` / `.cmd` と `movie-telop-transcriber.installation.json` を確認 |
+| 環境変数削除 | 導入先を指す `MOVIE_TELOP_PADDLEOCR_PYTHON`、`MOVIE_TELOP_PADDLEOCR_SCRIPT` をユーザー環境変数へ設定後、アンインストーラー実行 | 成功。両方とも削除を確認 |
+| 導入先削除 | `Uninstall-MovieTelopTranscriber.ps1` 実行後に導入先フォルダ消滅を確認 | 成功 |
+
 ## 6. 残課題
 - `SkipOcrSetup` 指定時は `pythonPath` が未生成の仮想環境を指すため、実動画 OCR 実行前に OCR runtime 導入が別途必要。
 - 将来的に利用者が設定画面から OCR runtime の場所を変更する要件が出る場合は、`settings.json` の再生成または GUI 編集機能を別 Issue で扱う。
