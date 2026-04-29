@@ -16,6 +16,8 @@ internal static class OcrContractJson
 
     public static JsonTypeInfo<OcrFramePerformanceRecord[]> OcrFramePerformanceRecords => OcrJsonSerializerContext.Default.OcrFramePerformanceRecordArray;
 
+    public static JsonTypeInfo<OcrWorkerWarmupResult> OcrWorkerWarmupResult => OcrJsonSerializerContext.Default.OcrWorkerWarmupResult;
+
     public static JsonTypeInfo<PaddleOcrWorkerAck> PaddleOcrWorkerAck => OcrJsonSerializerContext.Default.PaddleOcrWorkerAck;
 
     public static JsonTypeInfo<RunSummaryRecord> RunSummaryRecord => OcrJsonSerializerContext.Default.RunSummaryRecord;
@@ -33,6 +35,7 @@ internal static class OcrContractJson
 [JsonSerializable(typeof(OcrFramePerformanceRecord[]))]
 [JsonSerializable(typeof(OcrDetectionRecord))]
 [JsonSerializable(typeof(OcrWorkerExecutionResult))]
+[JsonSerializable(typeof(OcrWorkerWarmupResult))]
 [JsonSerializable(typeof(OcrWorkerRequest))]
 [JsonSerializable(typeof(OcrWorkerResponse))]
 [JsonSerializable(typeof(PaddleOcrWorkerAck))]

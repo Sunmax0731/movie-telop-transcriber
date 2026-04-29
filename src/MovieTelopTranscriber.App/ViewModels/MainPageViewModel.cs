@@ -1399,6 +1399,7 @@ public partial class MainPageViewModel : ObservableObject
             var startedAt = DateTimeOffset.Now;
             var stopwatch = Stopwatch.StartNew();
             var frameExtractionDurationMs = 0d;
+            var warmupResult = OcrWorkerWarmupResult.Skipped;
             var ocrDurationMs = 0d;
             var segmentMergeDurationMs = 0d;
             var exportWriteDurationMs = 0d;
@@ -1449,6 +1450,14 @@ public partial class MainPageViewModel : ObservableObject
                 currentStage = "OCR";
                 PreviewState = "Running OCR";
                 ActivityMessage = "OCR worker is processing extracted frames.";
+                ProgressDetailText = "OCR warmup: preparing worker.";
+                warmupResult = await _frameAnalysisService.WarmupAsync(result);
+                if (warmupResult.Attempted)
+                {
+                    ActivityMessage = warmupResult.Succeeded
+                        ? "OCR warmup completed. Processing extracted frames."
+                        : "OCR warmup failed. Continuing with extracted frames.";
+                }
                 var ocrProgress = new Progress<double>(value =>
                 {
                     ProgressValue = 60d + (value * 0.3d);
@@ -1512,6 +1521,7 @@ public partial class MainPageViewModel : ObservableObject
             currentStage = "Logging";
             ProgressDetailText = $"Logging: writing run summary for {result.Frames.Count} frames.";
             var performanceSummary = BuildPerformanceSummary(
+                warmupResult,
                 _latestFrameAnalyses,
                 frameExtractionDurationMs,
                 ocrDurationMs,
@@ -2502,6 +2512,7 @@ public partial class MainPageViewModel : ObservableObject
     }
 
     private static RunPerformanceSummaryRecord BuildPerformanceSummary(
+        OcrWorkerWarmupResult warmupResult,
         IReadOnlyList<FrameAnalysisResult> frameAnalyses,
         double frameExtractionDurationMs,
         double ocrDurationMs,
@@ -2519,11 +2530,13 @@ public partial class MainPageViewModel : ObservableObject
             : framePerformances.Max(performance => performance.TotalMs);
 
         return new RunPerformanceSummaryRecord(
+            warmupResult.Status,
             frameExtractionDurationMs,
             ocrDurationMs,
             segmentMergeDurationMs,
             exportWriteDurationMs,
             logWriteDurationMs,
+            warmupResult.TotalMs,
             framePerformances.Sum(performance => performance.RequestWriteMs),
             framePerformances.Sum(performance => performance.WorkerInitializationMs),
             framePerformances.Sum(performance => performance.WorkerExecutionMs),

@@ -17,6 +17,13 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
 
     private bool HasConfiguredWorker => !string.IsNullOrWhiteSpace(WorkerPath);
 
+    public Task<OcrWorkerWarmupResult> WarmupAsync(
+        string ocrDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(OcrWorkerWarmupResult.Skipped);
+    }
+
     public async Task<OcrWorkerExecutionResult> RecognizeAsync(
         OcrWorkerRequest request,
         string ocrDirectory,

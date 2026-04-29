@@ -115,11 +115,13 @@ public sealed class RunLogWriter
         builder.AppendLine($"vtt_path={summary.VttPath}");
         builder.AppendLine($"ass_path={summary.AssPath}");
         builder.AppendLine($"ocr_performance_path={summary.OcrPerformancePath}");
+        builder.AppendLine($"ocr_warmup_status={summary.Performance.OcrWarmupStatus}");
         builder.AppendLine($"frame_extraction_ms={summary.Performance.FrameExtractionMs:F1}");
         builder.AppendLine($"ocr_total_ms={summary.Performance.OcrTotalMs:F1}");
         builder.AppendLine($"segment_merge_ms={summary.Performance.SegmentMergeMs:F1}");
         builder.AppendLine($"export_write_ms={summary.Performance.ExportWriteMs:F1}");
         builder.AppendLine($"log_write_ms={summary.Performance.LogWriteMs:F1}");
+        builder.AppendLine($"ocr_warmup_ms={summary.Performance.OcrWarmupMs:F1}");
         builder.AppendLine($"ocr_request_write_ms={summary.Performance.OcrRequestWriteMs:F1}");
         builder.AppendLine($"ocr_worker_initialization_ms={summary.Performance.OcrWorkerInitializationMs:F1}");
         builder.AppendLine($"ocr_worker_execution_ms={summary.Performance.OcrWorkerExecutionMs:F1}");

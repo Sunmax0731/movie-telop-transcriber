@@ -43,6 +43,38 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
 
     public string EngineName => "paddleocr";
 
+    public async Task<OcrWorkerWarmupResult> WarmupAsync(
+        string ocrDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        Directory.CreateDirectory(ocrDirectory);
+
+        var artifact = await CreateWarmupArtifactAsync(ocrDirectory, cancellationToken);
+        var request = new OcrWorkerRequest(
+            artifact.RequestId,
+            -1,
+            -1,
+            artifact.ImagePath,
+            "ja",
+            EngineName);
+
+        var totalStopwatch = Stopwatch.StartNew();
+        var result = await RecognizeAsync(request, ocrDirectory, cancellationToken);
+        totalStopwatch.Stop();
+
+        var status = string.Equals(result.Response.Status, "error", StringComparison.OrdinalIgnoreCase)
+            ? "error"
+            : "success";
+        return new OcrWorkerWarmupResult(
+            status,
+            result.RequestWriteMs,
+            result.WorkerInitializationMs,
+            result.WorkerExecutionMs,
+            result.ResponseReadMs,
+            totalStopwatch.Elapsed.TotalMilliseconds,
+            result.Response.Error);
+    }
+
     public async Task<OcrWorkerExecutionResult> RecognizeAsync(
         OcrWorkerRequest request,
         string ocrDirectory,
@@ -318,6 +350,37 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
         }
 
         return null;
+    }
+
+    private static async Task<OcrWarmupArtifact> CreateWarmupArtifactAsync(
+        string ocrDirectory,
+        CancellationToken cancellationToken)
+    {
+        var requestId = "ocr-warmup-00000000ms";
+        var imagePath = Path.Combine(ocrDirectory, "warmup.ppm");
+        if (File.Exists(imagePath))
+        {
+            return new OcrWarmupArtifact(requestId, imagePath);
+        }
+
+        const int width = 32;
+        const int height = 32;
+        var builder = new StringBuilder();
+        builder.AppendLine("P3");
+        builder.AppendLine($"{width} {height}");
+        builder.AppendLine("255");
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                builder.Append("255 255 255 ");
+            }
+
+            builder.AppendLine();
+        }
+
+        await File.WriteAllTextAsync(imagePath, builder.ToString(), new UTF8Encoding(false), cancellationToken);
+        return new OcrWarmupArtifact(requestId, imagePath);
     }
 
     private async Task PumpStandardErrorAsync(Process process)
