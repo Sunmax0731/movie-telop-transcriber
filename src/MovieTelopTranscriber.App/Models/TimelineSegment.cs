@@ -19,6 +19,8 @@ public sealed class TimelineSegment : ObservableObject
         string styleSummary,
         string category = "-",
         string detail = "-",
+        double? fontSize = null,
+        string? fontSizeUnit = null,
         double? confidence = null,
         int? frameIndex = null,
         long? timestampMs = null,
@@ -31,6 +33,8 @@ public sealed class TimelineSegment : ObservableObject
         StyleSummary = styleSummary;
         Category = category;
         Detail = detail;
+        FontSize = fontSize;
+        FontSizeUnit = fontSizeUnit;
         Confidence = confidence;
         FrameIndex = frameIndex;
         TimestampMs = timestampMs;
@@ -58,6 +62,17 @@ public sealed class TimelineSegment : ObservableObject
         string.IsNullOrWhiteSpace(Detail) || Detail == "-"
             ? Category
             : Detail;
+
+    public double? FontSize { get; }
+
+    public string? FontSizeUnit { get; }
+
+    public string FontSizeLabel =>
+        FontSize is null
+            ? "-"
+            : string.IsNullOrWhiteSpace(FontSizeUnit)
+                ? $"{FontSize.Value:0.#}"
+                : $"{FontSize.Value:0.#}{FontSizeUnit}";
 
     public double? Confidence { get; }
 
