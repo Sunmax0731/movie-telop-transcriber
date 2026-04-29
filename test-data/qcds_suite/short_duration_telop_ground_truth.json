@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "video": {
+    "file_name": "sample_short_duration_telop.mp4",
+    "duration_ms": 4500,
+    "width": 640,
+    "height": 360,
+    "fps": 10
+  },
+  "evaluation": {
+    "sample_id": "short_duration_telop",
+    "description": "1 秒未満の短時間表示テロップを複数含む。",
+    "recommended_frame_interval_seconds": 0.25
+  },
+  "segments": [
+    {
+      "segment_id": "seg-0001",
+      "start_timestamp_ms": 500,
+      "end_timestamp_ms": 1250,
+      "text": "短い表示その1",
+      "text_type": "caption_band",
+      "font_family": "Meiryo",
+      "font_size": 30,
+      "text_color": "#FFFFFF",
+      "stroke_color": "#000000",
+      "background_color": "#3B4C7F",
+      "confidence": 0.96
+    },
+    {
+      "segment_id": "seg-0002",
+      "start_timestamp_ms": 1750,
+      "end_timestamp_ms": 2250,
+      "text": "短い表示その2",
+      "text_type": "caption_band",
+      "font_family": "Meiryo",
+      "font_size": 30,
+      "text_color": "#FFFFFF",
+      "stroke_color": "#000000",
+      "background_color": "#2E6C68",
+      "confidence": 0.95
+    },
+    {
+      "segment_id": "seg-0003",
+      "start_timestamp_ms": 3000,
+      "end_timestamp_ms": 3500,
+      "text": "短い表示その3",
+      "text_type": "caption_band",
+      "font_family": "Meiryo",
+      "font_size": 30,
+      "text_color": "#FFFFFF",
+      "stroke_color": "#000000",
+      "background_color": "#7A4830",
+      "confidence": 0.95
+    }
+  ]
+}

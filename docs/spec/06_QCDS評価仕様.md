@@ -24,7 +24,14 @@ UI/UX と OCR 改善の成果を主観だけで判断せず、代表動画セッ
 | 複数位置のテロップ | 上部、中央、下部の検出順と同期を確認する | 時刻誤差、余計な検出 | 上から順の表示、プレビュー枠 |
 | 短時間表示テロップ | 抽出間隔とセグメント統合の限界を確認する | 欠落、開始/終了時刻誤差 | 実利用上の見落とし |
 
-初期レポートは `test-data/basic_telop/sample_basic_telop.mp4` を使う。このサンプルは日本語横書き、表示時刻の追跡、短時間セグメント、装飾差分を最小構成で確認する。小書き仮名、低コントラスト、複数位置の実動画評価は、追加サンプルまたは権利確認済み動画のレポートで拡張する。
+初期レポートは `test-data/basic_telop/sample_basic_telop.mp4` を使う。このサンプルは日本語横書き、表示時刻の追跡、短時間セグメント、装飾差分を最小構成で確認する。
+
+2026-04-30 時点では、追加の synthetic 代表動画として `test-data/qcds_suite/` を使う。ここには次のサンプルを含める。
+- `sample_low_contrast_telop.mp4`
+- `sample_multi_position_telop.mp4`
+- `sample_short_duration_telop.mp4`
+
+今回の改善トラックでは、小さな時刻表示は最小文字サイズ設定で除外できる前提とし、小書き仮名は別評価軸として残したまま、優先度を低コントラスト、複数位置、短時間表示へ置く。
 
 ## 4. 計測項目
 自動評価で扱う指標は以下とする。
@@ -56,12 +63,15 @@ UI/UX と OCR 改善の成果を主観だけで判断せず、代表動画セッ
 | 種別 | パス |
 | --- | --- |
 | 評価スクリプト | `tools/validation/evaluate_qcds_report.py` |
+| fixture run 生成 | `tools/validation/create_qcds_fixture_run.py` |
 | レポートテンプレート | `docs/templates/qcds_evaluation_report_template.md` |
 | 初期代表レポート | `docs/test-results/2026-04-29_qcds_basic_telop_report.md` |
 | 機械可読メトリクス | `docs/test-results/2026-04-29_qcds_basic_telop_metrics.json` |
+| 追加 sample 群 | `test-data/qcds_suite/` |
 
 ## 7. レポート運用
 - 代表動画ごとに 1 レポートを作成する。
 - 同じ動画で設定や実装を変えた場合は、前回メトリクス JSON を `--previous-metrics` に指定して差分を残す。
 - 実動画の権利や容量に制約がある場合、動画ファイルはコミットせず、レポートにメタ情報、Run ID、評価コマンドを残す。
+- synthetic sample を追加した場合は、ground truth から生成した fixture baseline report と、actual OCR run の report を区別して記録する。
 - QCDS 指標が悪化した場合は、原因が OCR、セグメント統合、属性解析、GUI 操作のどこにあるかを切り分けて Issue 化する。

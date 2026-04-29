@@ -216,8 +216,10 @@ dotnet test src\MovieTelopTranscriber.App.Tests\MovieTelopTranscriber.App.Tests.
 python -m py_compile `
   tools\validation\evaluate_basic_telop_accuracy.py `
   tools\validation\evaluate_qcds_report.py `
+  tools\validation\create_qcds_fixture_run.py `
   test-data\basic_telop\create_basic_telop_sample.py `
-  test-data\benchmark_suite\create_benchmark_samples.py
+  test-data\benchmark_suite\create_benchmark_samples.py `
+  test-data\qcds_suite\create_qcds_samples.py
 ```
 
 ### 配布物作成
