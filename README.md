@@ -11,6 +11,7 @@
 - PaddleOCR PP-OCRv5 で日本語テロップを認識する。
 - 認識結果をタイムライン、プレビュー、bounding box で確認する。
 - タイムライン上のテキストをコピー、編集、削除する。
+- `.mtproj` プロジェクトファイルとして、抽出済みフレーム、OCR 結果、タイムライン状態を保存し、あとから再表示できる。
 - `segments.json`、`segments.csv`、`frames.csv`、`segments.srt`、`segments.vtt`、`segments.ass` を出力する。
 - 処理ログと中間成果物を run 単位で保存し、後から確認できるようにする。
 
@@ -227,6 +228,8 @@ python tools\validation\evaluate_qcds_report.py `
 - [docs/11_配布構成と同梱物.md](docs/11_配布構成と同梱物.md)
 - [docs/12_導入手順書.md](docs/12_導入手順書.md)
 - [docs/13_リリースノート.md](docs/13_リリースノート.md)
+- [docs/14_設定ファイル仕様.md](docs/14_設定ファイル仕様.md)
+- [docs/15_プロジェクトファイル仕様.md](docs/15_プロジェクトファイル仕様.md)
 - [docs/spec/04_出力仕様.md](docs/spec/04_出力仕様.md)
 - [docs/spec/06_QCDS評価仕様.md](docs/spec/06_QCDS評価仕様.md)
 - [docs/spec/07_テロップ属性リリース範囲.md](docs/spec/07_テロップ属性リリース範囲.md)

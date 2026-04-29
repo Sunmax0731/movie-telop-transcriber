@@ -21,8 +21,8 @@
                 <MenuFlyoutItem Command="{x:Bind ViewModel.SelectVideoCommand}" Text="{x:Bind ViewModel.UiText.MenuSelectVideo, Mode=OneWay}" />
                 <MenuFlyoutItem Command="{x:Bind ViewModel.StartAnalysisCommand}" Text="{x:Bind ViewModel.UiText.MenuStartExtraction, Mode=OneWay}" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem IsEnabled="False" Text="{x:Bind ViewModel.UiText.MenuOpenProjectPlanned, Mode=OneWay}" />
-                <MenuFlyoutItem IsEnabled="False" Text="{x:Bind ViewModel.UiText.MenuSaveProjectPlanned, Mode=OneWay}" />
+                <MenuFlyoutItem Command="{x:Bind ViewModel.OpenProjectCommand}" Text="{x:Bind ViewModel.UiText.MenuOpenProjectPlanned, Mode=OneWay}" />
+                <MenuFlyoutItem Command="{x:Bind ViewModel.SaveProjectCommand}" Text="{x:Bind ViewModel.UiText.MenuSaveProjectPlanned, Mode=OneWay}" />
             </MenuBarItem>
             <MenuBarItem Title="{x:Bind ViewModel.UiText.MenuSettings, Mode=OneWay}">
                 <MenuFlyoutItem Command="{x:Bind ViewModel.OpenSettingsOutputCommand}" Text="{x:Bind ViewModel.UiText.MenuOpenSettingsWindow, Mode=OneWay}" />
