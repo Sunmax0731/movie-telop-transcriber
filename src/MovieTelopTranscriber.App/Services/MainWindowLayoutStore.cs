@@ -1,4 +1,5 @@
 using Windows.Graphics;
+using MovieTelopTranscriber.App.Models;
 
 namespace MovieTelopTranscriber.App.Services;
 
@@ -12,6 +13,14 @@ internal static class MainWindowLayoutStore
 
     public static SizeInt32 LoadOrDefault()
     {
+        var savedLayout = App.LaunchSettings.Ui?.MainWindow;
+        if (savedLayout?.Width is > 0 && savedLayout.Height is > 0)
+        {
+            return new SizeInt32(
+                Math.Max(MinimumWidth, savedLayout.Width.Value),
+                Math.Max(MinimumHeight, savedLayout.Height.Value));
+        }
+
         try
         {
             var path = GetLayoutFilePath();
@@ -45,15 +54,13 @@ internal static class MainWindowLayoutStore
         {
             var width = Math.Max(MinimumWidth, size.Width);
             var height = Math.Max(MinimumHeight, size.Height);
-            var path = GetLayoutFilePath();
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var json = $$"""
-                {
-                  "width": {{width}},
-                  "height": {{height}}
-                }
-                """;
-            File.WriteAllText(path, json);
+            App.LaunchSettings.Ui ??= new UserInterfaceSettings();
+            App.LaunchSettings.Ui.MainWindow = new MainWindowLaunchSettings
+            {
+                Width = width,
+                Height = height
+            };
+            AppLaunchSettingsLoader.Save(App.LaunchSettings, App.LaunchSettingsPath);
         }
         catch
         {

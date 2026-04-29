@@ -7,6 +7,8 @@ public sealed class AppLaunchSettings
     public string? OcrWorkerPath { get; set; }
 
     public PaddleOcrLaunchSettings? PaddleOcr { get; set; }
+
+    public UserInterfaceSettings? Ui { get; set; }
 }
 
 public sealed class PaddleOcrLaunchSettings
@@ -42,4 +44,22 @@ public sealed class PaddleOcrLaunchSettings
     public bool? UseDocUnwarping { get; set; }
 
     public double? MinTextSize { get; set; }
+}
+
+public sealed class UserInterfaceSettings
+{
+    public string? Language { get; set; }
+
+    public double? FrameIntervalSeconds { get; set; }
+
+    public string? OutputRootDirectory { get; set; }
+
+    public MainWindowLaunchSettings? MainWindow { get; set; }
+}
+
+public sealed class MainWindowLaunchSettings
+{
+    public int? Width { get; set; }
+
+    public int? Height { get; set; }
 }

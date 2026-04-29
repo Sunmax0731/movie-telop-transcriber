@@ -75,6 +75,7 @@ public partial class MainPageViewModel : ObservableObject
     private int _manualEditSequence;
     private Task<OcrWorkerWarmupResult>? _pendingOcrWarmupTask;
     private string? _pendingOcrWarmupSettingsSignature;
+    private bool _settingsPersistenceReady;
 
     public MainPageViewModel()
     {
@@ -86,10 +87,12 @@ public partial class MainPageViewModel : ObservableObject
         PreviewDetections = new ObservableCollection<PreviewDetectionOverlay>();
 
         SelectedLanguageOption = ResolveDefaultLanguageOption();
+        ApplySavedUserInterfaceSettings();
         UiText = LocalizedUiText.ForLanguage(SelectedLanguageOption.Code);
         ApplyPaddleOcrEnvironment();
         RefreshStaticCollections();
         ResetDynamicCollections();
+        _settingsPersistenceReady = true;
     }
 
     public ObservableCollection<SettingItem> SettingItems { get; }
@@ -333,102 +336,121 @@ public partial class MainPageViewModel : ObservableObject
     {
         FrameIntervalText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnFrameIntervalTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleContrastValueChanged(double value)
     {
         PaddleContrastText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnOutputRootDirectoryTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddlePreprocessEnabledChanged(bool value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleContrastTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleSharpenEnabledChanged(bool value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetThreshTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetThreshValueChanged(double value)
     {
         PaddleTextDetThreshText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetBoxThreshTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetBoxThreshValueChanged(double value)
     {
         PaddleTextDetBoxThreshText = FormatSettingNumber(value, "0.##");
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetUnclipRatioTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetUnclipRatioValueChanged(double value)
     {
         PaddleTextDetUnclipRatioText = FormatSettingNumber(value, "0.#");
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetLimitSideLenTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleTextDetLimitSideLenValueChanged(double value)
     {
         PaddleTextDetLimitSideLenText = Math.Round(value).ToString(CultureInfo.InvariantCulture);
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleMinTextSizeTextChanged(string value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleMinTextSizeValueChanged(double value)
     {
         PaddleMinTextSizeText = FormatSettingNumber(value, "0.#");
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleUseTextlineOrientationChanged(bool value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnPaddleUseDocUnwarpingChanged(bool value)
     {
         RefreshStaticCollections();
+        OnUserSettingsChanged();
     }
 
     partial void OnSelectedLanguageOptionChanged(LanguageOption value)
@@ -441,6 +463,7 @@ public partial class MainPageViewModel : ObservableObject
             _latestFrameExtractionResult?.Frames.Count ?? 0,
             _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
             _latestSegments.Count);
+        OnUserSettingsChanged();
     }
 
     [RelayCommand]
@@ -2611,6 +2634,78 @@ public partial class MainPageViewModel : ObservableObject
             : DefaultFrameIntervalSeconds;
     }
 
+    private void ApplySavedUserInterfaceSettings()
+    {
+        var uiSettings = App.LaunchSettings.Ui;
+        if (uiSettings is null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(uiSettings.Language))
+        {
+            var savedLanguage = LanguageOptions.FirstOrDefault(option =>
+                string.Equals(option.Code, uiSettings.Language, StringComparison.OrdinalIgnoreCase));
+            if (savedLanguage is not null)
+            {
+                SelectedLanguageOption = savedLanguage;
+            }
+        }
+
+        if (uiSettings.FrameIntervalSeconds is > 0)
+        {
+            FrameIntervalValue = uiSettings.FrameIntervalSeconds.Value;
+            FrameIntervalText = FormatSettingNumber(uiSettings.FrameIntervalSeconds.Value, "0.##");
+        }
+
+        if (!string.IsNullOrWhiteSpace(uiSettings.OutputRootDirectory))
+        {
+            OutputRootDirectoryText = ResolveSavedPath(uiSettings.OutputRootDirectory);
+        }
+    }
+
+    private void PersistUserSettings()
+    {
+        if (!_settingsPersistenceReady)
+        {
+            return;
+        }
+
+        App.LaunchSettings.OcrEngine ??= Environment.GetEnvironmentVariable("MOVIE_TELOP_OCR_ENGINE") ?? "paddleocr";
+        App.LaunchSettings.OcrWorkerPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_OCR_WORKER");
+        App.LaunchSettings.PaddleOcr ??= new PaddleOcrLaunchSettings();
+        App.LaunchSettings.PaddleOcr.PythonPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON");
+        App.LaunchSettings.PaddleOcr.ScriptPath = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SCRIPT");
+        App.LaunchSettings.PaddleOcr.Device = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE");
+        App.LaunchSettings.PaddleOcr.Language = Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_LANG");
+        App.LaunchSettings.PaddleOcr.MinScore = ReadEnvironmentDouble("MOVIE_TELOP_PADDLEOCR_MIN_SCORE");
+        App.LaunchSettings.PaddleOcr.NormalizeSmallKana = ReadEnvironmentBool("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA");
+        App.LaunchSettings.PaddleOcr.Preprocess = PaddlePreprocessEnabled;
+        App.LaunchSettings.PaddleOcr.Contrast = ParseOptionalDouble(PaddleContrastText, 0.1d, 4.0d);
+        App.LaunchSettings.PaddleOcr.Sharpen = PaddleSharpenEnabled;
+        App.LaunchSettings.PaddleOcr.TextDetThresh = ParseOptionalDouble(PaddleTextDetThreshText, 0.0d, 1.0d);
+        App.LaunchSettings.PaddleOcr.TextDetBoxThresh = ParseOptionalDouble(PaddleTextDetBoxThreshText, 0.0d, 1.0d);
+        App.LaunchSettings.PaddleOcr.TextDetUnclipRatio = ParseOptionalDouble(PaddleTextDetUnclipRatioText, 0.1d, 10.0d);
+        App.LaunchSettings.PaddleOcr.TextDetLimitSideLen = ParseOptionalInt(PaddleTextDetLimitSideLenText, 16, 4096);
+        App.LaunchSettings.PaddleOcr.MinTextSize = ParseOptionalDouble(PaddleMinTextSizeText, 0.0d, 200.0d);
+        App.LaunchSettings.PaddleOcr.UseTextlineOrientation = PaddleUseTextlineOrientation;
+        App.LaunchSettings.PaddleOcr.UseDocUnwarping = PaddleUseDocUnwarping;
+
+        App.LaunchSettings.Ui ??= new UserInterfaceSettings();
+        App.LaunchSettings.Ui.Language = SelectedLanguageOption.Code;
+        App.LaunchSettings.Ui.FrameIntervalSeconds = ParseFrameIntervalSeconds();
+        App.LaunchSettings.Ui.OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText)
+            ? null
+            : OutputRootDirectoryText.Trim();
+
+        AppLaunchSettingsLoader.Save(App.LaunchSettings, App.LaunchSettingsPath);
+    }
+
+    private void OnUserSettingsChanged()
+    {
+        PersistUserSettings();
+    }
+
     private void ApplyPaddleOcrEnvironment()
     {
         SetEnvironment(PaddlePreprocessEnvironmentVariable, PaddlePreprocessEnabled ? "true" : "false");
@@ -2696,12 +2791,36 @@ public partial class MainPageViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
     }
 
+    private static double? ReadEnvironmentDouble(string name)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
+    }
+
     private static double ReadDoubleSetting(string name, double defaultValue)
     {
         var value = Environment.GetEnvironmentVariable(name);
         return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : defaultValue;
+    }
+
+    private static bool? ReadEnvironmentBool(string name)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "1" or "true" or "yes" or "on" => true,
+            "0" or "false" or "no" or "off" => false,
+            _ => null
+        };
     }
 
     private static bool ReadBoolEnvironment(string name, bool defaultValue)
@@ -2746,6 +2865,49 @@ public partial class MainPageViewModel : ObservableObject
     private static void SetEnvironment(string name, string? value)
     {
         Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
+    }
+
+    private static double? ParseOptionalDouble(string text, double minimum, double maximum)
+    {
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            return null;
+        }
+
+        return Math.Clamp(value, minimum, maximum);
+    }
+
+    private static int? ParseOptionalInt(string text, int minimum, int maximum)
+    {
+        if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            return null;
+        }
+
+        return Math.Clamp(value, minimum, maximum);
+    }
+
+    private static string ResolveSavedPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        var settingsPath = App.LaunchSettingsPath;
+        if (string.IsNullOrWhiteSpace(settingsPath))
+        {
+            return Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
+        }
+
+        var expanded = Environment.ExpandEnvironmentVariables(path);
+        if (Path.IsPathRooted(expanded))
+        {
+            return Path.GetFullPath(expanded);
+        }
+
+        var settingsDirectory = Path.GetDirectoryName(settingsPath) ?? AppContext.BaseDirectory;
+        return Path.GetFullPath(Path.Combine(settingsDirectory, expanded));
     }
 
     private static LanguageOption ResolveDefaultLanguageOption()
