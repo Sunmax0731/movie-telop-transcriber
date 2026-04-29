@@ -390,6 +390,8 @@
                                 <ColumnDefinition Width="{Binding TimelineTextSeparatorWidth, ElementName=RootPage}" />
                                 <ColumnDefinition Width="{Binding TimelineDetailColumnActualWidth, ElementName=RootPage}" />
                                 <ColumnDefinition Width="{Binding TimelineDetailSeparatorWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineFontSizeColumnActualWidth, ElementName=RootPage}" />
+                                <ColumnDefinition Width="{Binding TimelineFontSizeSeparatorWidth, ElementName=RootPage}" />
                                 <ColumnDefinition Width="{Binding TimelineConfidenceColumnActualWidth, ElementName=RootPage}" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{x:Bind ViewModel.UiText.TimelineColumnTime, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
@@ -408,7 +410,11 @@
                             <Border Grid.Column="7" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="detail">
                                 <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
                             </Border>
-                            <TextBlock Grid.Column="8" Text="{x:Bind ViewModel.UiText.TimelineColumnConfidence, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <TextBlock Grid.Column="8" Text="{x:Bind ViewModel.UiText.TimelineColumnFontSize, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
+                            <Border Grid.Column="9" Background="Transparent" PointerMoved="OnTimelineColumnSplitterPointerMoved" PointerPressed="OnTimelineColumnSplitterPointerPressed" PointerReleased="OnTimelineColumnSplitterPointerReleased" Tag="fontSize">
+                                <Border Width="1" HorizontalAlignment="Center" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+                            </Border>
+                            <TextBlock Grid.Column="10" Text="{x:Bind ViewModel.UiText.TimelineColumnConfidence, Mode=OneWay}" HorizontalAlignment="Center" TextAlignment="Center" Style="{StaticResource AppMetaLabelTextStyle}" />
                         </Grid>
                     </ScrollViewer>
                     <ScrollViewer
@@ -434,6 +440,8 @@
                                             <ColumnDefinition Width="{Binding TimelineTextSeparatorWidth, ElementName=RootPage}" />
                                             <ColumnDefinition Width="{Binding TimelineDetailColumnActualWidth, ElementName=RootPage}" />
                                             <ColumnDefinition Width="{Binding TimelineDetailSeparatorWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineFontSizeColumnActualWidth, ElementName=RootPage}" />
+                                            <ColumnDefinition Width="{Binding TimelineFontSizeSeparatorWidth, ElementName=RootPage}" />
                                             <ColumnDefinition Width="{Binding TimelineConfidenceColumnActualWidth, ElementName=RootPage}" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="{x:Bind RangeLabel}" Style="{StaticResource AppMetaLabelTextStyle}" TextWrapping="WrapWholeWords" />
@@ -457,7 +465,13 @@
                                             Text="{x:Bind DisplayAttributeLabel}"
                                             Style="{StaticResource AppSecondaryTextStyle}"
                                             TextWrapping="WrapWholeWords" />
-                                        <StackPanel Grid.Column="8" Spacing="4">
+                                        <TextBlock
+                                            Grid.Column="8"
+                                            HorizontalAlignment="Right"
+                                            Text="{x:Bind FontSizeLabel}"
+                                            Style="{StaticResource AppSecondaryTextStyle}"
+                                            TextAlignment="Right" />
+                                        <StackPanel Grid.Column="10" Spacing="4">
                                             <TextBlock
                                                 HorizontalAlignment="Right"
                                                 Text="{x:Bind ConfidenceLabel}"

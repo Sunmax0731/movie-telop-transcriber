@@ -36,6 +36,9 @@ public sealed partial class MainPage : Page
     public static readonly DependencyProperty TimelineDetailColumnWidthProperty =
         DependencyProperty.Register(nameof(TimelineDetailColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(110)));
 
+    public static readonly DependencyProperty TimelineFontSizeColumnWidthProperty =
+        DependencyProperty.Register(nameof(TimelineFontSizeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
+
     public static readonly DependencyProperty TimelineConfidenceColumnWidthProperty =
         DependencyProperty.Register(nameof(TimelineConfidenceColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(104)));
 
@@ -51,6 +54,9 @@ public sealed partial class MainPage : Page
     public static readonly DependencyProperty TimelineDetailColumnActualWidthProperty =
         DependencyProperty.Register(nameof(TimelineDetailColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(110)));
 
+    public static readonly DependencyProperty TimelineFontSizeColumnActualWidthProperty =
+        DependencyProperty.Register(nameof(TimelineFontSizeColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
+
     public static readonly DependencyProperty TimelineConfidenceColumnActualWidthProperty =
         DependencyProperty.Register(nameof(TimelineConfidenceColumnActualWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(104)));
 
@@ -65,6 +71,9 @@ public sealed partial class MainPage : Page
 
     public static readonly DependencyProperty TimelineDetailSeparatorWidthProperty =
         DependencyProperty.Register(nameof(TimelineDetailSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
+
+    public static readonly DependencyProperty TimelineFontSizeSeparatorWidthProperty =
+        DependencyProperty.Register(nameof(TimelineFontSizeSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
 
     public static readonly DependencyProperty RightPaneWidthProperty =
         DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(760)));
@@ -85,6 +94,7 @@ public sealed partial class MainPage : Page
     private bool _showTimelineFrameColumn = true;
     private bool _showTimelineTextColumn = true;
     private bool _showTimelineDetailColumn = true;
+    private bool _showTimelineFontSizeColumn = true;
     private bool _showTimelineConfidenceColumn = true;
 
     public MainPageViewModel ViewModel { get; } = new();
@@ -111,6 +121,12 @@ public sealed partial class MainPage : Page
     {
         get => (GridLength)GetValue(TimelineDetailColumnWidthProperty);
         set => SetValue(TimelineDetailColumnWidthProperty, value);
+    }
+
+    public GridLength TimelineFontSizeColumnWidth
+    {
+        get => (GridLength)GetValue(TimelineFontSizeColumnWidthProperty);
+        set => SetValue(TimelineFontSizeColumnWidthProperty, value);
     }
 
     public GridLength TimelineConfidenceColumnWidth
@@ -143,6 +159,12 @@ public sealed partial class MainPage : Page
         set => SetValue(TimelineDetailColumnActualWidthProperty, value);
     }
 
+    public GridLength TimelineFontSizeColumnActualWidth
+    {
+        get => (GridLength)GetValue(TimelineFontSizeColumnActualWidthProperty);
+        set => SetValue(TimelineFontSizeColumnActualWidthProperty, value);
+    }
+
     public GridLength TimelineConfidenceColumnActualWidth
     {
         get => (GridLength)GetValue(TimelineConfidenceColumnActualWidthProperty);
@@ -171,6 +193,12 @@ public sealed partial class MainPage : Page
     {
         get => (GridLength)GetValue(TimelineDetailSeparatorWidthProperty);
         set => SetValue(TimelineDetailSeparatorWidthProperty, value);
+    }
+
+    public GridLength TimelineFontSizeSeparatorWidth
+    {
+        get => (GridLength)GetValue(TimelineFontSizeSeparatorWidthProperty);
+        set => SetValue(TimelineFontSizeSeparatorWidthProperty, value);
     }
 
     public GridLength RightPaneWidth
@@ -374,6 +402,9 @@ public sealed partial class MainPage : Page
             case "detail":
                 TimelineDetailColumnWidth = ResizeGridLength(TimelineDetailColumnWidth, delta, 90);
                 break;
+            case "fontSize":
+                TimelineFontSizeColumnWidth = ResizeGridLength(TimelineFontSizeColumnWidth, delta, 72);
+                break;
         }
 
         RefreshTimelineColumnWidths();
@@ -412,6 +443,7 @@ public sealed partial class MainPage : Page
         AddTimelineColumnToggle(flyout, "frame", ViewModel.UiText.TimelineColumnFrame, _showTimelineFrameColumn);
         AddTimelineColumnToggle(flyout, "text", ViewModel.UiText.TimelineColumnText, _showTimelineTextColumn);
         AddTimelineColumnToggle(flyout, "detail", ViewModel.UiText.TimelineColumnDetail, _showTimelineDetailColumn);
+        AddTimelineColumnToggle(flyout, "fontSize", ViewModel.UiText.TimelineColumnFontSize, _showTimelineFontSizeColumn);
         AddTimelineColumnToggle(flyout, "confidence", ViewModel.UiText.TimelineColumnConfidence, _showTimelineConfidenceColumn);
         flyout.ShowAt(element);
         e.Handled = true;
@@ -598,6 +630,9 @@ public sealed partial class MainPage : Page
             case "detail":
                 _showTimelineDetailColumn = isVisible;
                 break;
+            case "fontSize":
+                _showTimelineFontSizeColumn = isVisible;
+                break;
             case "confidence":
                 _showTimelineConfidenceColumn = isVisible;
                 break;
@@ -632,6 +667,11 @@ public sealed partial class MainPage : Page
             count++;
         }
 
+        if (_showTimelineFontSizeColumn)
+        {
+            count++;
+        }
+
         if (_showTimelineConfidenceColumn)
         {
             count++;
@@ -646,18 +686,22 @@ public sealed partial class MainPage : Page
         TimelineFrameColumnActualWidth = _showTimelineFrameColumn ? TimelineFrameColumnWidth : new GridLength(0);
         TimelineTextColumnActualWidth = _showTimelineTextColumn ? TimelineTextColumnWidth : new GridLength(0);
         TimelineDetailColumnActualWidth = _showTimelineDetailColumn ? TimelineDetailColumnWidth : new GridLength(0);
+        TimelineFontSizeColumnActualWidth = _showTimelineFontSizeColumn ? TimelineFontSizeColumnWidth : new GridLength(0);
         TimelineConfidenceColumnActualWidth = _showTimelineConfidenceColumn ? TimelineConfidenceColumnWidth : new GridLength(0);
 
-        TimelineTimeSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineTimeColumn, _showTimelineFrameColumn, _showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineConfidenceColumn)
+        TimelineTimeSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineTimeColumn, _showTimelineFrameColumn, _showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineFontSizeColumn, _showTimelineConfidenceColumn)
             ? new GridLength(8)
             : new GridLength(0);
-        TimelineFrameSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineFrameColumn, _showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineConfidenceColumn)
+        TimelineFrameSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineFrameColumn, _showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineFontSizeColumn, _showTimelineConfidenceColumn)
             ? new GridLength(8)
             : new GridLength(0);
-        TimelineTextSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineConfidenceColumn)
+        TimelineTextSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineTextColumn, _showTimelineDetailColumn, _showTimelineFontSizeColumn, _showTimelineConfidenceColumn)
             ? new GridLength(8)
             : new GridLength(0);
-        TimelineDetailSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineDetailColumn, _showTimelineConfidenceColumn)
+        TimelineDetailSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineDetailColumn, _showTimelineFontSizeColumn, _showTimelineConfidenceColumn)
+            ? new GridLength(8)
+            : new GridLength(0);
+        TimelineFontSizeSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineFontSizeColumn, _showTimelineConfidenceColumn)
             ? new GridLength(8)
             : new GridLength(0);
     }

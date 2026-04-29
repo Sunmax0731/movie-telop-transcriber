@@ -1857,6 +1857,8 @@ public partial class MainPageViewModel : ObservableObject
                         FormatSegmentStyleSummary(segment),
                         segment.TextType,
                         FormatSegmentDetail(segment),
+                        segment.FontSize,
+                        segment.FontSizeUnit,
                         segment.Confidence,
                         frameIndex,
                         timestampMs,
@@ -1906,9 +1908,9 @@ public partial class MainPageViewModel : ObservableObject
                     "OCR error",
                     "Error",
                     analysis.Ocr.Error?.Message ?? "OCR worker failed.",
-                    null,
-                    analysis.Frame.FrameIndex,
-                    analysis.Frame.TimestampMs));
+                    confidence: null,
+                    frameIndex: analysis.Frame.FrameIndex,
+                    timestampMs: analysis.Frame.TimestampMs));
                 ResultRows.Add(new ResultRow(
                     timeLabel,
                     "Error",
@@ -1930,9 +1932,11 @@ public partial class MainPageViewModel : ObservableObject
                         detail,
                         "OCR",
                         detail,
-                        detection.Confidence,
-                        analysis.Frame.FrameIndex,
-                        analysis.Frame.TimestampMs,
+                        fontSize: null,
+                        fontSizeUnit: null,
+                        confidence: detection.Confidence,
+                        frameIndex: analysis.Frame.FrameIndex,
+                        timestampMs: analysis.Frame.TimestampMs,
                         detectionId: detection.DetectionId));
                     ResultRows.Add(new ResultRow(
                         timeLabel,
@@ -1953,9 +1957,9 @@ public partial class MainPageViewModel : ObservableObject
                 "No telop detected",
                 "OCR",
                 Path.GetFileName(analysis.Frame.ImagePath),
-                null,
-                analysis.Frame.FrameIndex,
-                analysis.Frame.TimestampMs));
+                confidence: null,
+                frameIndex: analysis.Frame.FrameIndex,
+                timestampMs: analysis.Frame.TimestampMs));
             ResultRows.Add(new ResultRow(
                 timeLabel,
                 "OCR",
