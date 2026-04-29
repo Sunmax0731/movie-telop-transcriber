@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "video": {
+    "file_name": "sample_low_contrast_telop.mp4",
+    "duration_ms": 5000,
+    "width": 640,
+    "height": 360,
+    "fps": 10
+  },
+  "evaluation": {
+    "sample_id": "low_contrast_telop",
+    "description": "背景と文字色が近い低コントラストのテロップを含む。",
+    "recommended_frame_interval_seconds": 1.0
+  },
+  "segments": [
+    {
+      "segment_id": "seg-0001",
+      "start_timestamp_ms": 1000,
+      "end_timestamp_ms": 3000,
+      "text": "背景になじむ字幕",
+      "text_type": "caption_band",
+      "font_family": "Meiryo",
+      "font_size": 32,
+      "text_color": "#D8DEE8",
+      "stroke_color": "#8D96A3",
+      "background_color": "#6E7787",
+      "confidence": 0.95
+    },
+    {
+      "segment_id": "seg-0002",
+      "start_timestamp_ms": 3000,
+      "end_timestamp_ms": 5000,
+      "text": "低コントラスト検証",
+      "text_type": "caption_band",
+      "font_family": "Meiryo",
+      "font_size": 30,
+      "text_color": "#CBD2DC",
+      "stroke_color": "#7F8998",
+      "background_color": "#687282",
+      "confidence": 0.94
+    }
+  ]
+}
