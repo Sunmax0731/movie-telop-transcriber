@@ -739,11 +739,23 @@ public partial class MainPageViewModel : ObservableObject
 
         var normalizedIndex = ((index % _latestFrameAnalyses.Count) + _latestFrameAnalyses.Count) % _latestFrameAnalyses.Count;
         var next = _latestFrameAnalyses[normalizedIndex];
-        var matchingTimelineRow = TimelineSegments.FirstOrDefault(row => row.FrameIndex == next.Frame.FrameIndex);
+        var matchingRows = TimelineSegments
+            .Where(row => row.FrameIndex == next.Frame.FrameIndex && row.TimestampMs == next.Frame.TimestampMs)
+            .ToArray();
+        var matchingTimelineRow = matchingRows.FirstOrDefault();
 
         if (matchingTimelineRow is not null)
         {
             SelectedTimelineSegment = matchingTimelineRow;
+            if (matchingRows.Length > 1)
+            {
+                UpdatePreview(
+                    matchingTimelineRow.FrameIndex,
+                    matchingTimelineRow.TimestampMs,
+                    matchingTimelineRow.SegmentId,
+                    matchingTimelineRow.Text,
+                    detectionIds: NormalizeDetectionIds(matchingRows.SelectMany(row => row.DetectionIds)));
+            }
         }
         else
         {
