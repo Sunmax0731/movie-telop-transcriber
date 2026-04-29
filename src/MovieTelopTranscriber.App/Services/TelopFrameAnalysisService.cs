@@ -8,18 +8,21 @@ public sealed class TelopFrameAnalysisService
 {
     private readonly IOcrWorkerClient _ocrWorkerClient;
     private readonly TelopAttributeAnalysisService _attributeAnalysisService;
+    private readonly OcrFrameCandidateSelector _frameCandidateSelector;
 
     public TelopFrameAnalysisService()
-        : this(OcrWorkerClientFactory.Create(), new TelopAttributeAnalysisService())
+        : this(OcrWorkerClientFactory.Create(), new TelopAttributeAnalysisService(), new OcrFrameCandidateSelector())
     {
     }
 
     public TelopFrameAnalysisService(
         IOcrWorkerClient ocrWorkerClient,
-        TelopAttributeAnalysisService attributeAnalysisService)
+        TelopAttributeAnalysisService attributeAnalysisService,
+        OcrFrameCandidateSelector frameCandidateSelector)
     {
         _ocrWorkerClient = ocrWorkerClient;
         _attributeAnalysisService = attributeAnalysisService;
+        _frameCandidateSelector = frameCandidateSelector;
     }
 
     public string EngineName => _ocrWorkerClient.EngineName;
@@ -55,6 +58,9 @@ public sealed class TelopFrameAnalysisService
             return results;
         }
 
+        FrameAnalysisResult? previousAnalysis = null;
+        ExtractedFrameRecord? previousFrame = null;
+        var consecutiveSkippedFrames = 0;
         for (var i = 0; i < frameExtractionResult.Frames.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -68,29 +74,53 @@ public sealed class TelopFrameAnalysisService
                 "ja",
                 _ocrWorkerClient.EngineName);
 
+            var selectionDecision = _frameCandidateSelector.Decide(
+                frame,
+                previousFrame,
+                previousAnalysis,
+                consecutiveSkippedFrames);
+
+            FrameAnalysisResult currentAnalysis;
             var frameStopwatch = Stopwatch.StartNew();
-            var ocrResult = await _ocrWorkerClient.RecognizeAsync(request, ocrDirectory, cancellationToken);
+            if (selectionDecision.ShouldRunOcr || previousAnalysis is null)
+            {
+                var ocrResult = await _ocrWorkerClient.RecognizeAsync(request, ocrDirectory, cancellationToken);
 
-            var attributeAnalysisStopwatch = Stopwatch.StartNew();
-            var attributeResult = _attributeAnalysisService.Analyze(ocrResult.Response, frame.ImagePath);
-            attributeAnalysisStopwatch.Stop();
+                var attributeAnalysisStopwatch = Stopwatch.StartNew();
+                var attributeResult = _attributeAnalysisService.Analyze(ocrResult.Response, frame.ImagePath);
+                attributeAnalysisStopwatch.Stop();
 
-            var attributeWriteStopwatch = Stopwatch.StartNew();
-            await WriteAttributeResultAsync(attributesDirectory, request.RequestId, attributeResult, cancellationToken);
-            attributeWriteStopwatch.Stop();
+                var attributeWriteStopwatch = Stopwatch.StartNew();
+                await WriteAttributeResultAsync(attributesDirectory, request.RequestId, attributeResult, cancellationToken);
+                attributeWriteStopwatch.Stop();
 
-            frameStopwatch.Stop();
-            var performance = new OcrFramePerformanceRecord(
-                frame.FrameIndex,
-                frame.TimestampMs,
-                ocrResult.RequestWriteMs,
-                ocrResult.WorkerInitializationMs,
-                ocrResult.WorkerExecutionMs,
-                ocrResult.ResponseReadMs,
-                attributeAnalysisStopwatch.Elapsed.TotalMilliseconds,
-                attributeWriteStopwatch.Elapsed.TotalMilliseconds,
-                frameStopwatch.Elapsed.TotalMilliseconds);
-            results.Add(new FrameAnalysisResult(frame, ocrResult.Response, attributeResult, performance));
+                frameStopwatch.Stop();
+                var performance = new OcrFramePerformanceRecord(
+                    frame.FrameIndex,
+                    frame.TimestampMs,
+                    true,
+                    selectionDecision.Reason,
+                    selectionDecision.SelectionMs,
+                    selectionDecision.RoiDifferenceMean,
+                    ocrResult.RequestWriteMs,
+                    ocrResult.WorkerInitializationMs,
+                    ocrResult.WorkerExecutionMs,
+                    ocrResult.ResponseReadMs,
+                    attributeAnalysisStopwatch.Elapsed.TotalMilliseconds,
+                    attributeWriteStopwatch.Elapsed.TotalMilliseconds,
+                    frameStopwatch.Elapsed.TotalMilliseconds);
+                currentAnalysis = new FrameAnalysisResult(frame, ocrResult.Response, attributeResult, performance);
+                consecutiveSkippedFrames = 0;
+            }
+            else
+            {
+                currentAnalysis = ReusePreviousAnalysis(previousAnalysis, frame, request.RequestId, selectionDecision, attributesDirectory);
+                consecutiveSkippedFrames++;
+            }
+
+            results.Add(currentAnalysis);
+            previousAnalysis = currentAnalysis;
+            previousFrame = frame;
 
             progress?.Report(((double)(i + 1) / frameExtractionResult.Frames.Count) * 100d);
         }
@@ -112,5 +142,60 @@ public sealed class TelopFrameAnalysisService
     private static string CreateRequestId(ExtractedFrameRecord frame)
     {
         return $"ocr-{frame.FrameIndex:D6}-{frame.TimestampMs:D8}ms";
+    }
+
+    private static FrameAnalysisResult ReusePreviousAnalysis(
+        FrameAnalysisResult previousAnalysis,
+        ExtractedFrameRecord frame,
+        string requestId,
+        OcrFrameSelectionDecision selectionDecision,
+        string attributesDirectory)
+    {
+        var remappedOcrDetections = previousAnalysis.Ocr.Detections
+            .Select((detection, index) => detection with
+            {
+                DetectionId = $"{requestId}-reuse-{index + 1:D2}"
+            })
+            .ToArray();
+        var remappedAttributeDetections = previousAnalysis.Attributes.Detections
+            .Select((detection, index) => detection with
+            {
+                DetectionId = remappedOcrDetections[index].DetectionId
+            })
+            .ToArray();
+
+        var ocrResponse = previousAnalysis.Ocr with
+        {
+            RequestId = requestId,
+            FrameIndex = frame.FrameIndex,
+            TimestampMs = frame.TimestampMs,
+            Detections = remappedOcrDetections
+        };
+        var attributeResult = previousAnalysis.Attributes with
+        {
+            FrameIndex = frame.FrameIndex,
+            TimestampMs = frame.TimestampMs,
+            Detections = remappedAttributeDetections
+        };
+
+        Directory.CreateDirectory(attributesDirectory);
+        var path = Path.Combine(attributesDirectory, $"{requestId}.attributes.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(attributeResult, OcrContractJson.AttributeAnalysisResult));
+
+        var performance = new OcrFramePerformanceRecord(
+            frame.FrameIndex,
+            frame.TimestampMs,
+            false,
+            selectionDecision.Reason,
+            selectionDecision.SelectionMs,
+            selectionDecision.RoiDifferenceMean,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            selectionDecision.SelectionMs);
+        return new FrameAnalysisResult(frame, ocrResponse, attributeResult, performance);
     }
 }

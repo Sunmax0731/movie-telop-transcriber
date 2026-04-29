@@ -122,6 +122,9 @@ public sealed class RunLogWriter
         builder.AppendLine($"export_write_ms={summary.Performance.ExportWriteMs:F1}");
         builder.AppendLine($"log_write_ms={summary.Performance.LogWriteMs:F1}");
         builder.AppendLine($"ocr_warmup_ms={summary.Performance.OcrWarmupMs:F1}");
+        builder.AppendLine($"ocr_executed_frame_count={summary.Performance.OcrExecutedFrameCount}");
+        builder.AppendLine($"ocr_reused_frame_count={summary.Performance.OcrReusedFrameCount}");
+        builder.AppendLine($"ocr_selection_ms={summary.Performance.OcrSelectionMs:F1}");
         builder.AppendLine($"ocr_request_write_ms={summary.Performance.OcrRequestWriteMs:F1}");
         builder.AppendLine($"ocr_worker_initialization_ms={summary.Performance.OcrWorkerInitializationMs:F1}");
         builder.AppendLine($"ocr_worker_execution_ms={summary.Performance.OcrWorkerExecutionMs:F1}");

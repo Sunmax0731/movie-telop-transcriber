@@ -34,6 +34,7 @@ internal static class OcrContractJson
 [JsonSerializable(typeof(OcrFramePerformanceRecord))]
 [JsonSerializable(typeof(OcrFramePerformanceRecord[]))]
 [JsonSerializable(typeof(OcrDetectionRecord))]
+[JsonSerializable(typeof(OcrFrameSelectionDecision))]
 [JsonSerializable(typeof(OcrWorkerExecutionResult))]
 [JsonSerializable(typeof(OcrWorkerWarmupResult))]
 [JsonSerializable(typeof(OcrWorkerRequest))]
