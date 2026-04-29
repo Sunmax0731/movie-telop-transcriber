@@ -100,16 +100,21 @@ public sealed class TelopAttributeAnalysisService
             return UnknownStyle();
         }
 
-        var rect = CreateClampedRect(frameImage, boundingBox, padding: 4);
-        if (rect.Width <= 0 || rect.Height <= 0)
+        var baseRect = CreateClampedRect(frameImage, boundingBox, padding: 0);
+        var outerRect = CreateClampedRect(frameImage, boundingBox, padding: 4);
+        if (baseRect.Width <= 0 || baseRect.Height <= 0 || outerRect.Width <= 0 || outerRect.Height <= 0)
         {
             return UnknownStyle();
         }
 
-        using var crop = new Mat(frameImage, rect);
-        var stats = AnalyzeColors(crop);
-        var textColor = SelectTextColor(stats);
-        var strokeColor = SelectStrokeColor(stats, textColor);
+        using var baseCrop = new Mat(frameImage, baseRect);
+        using var outerCrop = new Mat(frameImage, outerRect);
+
+        var baseStats = AnalyzeColors(baseCrop);
+        var cornerStats = AnalyzeCornerColors(outerCrop);
+        var foregroundStats = RemoveBackgroundInfluence(baseStats, cornerStats);
+        var textColor = SelectTextColor(foregroundStats, baseStats);
+        var strokeColor = SelectStrokeColor(baseStats, textColor);
         var textType = CreateTextTypeLabel(textColor, strokeColor);
         return new TelopStyleEstimate(textColor, strokeColor, null, textType);
     }
@@ -126,6 +131,47 @@ public sealed class TelopAttributeAnalysisService
         maxX = Math.Clamp(maxX, minX + 1, image.Width);
         maxY = Math.Clamp(maxY, minY + 1, image.Height);
         return new Rect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private static ColorStats AnalyzeCornerColors(Mat crop)
+    {
+        if (crop.Width <= 0 || crop.Height <= 0)
+        {
+            return new ColorStats(1, 0, 0, 0, 0, 0, 0);
+        }
+
+        var cornerWidth = Math.Max(1, crop.Width / 5);
+        var cornerHeight = Math.Max(1, crop.Height / 5);
+        var corners = new[]
+        {
+            new Rect(0, 0, cornerWidth, cornerHeight),
+            new Rect(Math.Max(0, crop.Width - cornerWidth), 0, cornerWidth, cornerHeight),
+            new Rect(0, Math.Max(0, crop.Height - cornerHeight), cornerWidth, cornerHeight),
+            new Rect(Math.Max(0, crop.Width - cornerWidth), Math.Max(0, crop.Height - cornerHeight), cornerWidth, cornerHeight)
+        };
+
+        var total = 0;
+        var white = 0;
+        var black = 0;
+        var green = 0;
+        var red = 0;
+        var blue = 0;
+        var yellow = 0;
+
+        foreach (var corner in corners)
+        {
+            using var roi = new Mat(crop, corner);
+            var stats = AnalyzeColors(roi);
+            total += stats.Total;
+            white += stats.White;
+            black += stats.Black;
+            green += stats.Green;
+            red += stats.Red;
+            blue += stats.Blue;
+            yellow += stats.Yellow;
+        }
+
+        return new ColorStats(Math.Max(1, total), white, black, green, red, blue, yellow);
     }
 
     private static ColorStats AnalyzeColors(Mat crop)
@@ -183,25 +229,44 @@ public sealed class TelopAttributeAnalysisService
         return new ColorStats(total, white, black, green, red, blue, yellow);
     }
 
-    private static string? SelectTextColor(ColorStats stats)
+    private static ColorStats RemoveBackgroundInfluence(ColorStats baseStats, ColorStats cornerStats)
     {
-        var minimum = Math.Max(8, (int)Math.Round(stats.Total * 0.03d));
+        if (cornerStats.Total <= 0)
+        {
+            return baseStats;
+        }
+
+        var scale = (double)baseStats.Total / cornerStats.Total;
+        return new ColorStats(
+            baseStats.Total,
+            RemoveScaledCount(baseStats.White, cornerStats.White, scale),
+            RemoveScaledCount(baseStats.Black, cornerStats.Black, scale),
+            RemoveScaledCount(baseStats.Green, cornerStats.Green, scale),
+            RemoveScaledCount(baseStats.Red, cornerStats.Red, scale),
+            RemoveScaledCount(baseStats.Blue, cornerStats.Blue, scale),
+            RemoveScaledCount(baseStats.Yellow, cornerStats.Yellow, scale));
+    }
+
+    private static int RemoveScaledCount(int totalCount, int sampledCount, double scale)
+    {
+        var estimatedBackground = (int)Math.Round(sampledCount * scale);
+        return Math.Max(0, totalCount - estimatedBackground);
+    }
+
+    private static string? SelectTextColor(ColorStats foregroundStats, ColorStats baseStats)
+    {
+        var minimum = Math.Max(8, (int)Math.Round(baseStats.Total * 0.015d));
         var colored = new[]
         {
-            ("緑文字", stats.Green),
-            ("黄文字", stats.Yellow),
-            ("赤文字", stats.Red),
-            ("青文字", stats.Blue)
+            ("緑文字", foregroundStats.Green),
+            ("黄文字", foregroundStats.Yellow),
+            ("赤文字", foregroundStats.Red),
+            ("青文字", foregroundStats.Blue)
         }
             .OrderByDescending(item => item.Item2)
-            .First();
+            .FirstOrDefault();
 
-        if (colored.Item2 >= minimum && colored.Item2 >= stats.White * 0.75d)
-        {
-            return colored.Item1;
-        }
-
-        if (stats.White >= minimum && stats.White >= stats.Black * 0.35d)
+        if (foregroundStats.White >= minimum && foregroundStats.White >= colored.Item2 * 0.5d)
         {
             return "白文字";
         }
@@ -211,12 +276,22 @@ public sealed class TelopAttributeAnalysisService
             return colored.Item1;
         }
 
-        return stats.Black >= minimum ? "黒文字" : null;
+        if (baseStats.White >= minimum)
+        {
+            return "白文字";
+        }
+
+        if (foregroundStats.Black >= minimum)
+        {
+            return "黒文字";
+        }
+
+        return null;
     }
 
     private static string? SelectStrokeColor(ColorStats stats, string? textColor)
     {
-        var minimum = Math.Max(10, (int)Math.Round(stats.Total * 0.08d));
+        var minimum = Math.Max(10, (int)Math.Round(stats.Total * 0.05d));
         if (textColor != "黒文字" && stats.Black >= minimum)
         {
             return "黒枠";
@@ -224,7 +299,7 @@ public sealed class TelopAttributeAnalysisService
 
         if (textColor != "白文字" && stats.White >= minimum)
         {
-            return "白枠";
+            return "白縁";
         }
 
         return null;
@@ -235,11 +310,11 @@ public sealed class TelopAttributeAnalysisService
         var parts = new[] { textColor, strokeColor }
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .ToArray();
-        return parts.Length == 0 ? "未分類" : string.Join(" / ", parts);
+        return parts.Length == 0 ? "未推定" : string.Join(" / ", parts);
     }
 
     private static TelopStyleEstimate UnknownStyle()
     {
-        return new TelopStyleEstimate(null, null, null, "未分類");
+        return new TelopStyleEstimate(null, null, null, "未推定");
     }
 }
