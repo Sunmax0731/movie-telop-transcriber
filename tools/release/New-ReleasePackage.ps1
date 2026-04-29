@@ -27,6 +27,8 @@ $stagingRoot = Join-Path $OutputRoot "staging"
 $packageRoot = Join-Path $stagingRoot $packageName
 $zipPath = Join-Path $OutputRoot "$packageName.zip"
 $checksumPath = "$zipPath.sha256"
+$installerAssetPath = Join-Path $OutputRoot "Install-MovieTelopTranscriber.ps1"
+$installerChecksumPath = "$installerAssetPath.sha256"
 $packageTimestampUtc = [DateTimeOffset]::Parse("2026-04-29T00:00:00Z").UtcDateTime
 
 function Copy-RepoFile {
@@ -98,12 +100,19 @@ if (Test-Path -LiteralPath $zipPath) {
 if (Test-Path -LiteralPath $checksumPath) {
     Remove-Item -LiteralPath $checksumPath -Force
 }
+if (Test-Path -LiteralPath $installerAssetPath) {
+    Remove-Item -LiteralPath $installerAssetPath -Force
+}
+if (Test-Path -LiteralPath $installerChecksumPath) {
+    Remove-Item -LiteralPath $installerChecksumPath -Force
+}
 
 New-Item -ItemType Directory -Path (Join-Path $packageRoot "app") -Force | Out-Null
 Copy-Item -Path (Join-Path $appBuildDir "*") -Destination (Join-Path $packageRoot "app") -Recurse -Force
 Get-ChildItem -LiteralPath (Join-Path $packageRoot "app") -Recurse -Filter "*.pdb" -File | Remove-Item -Force
 
 Copy-RepoFile -Source "README.md" -Destination "docs\README.md"
+Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.ps1" -Destination "Install-MovieTelopTranscriber.ps1"
 Copy-RepoFileMatch -Directory "docs" -Filter "08_*.md" -DestinationDirectory "docs"
 Copy-RepoFileMatch -Directory "docs" -Filter "09_Windows_OCR*.md" -DestinationDirectory "docs"
 Copy-RepoFileMatch -Directory "docs" -Filter "10_PaddleOCR*.md" -DestinationDirectory "docs"
@@ -125,6 +134,7 @@ $requiredPackageFiles = @(
     "app\MovieTelopTranscriber.App.deps.json",
     "app\MovieTelopTranscriber.App.runtimeconfig.json",
     "app\tools\ocr\paddle_ocr_worker.py",
+    "Install-MovieTelopTranscriber.ps1",
     "docs\README.md",
     "samples\basic_telop\README.md",
     "samples\basic_telop\sample_basic_telop.mp4",
@@ -148,6 +158,10 @@ Compress-Archive -LiteralPath $packageRoot -DestinationPath $zipPath -Compressio
 $hash = Get-FileHash -LiteralPath $zipPath -Algorithm SHA256
 "$($hash.Hash.ToLowerInvariant())  $(Split-Path -Leaf $zipPath)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
 
+Copy-Item -LiteralPath (Join-Path $repoRoot "tools\install\Install-MovieTelopTranscriber.ps1") -Destination $installerAssetPath -Force
+$installerHash = Get-FileHash -LiteralPath $installerAssetPath -Algorithm SHA256
+"$($installerHash.Hash.ToLowerInvariant())  $(Split-Path -Leaf $installerAssetPath)" | Set-Content -LiteralPath $installerChecksumPath -Encoding ascii
+
 $fileCount = (Get-ChildItem -LiteralPath $packageRoot -Recurse -File | Measure-Object).Count
 $expandedSizeBytes = (Get-ChildItem -LiteralPath $packageRoot -Recurse -File | Measure-Object -Property Length -Sum).Sum
 $zipSizeBytes = (Get-Item -LiteralPath $zipPath).Length
@@ -158,6 +172,8 @@ $zipSizeBytes = (Get-Item -LiteralPath $zipPath).Length
     PackageRoot = $packageRoot
     ZipPath = $zipPath
     ChecksumPath = $checksumPath
+    InstallerPath = $installerAssetPath
+    InstallerChecksumPath = $installerChecksumPath
     FileCount = $fileCount
     ExpandedSizeBytes = $expandedSizeBytes
     ZipSizeBytes = $zipSizeBytes

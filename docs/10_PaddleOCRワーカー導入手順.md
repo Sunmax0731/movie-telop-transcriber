@@ -27,7 +27,13 @@ temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddlepaddle==3.2.0 -i htt
 temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddleocr
 ```
 
-初回実行時に `PP-OCRv5_server_det` と `PP-OCRv5_server_rec` がユーザープロファイル配下へダウンロードされる。#48 では、初期リリースのアプリ本体 zip に Python runtime、PaddlePaddle / PaddleOCR の Python package、PaddleOCR モデル本体を同梱しない方針にした。オフライン導入時の事前配置手順は `docs/12_導入手順書.md` を参照する。
+初回実行時に `PP-OCRv5_server_det` と `PP-OCRv5_server_rec` がユーザープロファイル配下へダウンロードされる。#48 では、初期リリースのアプリ本体 zip に Python runtime、PaddlePaddle / PaddleOCR の Python package、PaddleOCR モデル本体を同梱しない方針にした。#114 では、モデル取得を明示的に行うため worker に `--warmup-models` を追加した。オフライン導入時の事前配置手順は `docs/12_導入手順書.md` を参照する。
+
+モデル取得だけを先に実行する場合:
+
+```powershell
+temp\ocr-eval\.venv\Scripts\python.exe tools\ocr\paddle_ocr_worker.py --warmup-models --warmup-language ja
+```
 
 ## 5. アプリから利用する方法
 アプリ起動前に環境変数を設定する。OCR エンジン未指定でも既定では PaddleOCR を使うが、手動検証では利用する Python を明示するため `MOVIE_TELOP_PADDLEOCR_PYTHON` を設定する。

@@ -27,9 +27,27 @@ def main() -> int:
     parser.add_argument("request_json", nargs="?", help="OCR request JSON path")
     parser.add_argument("response_json", nargs="?", help="OCR response JSON path")
     parser.add_argument("--stdio", action="store_true", help="run as a persistent JSON-lines worker")
+    parser.add_argument(
+        "--warmup-models",
+        action="store_true",
+        help="load PaddleOCR and run a tiny OCR request so required models are downloaded",
+    )
+    parser.add_argument(
+        "--warmup-language",
+        default="ja",
+        help="language hint used by --warmup-models; default: ja",
+    )
+    parser.add_argument(
+        "--warmup-image",
+        help="optional image path used by --warmup-models instead of a generated image",
+    )
     args = parser.parse_args()
 
     worker = PaddleOcrWorker()
+    if args.warmup_models:
+        write_ack(worker.warmup(args.warmup_language, args.warmup_image))
+        return 0
+
     if args.stdio:
         run_stdio(worker)
         return 0
@@ -105,6 +123,35 @@ class PaddleOcrWorker:
             os.environ.get("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING"),
             False,
         )
+
+    def warmup(self, language_hint: str, image_path: str | None) -> dict[str, Any]:
+        lang = resolve_language(language_hint)
+        temporary_image_path = None
+        target_image_path = image_path
+        if not target_image_path:
+            temporary_image_path = create_warmup_image()
+            target_image_path = temporary_image_path
+
+        if not Path(target_image_path).exists():
+            raise FileNotFoundError(f"Warmup image was not found: {target_image_path}")
+
+        try:
+            ocr = self._get_model(lang)
+            result = ocr.predict(target_image_path)
+            payload = extract_result_payload(result)
+            return {
+                "status": "success",
+                "language": lang,
+                "ocr_version": self._version,
+                "device": self._device,
+                "recognized_count": len(payload.get("rec_texts") or []),
+            }
+        finally:
+            if temporary_image_path:
+                try:
+                    Path(temporary_image_path).unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def process_file(self, request_path: str, response_path: str) -> None:
         try:
@@ -278,6 +325,30 @@ def resolve_language(language_hint: str) -> str:
     if normalized.startswith("en"):
         return "en"
     return "japan"
+
+
+def create_warmup_image() -> str:
+    fd, temporary_path = tempfile.mkstemp(prefix="movie_telop_paddle_warmup_", suffix=".png")
+    os.close(fd)
+
+    try:
+        from PIL import Image, ImageDraw
+
+        image = Image.new("RGB", (640, 160), "white")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((48, 48, 592, 112), outline="black", width=4)
+        draw.line((80, 80, 560, 80), fill="black", width=8)
+        image.save(temporary_path)
+        return temporary_path
+    except Exception:
+        import base64
+
+        # 16x16 white PNG fallback. It is enough to force PaddleOCR model loading.
+        png_bytes = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX///+nxBvIAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg=="
+        )
+        Path(temporary_path).write_bytes(png_bytes)
+        return temporary_path
 
 
 def parse_bool(value: str | None, default: bool) -> bool:
