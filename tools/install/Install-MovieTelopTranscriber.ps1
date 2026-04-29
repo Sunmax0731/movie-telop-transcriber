@@ -1,8 +1,8 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$Version = "0.1.1",
-    [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "Programs\MovieTelopTranscriber"),
-    [string]$OcrRuntimeRoot = (Join-Path $env:LOCALAPPDATA "Programs\MovieTelopTranscriber\ocr-runtime"),
+    [string]$InstallRoot,
+    [string]$OcrRuntimeRoot,
     [string]$DownloadRoot = (Join-Path $env:TEMP "movie-telop-transcriber-install"),
     [string]$PackageZipPath,
     [string]$ReleaseAssetUrl,
@@ -26,17 +26,37 @@ if ([string]::IsNullOrWhiteSpace($ReleaseAssetUrl)) {
     $ReleaseAssetUrl = "https://github.com/$repository/releases/download/v$Version/$packageName.zip"
 }
 
+$defaultInstallRoot = Join-Path (Get-Location).Path "MovieTelopTranscriber"
+if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
+    $InstallRoot = $defaultInstallRoot
+}
+
 $InstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
+if ([string]::IsNullOrWhiteSpace($OcrRuntimeRoot)) {
+    $OcrRuntimeRoot = Join-Path $InstallRoot "ocr-runtime"
+}
 $OcrRuntimeRoot = [System.IO.Path]::GetFullPath($OcrRuntimeRoot)
 $DownloadRoot = [System.IO.Path]::GetFullPath($DownloadRoot)
 $downloadZipPath = Join-Path $DownloadRoot "$packageName.zip"
 $expandedRoot = Join-Path $DownloadRoot "expanded"
 $appDir = Join-Path $InstallRoot "app"
 $appExe = Join-Path $appDir "MovieTelopTranscriber.App.exe"
+$appSettingsPath = Join-Path $appDir "movie-telop-transcriber.settings.json"
 $venvDir = Join-Path $OcrRuntimeRoot ".venv"
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
 $launcherPath = Join-Path $InstallRoot "Start-MovieTelopTranscriber.ps1"
+$launcherCommandPath = Join-Path $InstallRoot "Movie Telop Transcriber.cmd"
+$uninstallerPath = Join-Path $InstallRoot "Uninstall-MovieTelopTranscriber.ps1"
+$uninstallerCommandPath = Join-Path $InstallRoot "Uninstall-MovieTelopTranscriber.cmd"
+$installManifestPath = Join-Path $InstallRoot "movie-telop-transcriber.installation.json"
 $modelRoot = Join-Path $env:USERPROFILE ".paddlex\official_models"
+$startMenuShortcutDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Movie Telop Transcriber"
+$startMenuShortcutPath = Join-Path $startMenuShortcutDirectory "Movie Telop Transcriber.lnk"
+$knownModelNames = @(
+    "PP-OCRv5_server_det",
+    "PP-OCRv5_server_rec"
+)
+$createdModelDirectories = @()
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoWorkerPath = Join-Path $scriptRoot "..\ocr\paddle_ocr_worker.py"
 $installedWorkerPath = Join-Path $appDir "tools\ocr\paddle_ocr_worker.py"
@@ -107,31 +127,85 @@ function Write-Launcher {
 `$ErrorActionPreference = "Stop"
 `$InstallRoot = Split-Path -Parent `$MyInvocation.MyCommand.Path
 `$AppDir = Join-Path `$InstallRoot "app"
-
-`$env:MOVIE_TELOP_OCR_ENGINE = "paddleocr"
-`$env:MOVIE_TELOP_PADDLEOCR_PYTHON = "$venvPython"
-`$env:MOVIE_TELOP_PADDLEOCR_DEVICE = "cpu"
-`$env:MOVIE_TELOP_PADDLEOCR_MIN_SCORE = "0.5"
-`$env:MOVIE_TELOP_PADDLEOCR_PREPROCESS = "true"
-`$env:MOVIE_TELOP_PADDLEOCR_CONTRAST = "1.1"
-`$env:MOVIE_TELOP_PADDLEOCR_SHARPEN = "true"
-
 Start-Process -FilePath (Join-Path `$AppDir "MovieTelopTranscriber.App.exe") -WorkingDirectory `$AppDir
 "@
 
     [System.IO.File]::WriteAllText($launcherPath, $launcherContent, [System.Text.UTF8Encoding]::new($false))
 }
 
-function New-StartMenuShortcut {
-    $shortcutDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Movie Telop Transcriber"
-    New-Item -ItemType Directory -Path $shortcutDirectory -Force | Out-Null
+function Write-LauncherCommand {
+    $launcherCommandContent = @"
+@echo off
+setlocal
+set "APP_DIR=%~dp0app"
+"%APP_DIR%\MovieTelopTranscriber.App.exe" %*
+set "EXITCODE=%ERRORLEVEL%"
+if not "%EXITCODE%"=="0" (
+  echo Movie Telop Transcriber failed to start. Exit code: %EXITCODE%
+  pause
+)
+exit /b %EXITCODE%
+"@
 
-    $shortcutPath = Join-Path $shortcutDirectory "Movie Telop Transcriber.lnk"
+    [System.IO.File]::WriteAllText($launcherCommandPath, $launcherCommandContent, [System.Text.ASCIIEncoding]::new())
+}
+
+function Write-AppLaunchSettings {
+    $scriptPath = Resolve-WorkerPath
+    $settingsObject = [ordered]@{
+        ocrEngine = "paddleocr"
+        paddleOcr = [ordered]@{
+            pythonPath = $venvPython
+            scriptPath = $scriptPath
+            device = "cpu"
+            language = "ja"
+            minScore = 0.5
+            normalizeSmallKana = $true
+            preprocess = $true
+            contrast = 1.1
+            sharpen = $true
+        }
+    }
+
+    $json = $settingsObject | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($appSettingsPath, $json, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Write-InstallManifest {
+    $manifestObject = [ordered]@{
+        version = $Version
+        installRoot = $InstallRoot
+        ocrRuntimeRoot = $OcrRuntimeRoot
+        appExe = $appExe
+        appSettingsPath = $appSettingsPath
+        launcherPath = $launcherPath
+        launcherCommandPath = $launcherCommandPath
+        uninstallerPath = $uninstallerPath
+        uninstallerCommandPath = $uninstallerCommandPath
+        startMenuShortcutDirectory = $startMenuShortcutDirectory
+        startMenuShortcutPath = $startMenuShortcutPath
+        modelRoot = $modelRoot
+        createdModelDirectories = $createdModelDirectories
+        legacyUserEnvironmentVariables = @(
+            "MOVIE_TELOP_OCR_WORKER",
+            "MOVIE_TELOP_PADDLEOCR_PYTHON",
+            "MOVIE_TELOP_PADDLEOCR_SCRIPT"
+        )
+        persistentEnvironmentVariables = @()
+    }
+
+    $json = $manifestObject | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($installManifestPath, $json, [System.Text.UTF8Encoding]::new($false))
+}
+
+function New-StartMenuShortcut {
+    New-Item -ItemType Directory -Path $startMenuShortcutDirectory -Force | Out-Null
+
     $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = "powershell.exe"
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$launcherPath`""
-    $shortcut.WorkingDirectory = $InstallRoot
+    $shortcut = $shell.CreateShortcut($startMenuShortcutPath)
+    $shortcut.TargetPath = $appExe
+    $shortcut.Arguments = ""
+    $shortcut.WorkingDirectory = $appDir
     $shortcut.IconLocation = "$appExe,0"
     $shortcut.Save()
 }
@@ -163,6 +237,11 @@ if ($WhatIfPreference) {
         SkipOcrSetup = [bool]$SkipOcrSetup
         SkipModelDownload = [bool]$SkipModelDownload
         LauncherPath = $launcherPath
+        LauncherCommandPath = $launcherCommandPath
+        AppSettingsPath = $appSettingsPath
+        UninstallerPath = $uninstallerPath
+        UninstallerCommandPath = $uninstallerCommandPath
+        InstallManifestPath = $installManifestPath
     }
     return
 }
@@ -243,17 +322,26 @@ if (-not $SkipOcrSetup) {
         $workerPath = Resolve-WorkerPath
         $env:MOVIE_TELOP_PADDLEOCR_DEVICE = "cpu"
         $env:MOVIE_TELOP_PADDLEOCR_PREPROCESS = "false"
+        $existingModelDirectories = @(
+            $knownModelNames |
+            Where-Object { Test-Path -LiteralPath (Join-Path $modelRoot $_) } |
+            ForEach-Object { Join-Path $modelRoot $_ }
+        )
 
         Write-InstallLog "Downloading and warming PaddleOCR models"
         if ($PSCmdlet.ShouldProcess($modelRoot, "Warm up PaddleOCR models")) {
             Invoke-CheckedCommand -FilePath $venvPython -Arguments @($workerPath, "--warmup-models", "--warmup-language", "ja")
         }
 
-        $knownModels = @(
-            "PP-OCRv5_server_det",
-            "PP-OCRv5_server_rec"
+        $createdModelDirectories = @(
+            $knownModelNames |
+            ForEach-Object { Join-Path $modelRoot $_ } |
+            Where-Object {
+                (Test-Path -LiteralPath $_) -and ($_ -notin $existingModelDirectories)
+            }
         )
-        $missingModels = @($knownModels | Where-Object { -not (Test-Path -LiteralPath (Join-Path $modelRoot $_)) })
+
+        $missingModels = @($knownModelNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $modelRoot $_)) })
         if ($missingModels.Count -gt 0) {
             Write-Warning ("PaddleOCR model folders were not found at the expected path: {0}" -f ($missingModels -join ", "))
             Write-Warning "The models may have been stored in a PaddleOCR-specific cache path. Check the warmup output above if OCR fails."
@@ -274,6 +362,21 @@ if ($PSCmdlet.ShouldProcess($launcherPath, "Write launcher")) {
     Write-Launcher
 }
 
+Write-InstallLog "Writing launcher command: $launcherCommandPath"
+if ($PSCmdlet.ShouldProcess($launcherCommandPath, "Write launcher command")) {
+    Write-LauncherCommand
+}
+
+Write-InstallLog "Writing app launch settings: $appSettingsPath"
+if ($PSCmdlet.ShouldProcess($appSettingsPath, "Write app launch settings")) {
+    Write-AppLaunchSettings
+}
+
+Write-InstallLog "Writing install manifest: $installManifestPath"
+if ($PSCmdlet.ShouldProcess($installManifestPath, "Write install manifest")) {
+    Write-InstallManifest
+}
+
 if (-not $NoStartMenuShortcut) {
     Write-InstallLog "Creating Start Menu shortcut"
     if ($PSCmdlet.ShouldProcess("Start Menu", "Create shortcut")) {
@@ -292,8 +395,14 @@ if ($Launch) {
     Version = $Version
     InstallRoot = $InstallRoot
     AppExe = $appExe
+    AppSettingsPath = $appSettingsPath
     LauncherPath = $launcherPath
+    LauncherCommandPath = $launcherCommandPath
+    UninstallerPath = $uninstallerPath
+    UninstallerCommandPath = $uninstallerCommandPath
+    InstallManifestPath = $installManifestPath
     OcrRuntimeRoot = $OcrRuntimeRoot
     PaddleOcrPython = $venvPython
     ModelRoot = $modelRoot
+    CreatedModelDirectories = $createdModelDirectories
 }
