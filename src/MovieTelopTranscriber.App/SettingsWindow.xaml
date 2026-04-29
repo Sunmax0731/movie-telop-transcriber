@@ -97,6 +97,19 @@
                             IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
                             ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleSharpenDescription, Mode=OneWay}" />
                         <ComboBox
+                            Header="PaddleOCR device"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.PaddleDeviceOptions, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedPaddleDeviceOption, Mode=TwoWay}"
+                            ToolTipService.ToolTip="cpu または gpu:0 を選びます。GPU を使うには、この PC に GPU 対応の Paddle runtime が入っている必要があります。">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:SelectionOption">
+                                    <TextBlock Text="{x:Bind DisplayName}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox
                             Header="{x:Bind ViewModel.UiText.PaddleWorkerCountLabel, Mode=OneWay}"
                             HorizontalAlignment="Stretch"
                             IsEnabled="{x:Bind ViewModel.IsPaddleWorkerCountEditable, Mode=OneWay}"
