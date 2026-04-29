@@ -33,9 +33,11 @@ $downloadZipPath = Join-Path $DownloadRoot "$packageName.zip"
 $expandedRoot = Join-Path $DownloadRoot "expanded"
 $appDir = Join-Path $InstallRoot "app"
 $appExe = Join-Path $appDir "MovieTelopTranscriber.App.exe"
+$appSettingsPath = Join-Path $appDir "movie-telop-transcriber.settings.json"
 $venvDir = Join-Path $OcrRuntimeRoot ".venv"
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
 $launcherPath = Join-Path $InstallRoot "Start-MovieTelopTranscriber.ps1"
+$launcherCommandPath = Join-Path $InstallRoot "Movie Telop Transcriber.cmd"
 $modelRoot = Join-Path $env:USERPROFILE ".paddlex\official_models"
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoWorkerPath = Join-Path $scriptRoot "..\ocr\paddle_ocr_worker.py"
@@ -107,19 +109,48 @@ function Write-Launcher {
 `$ErrorActionPreference = "Stop"
 `$InstallRoot = Split-Path -Parent `$MyInvocation.MyCommand.Path
 `$AppDir = Join-Path `$InstallRoot "app"
-
-`$env:MOVIE_TELOP_OCR_ENGINE = "paddleocr"
-`$env:MOVIE_TELOP_PADDLEOCR_PYTHON = "$venvPython"
-`$env:MOVIE_TELOP_PADDLEOCR_DEVICE = "cpu"
-`$env:MOVIE_TELOP_PADDLEOCR_MIN_SCORE = "0.5"
-`$env:MOVIE_TELOP_PADDLEOCR_PREPROCESS = "true"
-`$env:MOVIE_TELOP_PADDLEOCR_CONTRAST = "1.1"
-`$env:MOVIE_TELOP_PADDLEOCR_SHARPEN = "true"
-
 Start-Process -FilePath (Join-Path `$AppDir "MovieTelopTranscriber.App.exe") -WorkingDirectory `$AppDir
 "@
 
     [System.IO.File]::WriteAllText($launcherPath, $launcherContent, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Write-LauncherCommand {
+    $launcherCommandContent = @"
+@echo off
+setlocal
+set "APP_DIR=%~dp0app"
+"%APP_DIR%\MovieTelopTranscriber.App.exe" %*
+set "EXITCODE=%ERRORLEVEL%"
+if not "%EXITCODE%"=="0" (
+  echo Movie Telop Transcriber failed to start. Exit code: %EXITCODE%
+  pause
+)
+exit /b %EXITCODE%
+"@
+
+    [System.IO.File]::WriteAllText($launcherCommandPath, $launcherCommandContent, [System.Text.ASCIIEncoding]::new())
+}
+
+function Write-AppLaunchSettings {
+    $scriptPath = Resolve-WorkerPath
+    $settingsObject = [ordered]@{
+        ocrEngine = "paddleocr"
+        paddleOcr = [ordered]@{
+            pythonPath = $venvPython
+            scriptPath = $scriptPath
+            device = "cpu"
+            language = "ja"
+            minScore = 0.5
+            normalizeSmallKana = $true
+            preprocess = $true
+            contrast = 1.1
+            sharpen = $true
+        }
+    }
+
+    $json = $settingsObject | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($appSettingsPath, $json, [System.Text.UTF8Encoding]::new($false))
 }
 
 function New-StartMenuShortcut {
@@ -129,9 +160,9 @@ function New-StartMenuShortcut {
     $shortcutPath = Join-Path $shortcutDirectory "Movie Telop Transcriber.lnk"
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = "powershell.exe"
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$launcherPath`""
-    $shortcut.WorkingDirectory = $InstallRoot
+    $shortcut.TargetPath = $appExe
+    $shortcut.Arguments = ""
+    $shortcut.WorkingDirectory = $appDir
     $shortcut.IconLocation = "$appExe,0"
     $shortcut.Save()
 }
@@ -163,6 +194,8 @@ if ($WhatIfPreference) {
         SkipOcrSetup = [bool]$SkipOcrSetup
         SkipModelDownload = [bool]$SkipModelDownload
         LauncherPath = $launcherPath
+        LauncherCommandPath = $launcherCommandPath
+        AppSettingsPath = $appSettingsPath
     }
     return
 }
@@ -274,6 +307,16 @@ if ($PSCmdlet.ShouldProcess($launcherPath, "Write launcher")) {
     Write-Launcher
 }
 
+Write-InstallLog "Writing launcher command: $launcherCommandPath"
+if ($PSCmdlet.ShouldProcess($launcherCommandPath, "Write launcher command")) {
+    Write-LauncherCommand
+}
+
+Write-InstallLog "Writing app launch settings: $appSettingsPath"
+if ($PSCmdlet.ShouldProcess($appSettingsPath, "Write app launch settings")) {
+    Write-AppLaunchSettings
+}
+
 if (-not $NoStartMenuShortcut) {
     Write-InstallLog "Creating Start Menu shortcut"
     if ($PSCmdlet.ShouldProcess("Start Menu", "Create shortcut")) {
@@ -292,7 +335,9 @@ if ($Launch) {
     Version = $Version
     InstallRoot = $InstallRoot
     AppExe = $appExe
+    AppSettingsPath = $appSettingsPath
     LauncherPath = $launcherPath
+    LauncherCommandPath = $launcherCommandPath
     OcrRuntimeRoot = $OcrRuntimeRoot
     PaddleOcrPython = $venvPython
     ModelRoot = $modelRoot

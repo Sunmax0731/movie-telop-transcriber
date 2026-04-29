@@ -53,7 +53,7 @@ public sealed class ProcessOcrWorkerClient : IOcrWorkerClient
             request,
             "OCR_SIDECAR_NOT_FOUND",
             "No OCR worker is configured and no sidecar OCR response exists for this frame.",
-            $"Set {EngineEnvironmentVariable}=paddleocr for real-video OCR, configure {WorkerPathEnvironmentVariable}, or provide sidecar file: {sidecarPath}",
+            $"Set {EngineEnvironmentVariable}=paddleocr, configure {WorkerPathEnvironmentVariable}, provide movie-telop-transcriber.settings.json, or provide sidecar file: {sidecarPath}",
             true);
         await WriteJsonAsync(responsePath, missingSidecarResponse, cancellationToken);
         return missingSidecarResponse;

@@ -23,7 +23,9 @@
 - OCR モデル: `PP-OCRv5_server_det`、`PP-OCRv5_server_rec`
 
 ### 導入方法
-推奨は PowerShell インストーラを使う方法です。アプリ本体を所定のディレクトリへ配置し、PaddleOCR 用の Python 仮想環境、Python package、OCR モデル取得までをまとめて実行します。
+推奨は配布物に含まれる `Install-MovieTelopTranscriber.cmd` をダブルクリックして開始する方法です。内部では PowerShell インストーラを呼び出し、アプリ本体の配置、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル取得、起動設定ファイル作成までをまとめて実行します。
+
+PowerShell から直接実行する場合は次を使います。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
@@ -36,6 +38,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 | --- | --- |
 | アプリ本体 | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber` |
 | OCR runtime | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\ocr-runtime` |
+| 起動設定ファイル | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\app\movie-telop-transcriber.settings.json` |
 | 起動スクリプト | `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1` |
 | OCR モデル | `%USERPROFILE%\.paddlex\official_models` |
 
@@ -59,14 +62,9 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 手動導入やオフライン導入が必要な場合は、[docs/12_導入手順書.md](docs/12_導入手順書.md) を参照してください。
 
 ### 起動方法
-インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` から起動できます。PowerShell から起動する場合は、生成された起動スクリプトを実行します。
+インストーラを使った場合は、スタートメニューの `Movie Telop Transcriber` または `%LOCALAPPDATA%\Programs\MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` をダブルクリックして起動できます。
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass `
-  -File "$env:LOCALAPPDATA\Programs\MovieTelopTranscriber\Start-MovieTelopTranscriber.ps1"
-```
-
-この起動スクリプトは、PaddleOCR 用の環境変数を設定してからアプリを起動します。
+アプリは起動時に `movie-telop-transcriber.settings.json` を読み込み、PaddleOCR 用 Python、worker script、OCR 設定を解決します。PowerShell 起動スクリプトは互換用として残りますが、通常利用では不要です。
 
 ### 基本的な使い方
 1. アプリを起動する。
@@ -85,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 | インストーラが PowerShell 実行ポリシーで止まる | 起動コマンドに `-ExecutionPolicy Bypass` があるか | README の導入コマンドをそのまま実行する |
 | アプリが起動しない | .NET 10 Desktop Runtime x64 が入っているか | `dotnet --list-runtimes` で `Microsoft.WindowsDesktop.App 10.0.x` を確認し、不足していれば導入する |
 | インストーラが Python を見つけられない | `py -3.10` で Python 3.10 が起動できるか | Python 3.10 を導入するか、`-PythonCommand` と `-PythonArguments` で利用する Python を指定する |
-| OCR が `paddleocr` を import できない | 起動スクリプトの `MOVIE_TELOP_PADDLEOCR_PYTHON` が仮想環境を指しているか | インストーラを再実行する。手動導入の場合は `pip show paddleocr` を確認する |
+| OCR が `paddleocr` を import できない | `app\movie-telop-transcriber.settings.json` の `paddleOcr.pythonPath` が仮想環境を指しているか | インストーラを再実行する。手動導入の場合は `pip show paddleocr` を確認する |
 | 初回 OCR でモデル取得に失敗する | ネットワーク接続、プロキシ、`%USERPROFILE%\.paddlex` への書き込み権限 | ネットワーク接続できる環境でインストーラを再実行する。オフライン端末ではモデル取得済みの `.paddlex` をコピーする |
 | `ocr_engine=json-sidecar` になっている | `MOVIE_TELOP_OCR_ENGINE=json-sidecar` を設定したまま起動していないか | 実動画 OCR では未指定または `paddleocr` にする |
 | 出力先フォルダの作成に失敗する | 指定フォルダに書き込み権限があるか | 利用者が書き込めるフォルダを指定する。失敗時は `OUTPUT_ROOT_UNAVAILABLE` として表示される |
