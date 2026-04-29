@@ -203,6 +203,23 @@ Debug build:
 dotnet build src\MovieTelopTranscriber.sln -c Debug -p:Platform=x64
 ```
 
+### 自動テスト
+ロジック層の自動テストを実行する場合:
+
+```powershell
+dotnet test src\MovieTelopTranscriber.App.Tests\MovieTelopTranscriber.App.Tests.csproj -c Release -p:Platform=x64
+```
+
+評価スクリプトの構文だけを確認する場合:
+
+```powershell
+python -m py_compile `
+  tools\validation\evaluate_basic_telop_accuracy.py `
+  tools\validation\evaluate_qcds_report.py `
+  test-data\basic_telop\create_basic_telop_sample.py `
+  test-data\benchmark_suite\create_benchmark_samples.py
+```
+
 ### 配布物作成
 アプリ本体 zip と checksum を作る場合:
 

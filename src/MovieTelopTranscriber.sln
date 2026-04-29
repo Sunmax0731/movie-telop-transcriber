@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieTelopTranscriber.App",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieTelopTranscriber.Ocr.Windows", "MovieTelopTranscriber.Ocr.Windows\MovieTelopTranscriber.Ocr.Windows.csproj", "{E8489C43-F434-4720-84D6-985198ED6B8A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieTelopTranscriber.App.Tests", "MovieTelopTranscriber.App.Tests\MovieTelopTranscriber.App.Tests.csproj", "{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x64.Build.0 = Release|x64
 		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x86.ActiveCfg = Release|x64
 		{E8489C43-F434-4720-84D6-985198ED6B8A}.Release|x86.Build.0 = Release|x64
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Debug|x64.Build.0 = Debug|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Debug|x86.Build.0 = Debug|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Release|x64.ActiveCfg = Release|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Release|x64.Build.0 = Release|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Release|x86.ActiveCfg = Release|Any CPU
+		{A38F0DB8-2CA4-4B4C-A8A3-376D94026638}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
