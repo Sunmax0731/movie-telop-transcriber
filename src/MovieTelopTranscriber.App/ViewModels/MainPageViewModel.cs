@@ -51,6 +51,7 @@ public partial class MainPageViewModel : ObservableObject
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
     private readonly TelopSegmentMerger _segmentMerger = new();
     private readonly ExportPackageWriter _exportPackageWriter = new();
+    private readonly ProjectBundleService _projectBundleService = new();
     private readonly RunLogWriter _runLogWriter = new();
     private static readonly LanguageOption[] SupportedLanguageOptions =
     [
@@ -76,6 +77,8 @@ public partial class MainPageViewModel : ObservableObject
     private Task<OcrWorkerWarmupResult>? _pendingOcrWarmupTask;
     private string? _pendingOcrWarmupSettingsSignature;
     private bool _settingsPersistenceReady;
+    private string? _currentProjectFilePath;
+    private string? _loadedProjectExtractionDirectory;
 
     public MainPageViewModel()
     {
@@ -489,6 +492,65 @@ public partial class MainPageViewModel : ObservableObject
         }
 
         await LoadVideoAsync(file.Path);
+    }
+
+    [RelayCommand]
+    private async Task OpenProjectAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        var picker = new FileOpenPicker();
+        picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+        picker.FileTypeFilter.Add(".mtproj");
+        picker.FileTypeFilter.Add(".zip");
+
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, App.WindowHandle);
+        var file = await picker.PickSingleFileAsync();
+        if (file is null)
+        {
+            return;
+        }
+
+        await LoadProjectAsync(file.Path);
+    }
+
+    [RelayCommand]
+    private async Task SaveProjectAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (_latestMetadata is null || _latestFrameExtractionResult is null || _latestFrameAnalyses.Count == 0)
+        {
+            StatusMessage = "Run frame extraction and OCR before saving a project.";
+            return;
+        }
+
+        var targetPath = _currentProjectFilePath;
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            var picker = new FileSavePicker();
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.FileTypeChoices.Add("Movie Telop Project", [".mtproj"]);
+            picker.SuggestedFileName = Path.GetFileNameWithoutExtension(_latestMetadata.FileName);
+            picker.DefaultFileExtension = ".mtproj";
+
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, App.WindowHandle);
+            var file = await picker.PickSaveFileAsync();
+            if (file is null)
+            {
+                return;
+            }
+
+            targetPath = file.Path;
+        }
+
+        await SaveProjectBundleAsync(targetPath);
     }
 
     [RelayCommand]
@@ -1631,6 +1693,137 @@ public partial class MainPageViewModel : ObservableObject
             : $"Settings and output window is open. Latest export: {_latestExport.JsonPath}";
     }
 
+    private async Task LoadProjectAsync(string projectFilePath)
+    {
+        IsBusy = true;
+        ProgressValue = 0;
+        ProgressDetailText = "Project: opening saved bundle.";
+        PreviewState = "Opening project";
+        ActivityMessage = "Opening project file.";
+
+        try
+        {
+            ReleaseLoadedProjectExtractionDirectory();
+            var loadResult = await _projectBundleService.LoadAsync(projectFilePath);
+
+            _currentProjectFilePath = projectFilePath;
+            _loadedProjectExtractionDirectory = loadResult.ExtractionDirectory;
+            _latestMetadata = loadResult.ExportPackage.SourceVideo;
+            _latestFrameExtractionResult = loadResult.FrameExtractionResult;
+            _latestFrameAnalyses = loadResult.FrameAnalyses;
+            _latestSegments = loadResult.ExportPackage.Segments.ToArray();
+            _latestFrameIntervalSeconds = loadResult.ExportPackage.ProcessingSettings.FrameIntervalSeconds;
+            _timelineEdits.Clear();
+            _timelineEdits.AddRange(loadResult.ExportPackage.Edits);
+            ClearPipelineFailure();
+
+            ApplyProjectUiSettings(loadResult.Manifest.Ui);
+
+            VideoPath = loadResult.Manifest.SourceVideoPath;
+            DurationText = FormatTimestamp(loadResult.ExportPackage.SourceVideo.DurationMs);
+            ResolutionText = $"{loadResult.ExportPackage.SourceVideo.Width} x {loadResult.ExportPackage.SourceVideo.Height}";
+            FpsText = $"{loadResult.ExportPackage.SourceVideo.Fps:F3}";
+            CodecText = loadResult.ExportPackage.SourceVideo.Codec;
+            WorkDirectoryText = loadResult.FrameExtractionResult.RunDirectory;
+            OcrEngineText = loadResult.ExportPackage.ProcessingSettings.OcrEngine;
+
+            var outputDirectory = Path.GetDirectoryName(Path.Combine(loadResult.ExtractionDirectory, loadResult.Manifest.ExportPackagePath)) ?? "-";
+            ExportDirectoryText = outputDirectory;
+            JsonOutputPathText = Path.Combine(loadResult.ExtractionDirectory, loadResult.Manifest.ExportPackagePath);
+            SegmentsCsvOutputPathText = Path.Combine(outputDirectory, "segments.csv");
+            FramesCsvOutputPathText = Path.Combine(outputDirectory, "frames.csv");
+            LogDirectoryText = "-";
+            RunLogPathText = "-";
+            RunSummaryPathText = "-";
+            _latestExport = new ExportWriteResult(
+                outputDirectory,
+                JsonOutputPathText,
+                SegmentsCsvOutputPathText,
+                FramesCsvOutputPathText,
+                Path.Combine(outputDirectory, "segments.srt"),
+                Path.Combine(outputDirectory, "segments.vtt"),
+                Path.Combine(outputDirectory, "segments.ass"));
+
+            TimelineSegments.Clear();
+            ResultRows.Clear();
+            PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
+            ApplySelectionFromProjectManifest(loadResult.Manifest.SelectedSegmentId, loadResult.Manifest.SelectedDetectionId);
+            RefreshInfoCards(
+                _latestMetadata,
+                _latestFrameExtractionResult.Frames.Count,
+                _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
+                _latestSegments.Count);
+
+            var sourceVideoExists = File.Exists(loadResult.Manifest.SourceVideoPath);
+            PreviewState = "Project loaded";
+            ActivityMessage = sourceVideoExists
+                ? "Project loaded. Timeline and preview were restored from the saved bundle."
+                : "Project loaded. Source video path is missing, but bundled frames and timeline were restored.";
+            StatusMessage = sourceVideoExists
+                ? $"Loaded project: {Path.GetFileName(projectFilePath)}"
+                : $"Loaded project with missing source video path: {Path.GetFileName(projectFilePath)}";
+            ProgressDetailText = "Project loaded.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Failed to open project.";
+            ActivityMessage = ex.Message;
+            ProgressDetailText = "Project load failed.";
+            PreviewState = "Project load failed";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task SaveProjectBundleAsync(string projectFilePath)
+    {
+        if (_latestMetadata is null || _latestFrameExtractionResult is null)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        ProgressValue = 0;
+        ProgressDetailText = "Project: saving current timeline bundle.";
+        ActivityMessage = "Saving project file.";
+        PreviewState = "Saving project";
+
+        try
+        {
+            await _projectBundleService.SaveAsync(
+                projectFilePath,
+                _latestMetadata,
+                _latestFrameExtractionResult,
+                _latestFrameAnalyses,
+                _latestSegments,
+                _timelineEdits,
+                ParseFrameIntervalSeconds(),
+                OcrEngineText == "-" ? _frameAnalysisService.EngineName : OcrEngineText,
+                BuildCurrentUiSettingsSnapshot(),
+                SelectedTimelineSegment?.SegmentId,
+                SelectedTimelineSegment?.DetectionId);
+
+            _currentProjectFilePath = projectFilePath;
+            StatusMessage = $"Saved project: {projectFilePath}";
+            ActivityMessage = "Project file was saved.";
+            ProgressDetailText = "Project saved.";
+            PreviewState = "Project saved";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Failed to save project.";
+            ActivityMessage = ex.Message;
+            ProgressDetailText = "Project save failed.";
+            PreviewState = "Project save failed";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private async Task LoadVideoAsync(string path)
     {
         IsBusy = true;
@@ -1641,6 +1834,8 @@ public partial class MainPageViewModel : ObservableObject
 
         try
         {
+            _currentProjectFilePath = null;
+            ReleaseLoadedProjectExtractionDirectory();
             VideoPath = path;
             var metadata = await _videoProcessingService.ReadMetadataAsync(path);
             DurationText = FormatTimestamp(metadata.DurationMs);
@@ -2662,6 +2857,81 @@ public partial class MainPageViewModel : ObservableObject
         {
             OutputRootDirectoryText = ResolveSavedPath(uiSettings.OutputRootDirectory);
         }
+    }
+
+    private void ApplyProjectUiSettings(UserInterfaceSettings? uiSettings)
+    {
+        if (uiSettings is null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(uiSettings.Language))
+        {
+            var option = LanguageOptions.FirstOrDefault(item =>
+                string.Equals(item.Code, uiSettings.Language, StringComparison.OrdinalIgnoreCase));
+            if (option is not null)
+            {
+                SelectedLanguageOption = option;
+            }
+        }
+
+        if (uiSettings.FrameIntervalSeconds is > 0)
+        {
+            FrameIntervalValue = uiSettings.FrameIntervalSeconds.Value;
+            FrameIntervalText = FormatSettingNumber(uiSettings.FrameIntervalSeconds.Value, "0.##");
+        }
+
+        if (!string.IsNullOrWhiteSpace(uiSettings.OutputRootDirectory))
+        {
+            OutputRootDirectoryText = uiSettings.OutputRootDirectory;
+        }
+    }
+
+    private UserInterfaceSettings BuildCurrentUiSettingsSnapshot()
+    {
+        var currentWindow = App.LaunchSettings.Ui?.MainWindow;
+        return new UserInterfaceSettings
+        {
+            Language = SelectedLanguageOption.Code,
+            FrameIntervalSeconds = ParseFrameIntervalSeconds(),
+            OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText) ? null : OutputRootDirectoryText.Trim(),
+            MainWindow = currentWindow is null
+                ? null
+                : new MainWindowLaunchSettings
+                {
+                    Width = currentWindow.Width,
+                    Height = currentWindow.Height
+                }
+        };
+    }
+
+    private void ApplySelectionFromProjectManifest(string? selectedSegmentId, string? selectedDetectionId)
+    {
+        var nextSelection = TimelineSegments.FirstOrDefault(row => SelectionKeysMatch(
+                row.FrameIndex,
+                row.TimestampMs,
+                row.SegmentId,
+                row.DetectionId,
+                null,
+                null,
+                selectedSegmentId,
+                selectedDetectionId))
+            ?? TimelineSegments.FirstOrDefault();
+
+        SelectedTimelineSegment = nextSelection;
+        UpdatePreviewFromTimelineSelection(SelectedTimelineSegment);
+    }
+
+    private void ReleaseLoadedProjectExtractionDirectory()
+    {
+        if (string.IsNullOrWhiteSpace(_loadedProjectExtractionDirectory))
+        {
+            return;
+        }
+
+        _projectBundleService.DeleteExtractionDirectory(_loadedProjectExtractionDirectory);
+        _loadedProjectExtractionDirectory = null;
     }
 
     private void PersistUserSettings()
