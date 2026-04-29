@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using MovieTelopTranscriber.App.Services;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -21,9 +22,15 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(1600, 960));
+        AppWindow.Resize(MainWindowLayoutStore.LoadOrDefault());
+        Closed += OnClosed;
 
         // Navigate the root frame to the main page on startup.
         RootFrame.Navigate(typeof(MainPage));
+    }
+
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        MainWindowLayoutStore.Save(AppWindow.Size);
     }
 }
