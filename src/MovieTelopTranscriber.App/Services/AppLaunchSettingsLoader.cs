@@ -64,6 +64,7 @@ internal static class AppLaunchSettingsLoader
         SetBool("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION", settings.PaddleOcr.UseTextlineOrientation);
         SetBool("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING", settings.PaddleOcr.UseDocUnwarping);
         SetDouble("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE", settings.PaddleOcr.MinTextSize);
+        SetInt("MOVIE_TELOP_PADDLEOCR_WORKER_COUNT", NormalizeWorkerCount(settings.PaddleOcr.Device, settings.PaddleOcr.WorkerCount));
     }
 
     public static void Save(AppLaunchSettings settings, string? preferredSettingsPath = null)
@@ -159,7 +160,8 @@ internal static class AppLaunchSettingsLoader
                     TextDetLimitSideLen = settings.PaddleOcr.TextDetLimitSideLen,
                     UseTextlineOrientation = settings.PaddleOcr.UseTextlineOrientation,
                     UseDocUnwarping = settings.PaddleOcr.UseDocUnwarping,
-                    MinTextSize = settings.PaddleOcr.MinTextSize
+                    MinTextSize = settings.PaddleOcr.MinTextSize,
+                    WorkerCount = NormalizeWorkerCount(settings.PaddleOcr.Device, settings.PaddleOcr.WorkerCount)
                 },
             Ui = settings.Ui is null
                 ? null
@@ -307,7 +309,8 @@ internal static class AppLaunchSettingsLoader
                     TextDetLimitSideLen = ReadInt(paddle, "textDetLimitSideLen"),
                     UseTextlineOrientation = ReadBool(paddle, "useTextlineOrientation"),
                     UseDocUnwarping = ReadBool(paddle, "useDocUnwarping"),
-                    MinTextSize = ReadDouble(paddle, "minTextSize")
+                    MinTextSize = ReadDouble(paddle, "minTextSize"),
+                    WorkerCount = NormalizeWorkerCount(ReadString(paddle, "device"), ReadInt(paddle, "workerCount"))
                 }
                 : null,
             Ui = ReadObject(root, "ui") is { } ui
@@ -400,6 +403,19 @@ internal static class AppLaunchSettingsLoader
 
         value = default;
         return false;
+    }
+
+    private static int? NormalizeWorkerCount(string? device, int? workerCount)
+    {
+        var normalized = workerCount.GetValueOrDefault(1);
+        normalized = Math.Clamp(normalized, 1, 2);
+        return IsGpuDevice(device) ? normalized : 1;
+    }
+
+    private static bool IsGpuDevice(string? device)
+    {
+        return !string.IsNullOrWhiteSpace(device)
+            && device.Trim().StartsWith("gpu", StringComparison.OrdinalIgnoreCase);
     }
 }
 

@@ -96,6 +96,13 @@
                             IsChecked="{x:Bind ViewModel.PaddleSharpenEnabled, Mode=TwoWay}"
                             IsEnabled="{x:Bind ViewModel.CanInteract, Mode=OneWay}"
                             ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleSharpenDescription, Mode=OneWay}" />
+                        <ComboBox
+                            Header="{x:Bind ViewModel.UiText.PaddleWorkerCountLabel, Mode=OneWay}"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.IsPaddleWorkerCountEditable, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.PaddleWorkerCountOptions, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.PaddleWorkerCount, Mode=TwoWay}"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UiText.PaddleWorkerCountDescription, Mode=OneWay}" />
 
                         <Grid ColumnSpacing="12" RowSpacing="8">
                             <Grid.ColumnDefinitions>

@@ -15,14 +15,29 @@ public sealed class OcrFrameCandidateSelector
         FrameAnalysisResult? previousAnalysis,
         int consecutiveSkippedFrames)
     {
+        return Decide(
+            frame,
+            previousFrame,
+            previousAnalysis is not null,
+            string.Equals(previousAnalysis?.Ocr.Status, "error", StringComparison.OrdinalIgnoreCase),
+            consecutiveSkippedFrames);
+    }
+
+    public OcrFrameSelectionDecision Decide(
+        ExtractedFrameRecord frame,
+        ExtractedFrameRecord? previousFrame,
+        bool hasPreviousAnalysis,
+        bool previousOcrHadError,
+        int consecutiveSkippedFrames)
+    {
         var startedAt = DateTime.UtcNow;
 
-        if (previousFrame is null || previousAnalysis is null)
+        if (previousFrame is null || !hasPreviousAnalysis)
         {
             return CreateDecision(true, "first_frame", startedAt, 0d);
         }
 
-        if (string.Equals(previousAnalysis.Ocr.Status, "error", StringComparison.OrdinalIgnoreCase))
+        if (previousOcrHadError)
         {
             return CreateDecision(true, "previous_error_retry", startedAt, 0d);
         }

@@ -44,6 +44,8 @@ public sealed class PaddleOcrLaunchSettings
     public bool? UseDocUnwarping { get; set; }
 
     public double? MinTextSize { get; set; }
+
+    public int? WorkerCount { get; set; }
 }
 
 public sealed class UserInterfaceSettings
