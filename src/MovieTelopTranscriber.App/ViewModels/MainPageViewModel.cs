@@ -847,35 +847,14 @@ public partial class MainPageViewModel : ObservableObject
 
     private void SelectPreviewFrameByIndex(int index)
     {
-        if (_latestFrameAnalyses.Count == 0)
-        {
-            return;
-        }
-
-        var normalizedIndex = ((index % _latestFrameAnalyses.Count) + _latestFrameAnalyses.Count) % _latestFrameAnalyses.Count;
-        var next = _latestFrameAnalyses[normalizedIndex];
-        var matchingRows = TimelineSegments
-            .Where(row => row.FrameIndex == next.Frame.FrameIndex && row.TimestampMs == next.Frame.TimestampMs)
-            .ToArray();
-        var matchingTimelineRow = matchingRows.FirstOrDefault();
-
-        if (matchingTimelineRow is not null)
-        {
-            SelectedTimelineSegment = matchingTimelineRow;
-            if (matchingRows.Length > 1)
-            {
-                UpdatePreview(
-                    matchingTimelineRow.FrameIndex,
-                    matchingTimelineRow.TimestampMs,
-                    matchingTimelineRow.SegmentId,
-                    matchingTimelineRow.Text,
-                    detectionIds: NormalizeDetectionIds(matchingRows.SelectMany(row => row.DetectionIds)));
-            }
-        }
-        else
-        {
-            UpdatePreview(next.Frame.FrameIndex, next.Frame.TimestampMs, null, null);
-        }
+        var selectionState = PreviewSelectionCoordinator.BuildFrameSelectionState(
+            _latestFrameAnalyses,
+            TimelineSegments,
+            ResultRows,
+            index,
+            SelectedTimelineSegment,
+            SelectedResultRow);
+        ApplyPreviewSelectionState(selectionState);
     }
 
     private void ApplyTimelineTextChange(TimelineSegment segment, string newText)
@@ -1085,16 +1064,10 @@ public partial class MainPageViewModel : ObservableObject
         ResultRows.Clear();
         PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
 
-        var nextSelection = TimelineSegments.FirstOrDefault(row => SelectionKeysMatch(
-                row.FrameIndex,
-                row.TimestampMs,
-                row.SegmentId,
-                row.DetectionId,
-                null,
-                null,
-                preferredSegmentId,
-                preferredDetectionId))
-            ?? TimelineSegments.FirstOrDefault();
+        var nextSelection = PreviewSelectionCoordinator.FindTimelineSelection(
+            TimelineSegments,
+            preferredSegmentId,
+            preferredDetectionId);
         SelectedTimelineSegment = nextSelection;
         RefreshInfoCards(
             _latestMetadata,
@@ -1265,7 +1238,7 @@ public partial class MainPageViewModel : ObservableObject
         for (var i = 0; i < ResultRows.Count; i++)
         {
             var row = ResultRows[i];
-            if (SelectionKeysMatch(
+            if (PreviewSelectionCoordinator.SelectionKeysMatch(
                 segment.FrameIndex,
                 segment.TimestampMs,
                 segment.SegmentId,
@@ -2410,142 +2383,60 @@ public partial class MainPageViewModel : ObservableObject
 
     private void SelectFirstPreviewSelection()
     {
-        _isSynchronizingSelection = true;
-        try
-        {
-            SelectedTimelineSegment = TimelineSegments.FirstOrDefault();
-            SelectedResultRow = ResultRows.FirstOrDefault();
-        }
-        finally
-        {
-            _isSynchronizingSelection = false;
-        }
-
-        UpdatePreviewFromTimelineSelection(SelectedTimelineSegment);
+        var selectionState = PreviewSelectionCoordinator.SelectFirst(TimelineSegments, ResultRows);
+        ApplyPreviewSelectionState(selectionState);
     }
 
     private void UpdatePreviewFromTimelineSelection(TimelineSegment? selection)
     {
-        if (selection is null)
-        {
-            ClearPreview("No frame selected", "Select a timeline row or result row to display a frame.");
-            return;
-        }
-
-        SyncSelectedResultRow(selection);
-        UpdatePreview(
-            selection.FrameIndex,
-            selection.TimestampMs,
-            selection.SegmentId,
-            selection.Text,
-            selection.DetectionId,
-            selection.DetectionIds);
+        var selectionState = PreviewSelectionCoordinator.BuildTimelineSelectionState(
+            selection,
+            ResultRows,
+            SelectedResultRow);
+        ApplyPreviewSelectionState(selectionState);
     }
 
     private void UpdatePreviewFromResultSelection(ResultRow? selection)
     {
-        if (selection is null)
+        var selectionState = PreviewSelectionCoordinator.BuildResultSelectionState(
+            selection,
+            TimelineSegments,
+            SelectedTimelineSegment);
+        ApplyPreviewSelectionState(selectionState);
+    }
+
+    private void ApplyPreviewSelectionState(MainPagePreviewSelectionState selectionState)
+    {
+        _isSynchronizingSelection = true;
+        try
+        {
+            if (!ReferenceEquals(SelectedTimelineSegment, selectionState.TimelineSelection))
+            {
+                SelectedTimelineSegment = selectionState.TimelineSelection;
+            }
+
+            if (!ReferenceEquals(SelectedResultRow, selectionState.ResultSelection))
+            {
+                SelectedResultRow = selectionState.ResultSelection;
+            }
+        }
+        finally
+        {
+            _isSynchronizingSelection = false;
+        }
+
+        if (selectionState.PreviewRequest is null)
         {
             ClearPreview("No frame selected", "Select a timeline row or result row to display a frame.");
             return;
         }
 
-        SyncSelectedTimelineSegment(selection);
-        UpdatePreview(
-            selection.FrameIndex,
-            selection.TimestampMs,
-            selection.SegmentId,
-            selection.Text,
-            selection.DetectionId,
-            selection.DetectionIds);
+        UpdatePreview(selectionState.PreviewRequest);
     }
 
-    private void SyncSelectedResultRow(TimelineSegment selection)
+    private void UpdatePreview(PreviewSelectionRequest request)
     {
-        var match = ResultRows.FirstOrDefault(row => SelectionKeysMatch(
-            selection.FrameIndex,
-            selection.TimestampMs,
-            selection.SegmentId,
-            selection.DetectionId,
-            row.FrameIndex,
-            row.TimestampMs,
-            row.SegmentId,
-            row.DetectionId));
-        if (match is null || ReferenceEquals(match, SelectedResultRow))
-        {
-            return;
-        }
-
-        _isSynchronizingSelection = true;
-        try
-        {
-            SelectedResultRow = match;
-        }
-        finally
-        {
-            _isSynchronizingSelection = false;
-        }
-    }
-
-    private void SyncSelectedTimelineSegment(ResultRow selection)
-    {
-        var match = TimelineSegments.FirstOrDefault(row => SelectionKeysMatch(
-            selection.FrameIndex,
-            selection.TimestampMs,
-            selection.SegmentId,
-            selection.DetectionId,
-            row.FrameIndex,
-            row.TimestampMs,
-            row.SegmentId,
-            row.DetectionId));
-        if (match is null || ReferenceEquals(match, SelectedTimelineSegment))
-        {
-            return;
-        }
-
-        _isSynchronizingSelection = true;
-        try
-        {
-            SelectedTimelineSegment = match;
-        }
-        finally
-        {
-            _isSynchronizingSelection = false;
-        }
-    }
-
-    private static bool SelectionKeysMatch(
-        int? leftFrameIndex,
-        long? leftTimestampMs,
-        string? leftSegmentId,
-        string? leftDetectionId,
-        int? rightFrameIndex,
-        long? rightTimestampMs,
-        string? rightSegmentId,
-        string? rightDetectionId)
-    {
-        if (!string.IsNullOrWhiteSpace(leftSegmentId) || !string.IsNullOrWhiteSpace(rightSegmentId))
-        {
-            return string.Equals(leftSegmentId, rightSegmentId, StringComparison.Ordinal);
-        }
-
-        if (!string.IsNullOrWhiteSpace(leftDetectionId) || !string.IsNullOrWhiteSpace(rightDetectionId))
-        {
-            return string.Equals(leftDetectionId, rightDetectionId, StringComparison.Ordinal);
-        }
-
-        return leftFrameIndex == rightFrameIndex && leftTimestampMs == rightTimestampMs;
-    }
-
-    private void UpdatePreview(
-        int? frameIndex,
-        long? timestampMs,
-        string? segmentId,
-        string? selectedText,
-        string? detectionId = null,
-        IReadOnlyCollection<string>? detectionIds = null)
-    {
-        var analysis = ResolvePreviewAnalysis(frameIndex, timestampMs, selectedText, detectionIds);
+        var analysis = PreviewSelectionCoordinator.ResolvePreviewAnalysis(_latestFrameAnalyses, request);
         if (analysis is null)
         {
             ClearPreview("Frame image is not available", "Run frame extraction and OCR to display the selected frame.");
@@ -2560,7 +2451,12 @@ public partial class MainPageViewModel : ObservableObject
         PreviewDetections.Clear();
         foreach (var detection in analysis.Ocr.Detections)
         {
-            var highlighted = IsHighlightedDetection(detection, detectionId, detectionIds, segmentId, selectedText);
+            var highlighted = IsHighlightedDetection(
+                detection,
+                request.DetectionId,
+                request.DetectionIds,
+                request.SegmentId,
+                request.SelectedText);
             PreviewDetections.Add(new PreviewDetectionOverlay(
                 detection.DetectionId,
                 detection.Text,
@@ -2601,10 +2497,7 @@ public partial class MainPageViewModel : ObservableObject
 
     private void UpdatePreviewSequence(FrameAnalysisResult analysis)
     {
-        var index = _latestFrameAnalyses
-            .Select((item, itemIndex) => new { item, itemIndex })
-            .FirstOrDefault(item => string.Equals(item.item.Frame.ImagePath, analysis.Frame.ImagePath, StringComparison.OrdinalIgnoreCase))
-            ?.itemIndex ?? 0;
+        var index = PreviewSelectionCoordinator.ResolvePreviewSequenceIndex(_latestFrameAnalyses, analysis);
 
         _isUpdatingPreviewSequence = true;
         try
@@ -2618,56 +2511,6 @@ public partial class MainPageViewModel : ObservableObject
         {
             _isUpdatingPreviewSequence = false;
         }
-    }
-
-    private FrameAnalysisResult? ResolvePreviewAnalysis(
-        int? frameIndex,
-        long? timestampMs,
-        string? selectedText,
-        IReadOnlyCollection<string>? detectionIds)
-    {
-        if (_latestFrameAnalyses.Count == 0)
-        {
-            return null;
-        }
-
-        if (detectionIds?.Count > 0)
-        {
-            var detectionFrame = _latestFrameAnalyses.FirstOrDefault(analysis =>
-                analysis.Ocr.Detections.Any(detection => detectionIds.Contains(detection.DetectionId)));
-            if (detectionFrame is not null)
-            {
-                return detectionFrame;
-            }
-        }
-
-        if (frameIndex is not null)
-        {
-            var exactFrame = _latestFrameAnalyses.FirstOrDefault(analysis => analysis.Frame.FrameIndex == frameIndex);
-            if (exactFrame is not null)
-            {
-                return exactFrame;
-            }
-        }
-
-        if (timestampMs is not null)
-        {
-            return _latestFrameAnalyses
-                .OrderBy(analysis => Math.Abs(analysis.Frame.TimestampMs - timestampMs.Value))
-                .FirstOrDefault();
-        }
-
-        if (!string.IsNullOrWhiteSpace(selectedText))
-        {
-            var matchingText = _latestFrameAnalyses.FirstOrDefault(analysis =>
-                analysis.Ocr.Detections.Any(detection => TextsMatch(detection.Text, selectedText)));
-            if (matchingText is not null)
-            {
-                return matchingText;
-            }
-        }
-
-        return _latestFrameAnalyses.FirstOrDefault();
     }
 
     private static bool IsHighlightedDetection(
@@ -2883,16 +2726,10 @@ public partial class MainPageViewModel : ObservableObject
 
     private void ApplySelectionFromProjectManifest(string? selectedSegmentId, string? selectedDetectionId)
     {
-        var nextSelection = TimelineSegments.FirstOrDefault(row => SelectionKeysMatch(
-                row.FrameIndex,
-                row.TimestampMs,
-                row.SegmentId,
-                row.DetectionId,
-                null,
-                null,
-                selectedSegmentId,
-                selectedDetectionId))
-            ?? TimelineSegments.FirstOrDefault();
+        var nextSelection = PreviewSelectionCoordinator.FindTimelineSelection(
+            TimelineSegments,
+            selectedSegmentId,
+            selectedDetectionId);
 
         SelectedTimelineSegment = nextSelection;
         UpdatePreviewFromTimelineSelection(SelectedTimelineSegment);
