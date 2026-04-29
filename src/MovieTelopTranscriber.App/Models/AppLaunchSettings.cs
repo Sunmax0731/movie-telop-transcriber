@@ -40,4 +40,6 @@ public sealed class PaddleOcrLaunchSettings
     public bool? UseTextlineOrientation { get; set; }
 
     public bool? UseDocUnwarping { get; set; }
+
+    public double? MinTextSize { get; set; }
 }
