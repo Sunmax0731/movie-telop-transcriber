@@ -73,6 +73,8 @@ public partial class MainPageViewModel : ObservableObject
     private readonly DispatcherQueue? _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private ProgressFrameState? _activeProgressFrameState;
     private int _manualEditSequence;
+    private Task<OcrWorkerWarmupResult>? _pendingOcrWarmupTask;
+    private string? _pendingOcrWarmupSettingsSignature;
 
     public MainPageViewModel()
     {
@@ -1416,6 +1418,7 @@ public partial class MainPageViewModel : ObservableObject
             {
                 currentStage = "Video metadata";
                 metadata = await _videoProcessingService.ReadMetadataAsync(VideoPath);
+                EnsureBackgroundOcrWarmupStarted();
                 _latestMetadata = metadata;
                 _latestFrameIntervalSeconds = intervalSeconds;
 
@@ -1450,13 +1453,10 @@ public partial class MainPageViewModel : ObservableObject
                 currentStage = "OCR";
                 PreviewState = "Running OCR";
                 ActivityMessage = "OCR worker is processing extracted frames.";
-                ProgressDetailText = "OCR warmup: preparing worker.";
-                warmupResult = await _frameAnalysisService.WarmupAsync(result);
-                if (warmupResult.Attempted)
+                warmupResult = await ResolveOcrWarmupAsync();
+                if (warmupResult.Attempted && !warmupResult.Succeeded)
                 {
-                    ActivityMessage = warmupResult.Succeeded
-                        ? "OCR warmup completed. Processing extracted frames."
-                        : "OCR warmup failed. Continuing with extracted frames.";
+                    ActivityMessage = "OCR warmup failed. Continuing with extracted frames.";
                 }
                 var ocrProgress = new Progress<double>(value =>
                 {
@@ -1641,9 +1641,12 @@ public partial class MainPageViewModel : ObservableObject
             _latestExport = null;
             _latestFrameIntervalSeconds = ParseFrameIntervalSeconds();
             ClearPipelineFailure();
+            EnsureBackgroundOcrWarmupStarted();
             PreviewState = "Ready";
             StatusMessage = $"Loaded {metadata.FileName}";
-            ActivityMessage = "Metadata loaded. You can now run frame extraction.";
+            ActivityMessage = _pendingOcrWarmupTask is null
+                ? "Metadata loaded. You can now run frame extraction."
+                : "Metadata loaded. OCR warmup is running in background.";
             ProgressDetailText = "Metadata loaded.";
 
             RefreshInfoCards(metadata, 0, 0, 0);
@@ -1701,6 +1704,118 @@ public partial class MainPageViewModel : ObservableObject
         ResultRows.Add(new ResultRow("result", "Status", "No extracted frames", "Run frame extraction to populate this list."));
         SelectFirstPreviewSelection();
         ClearPreview("Video not loaded", "Select a video file to display frame preview.");
+    }
+
+    private void EnsureBackgroundOcrWarmupStarted()
+    {
+        if (!string.Equals(_frameAnalysisService.EngineName, "paddleocr", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var signature = CreateOcrWarmupSettingsSignature();
+        if (_pendingOcrWarmupTask is not null
+            && string.Equals(_pendingOcrWarmupSettingsSignature, signature, StringComparison.Ordinal)
+            && !_pendingOcrWarmupTask.IsCanceled
+            && !_pendingOcrWarmupTask.IsFaulted)
+        {
+            return;
+        }
+
+        _pendingOcrWarmupSettingsSignature = signature;
+        _pendingOcrWarmupTask = RunOcrWarmupWithIsolatedDirectoryAsync(CancellationToken.None);
+    }
+
+    private async Task<OcrWorkerWarmupResult> ResolveOcrWarmupAsync(CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(_frameAnalysisService.EngineName, "paddleocr", StringComparison.OrdinalIgnoreCase))
+        {
+            return OcrWorkerWarmupResult.Skipped;
+        }
+
+        EnsureBackgroundOcrWarmupStarted();
+        if (_pendingOcrWarmupTask is null)
+        {
+            return OcrWorkerWarmupResult.Skipped;
+        }
+
+        if (!_pendingOcrWarmupTask.IsCompleted)
+        {
+            ProgressDetailText = "OCR warmup: preparing worker.";
+        }
+
+        var result = await _pendingOcrWarmupTask.WaitAsync(cancellationToken);
+        _pendingOcrWarmupTask = null;
+        return result;
+    }
+
+    private async Task<OcrWorkerWarmupResult> RunOcrWarmupWithIsolatedDirectoryAsync(CancellationToken cancellationToken)
+    {
+        var workDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "MovieTelopTranscriber",
+            "ocr-warmup",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(workDirectory);
+
+        try
+        {
+            return await _frameAnalysisService.WarmupAsync(workDirectory, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return new OcrWorkerWarmupResult(
+                "error",
+                0d,
+                0d,
+                0d,
+                0d,
+                0d,
+                new ProcessingError("OCR_WARMUP_FAILED", "OCR warmup could not be completed.", ex.Message, true));
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(workDirectory))
+                {
+                    Directory.Delete(workDirectory, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+
+    private string CreateOcrWarmupSettingsSignature()
+    {
+        return string.Join(
+            "\n",
+            new[]
+            {
+                _frameAnalysisService.EngineName,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SCRIPT") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_LANG") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_SCORE") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PREPROCESS") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_UPSCALE") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_CONTRAST") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SHARPEN") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION") ?? string.Empty,
+                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING") ?? string.Empty
+            });
     }
 
     private void RefreshInfoCards(VideoMetadata? metadata, int frameCount, int detectionCount, int segmentCount)
