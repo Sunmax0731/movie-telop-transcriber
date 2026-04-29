@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Restore
+        run: dotnet restore src\MovieTelopTranscriber.sln
+
+      - name: Build
+        run: dotnet build src\MovieTelopTranscriber.sln -c Release -p:Platform=x64 --no-restore
+
+      - name: Test
+        run: dotnet test src\MovieTelopTranscriber.App.Tests\MovieTelopTranscriber.App.Tests.csproj -c Release -p:Platform=x64
+
+      - name: Validate Python scripts
+        run: python -m py_compile tools/validation/evaluate_basic_telop_accuracy.py tools/validation/evaluate_qcds_report.py test-data/basic_telop/create_basic_telop_sample.py test-data/benchmark_suite/create_benchmark_samples.py
