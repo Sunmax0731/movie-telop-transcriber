@@ -5,7 +5,7 @@ namespace MovieTelopTranscriber.App.Services;
 
 internal static class MainWindowLayoutStore
 {
-    private const int DefaultWidth = 1820;
+    private const int DefaultWidth = 1800;
     private const int DefaultHeight = 1080;
     private const int MinimumWidth = 1560;
     private const int MinimumHeight = 920;

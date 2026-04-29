@@ -1,9 +1,10 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="MovieTelopTranscriber.App.MainPage"
     x:Name="RootPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MovieTelopTranscriber.App.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:models="using:MovieTelopTranscriber.App.Models"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -69,7 +70,7 @@
         <Grid Grid.Row="2" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="340" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="CenterPaneColumn" Width="*" />
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="{Binding RightPaneWidth, ElementName=RootPage}" />
             </Grid.ColumnDefinitions>
@@ -199,6 +200,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{x:Bind ViewModel.UiText.PreviewSection, Mode=OneWay}" Style="{StaticResource AppSectionTitleTextStyle}" />
                             <ToggleButton
@@ -210,44 +212,53 @@
                                 Grid.Column="2"
                                 Click="OnPreviewPlaybackClicked"
                                 Content="{x:Bind ViewModel.UiText.PreviewPlay, Mode=OneWay}" />
+                            <Button
+                                x:Name="PreviewPopOutButton"
+                                Grid.Column="3"
+                                Click="OnPreviewPopOutClicked" />
                         </Grid>
 
-                        <Border
+                        <Grid
                             Grid.Row="1"
-                            x:Name="PreviewFrameContainer"
-                            MinHeight="280"
-                            Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
-                            CornerRadius="6"
-                            SizeChanged="OnPreviewFrameContainerSizeChanged">
-                            <Grid>
-                                <Image
-                                    x:Name="PreviewFrameImage"
-                                    HorizontalAlignment="Stretch"
-                                    VerticalAlignment="Stretch"
-                                    ImageFailed="OnPreviewFrameImageFailed"
-                                    ImageOpened="OnPreviewFrameImageOpened"
-                                    Stretch="Uniform" />
-                                <Canvas
-                                    x:Name="PreviewOverlayCanvas"
-                                    IsHitTestVisible="False" />
-                                <StackPanel
-                                    x:Name="PreviewEmptyState"
+                            MinHeight="280">
+                            <controls:PreviewFrameView
+                                x:Name="EmbeddedPreviewFrameView"
+                                EmptyCaptionText="{x:Bind ViewModel.UiText.PreviewShell, Mode=OneWay}"
+                                EmptyStateText="{x:Bind ViewModel.PreviewState, Mode=OneWay}"
+                                FrameMinHeight="280"
+                                ImagePath="{x:Bind ViewModel.PreviewImagePath, Mode=OneWay}"
+                                SourceHeight="{x:Bind ViewModel.PreviewImageHeight, Mode=OneWay}"
+                                SourceWidth="{x:Bind ViewModel.PreviewImageWidth, Mode=OneWay}"
+                                Detections="{x:Bind ViewModel.PreviewDetections, Mode=OneWay}" />
+                            <StackPanel
+                                x:Name="PreviewDetachedStatePanel"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="8"
+                                Visibility="Collapsed">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="32" />
+                                <TextBlock
                                     HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Spacing="8">
-                                    <FontIcon Glyph="&#xE714;" FontSize="32" />
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        Text="{x:Bind ViewModel.PreviewState, Mode=OneWay}"
-                                        TextAlignment="Center" />
+                                    Text="プレビューを別画面で表示中です。"
+                                    TextAlignment="Center" />
+                                <StackPanel
+                                    HorizontalAlignment="Center"
+                                    Spacing="4">
                                     <TextBlock
                                         HorizontalAlignment="Center"
                                         Style="{StaticResource AppSecondaryTextStyle}"
-                                        Text="{x:Bind ViewModel.UiText.PreviewShell, Mode=OneWay}"
-                                        TextAlignment="Center" />
+                                        Text="{x:Bind ViewModel.SelectedSegmentSummary, Mode=OneWay}"
+                                        TextAlignment="Center"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        Text="{x:Bind ViewModel.PreviewDetailText, Mode=OneWay}"
+                                        TextAlignment="Center"
+                                        TextWrapping="WrapWholeWords" />
                                 </StackPanel>
-                            </Grid>
-                        </Border>
+                            </StackPanel>
+                        </Grid>
 
                         <StackPanel Grid.Row="2" Spacing="6">
                             <Grid ColumnSpacing="10">
@@ -345,7 +356,7 @@
             <Border
                 x:Name="RightPaneHost"
                 Grid.Column="3"
-                MinWidth="720"
+                MinWidth="740"
                 Padding="16"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
