@@ -22,6 +22,8 @@ namespace MovieTelopTranscriber.App;
 /// </summary>
 public sealed partial class MainPage : Page
 {
+    private const double MinimumRightPaneWidth = 720;
+
     public static readonly DependencyProperty TimelineTimeColumnWidthProperty =
         DependencyProperty.Register(nameof(TimelineTimeColumnWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(92)));
 
@@ -65,7 +67,7 @@ public sealed partial class MainPage : Page
         DependencyProperty.Register(nameof(TimelineDetailSeparatorWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(8)));
 
     public static readonly DependencyProperty RightPaneWidthProperty =
-        DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(1, GridUnitType.Star)));
+        DependencyProperty.Register(nameof(RightPaneWidth), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(760)));
 
     public static readonly DependencyProperty ActivityPaneHeightProperty =
         DependencyProperty.Register(nameof(ActivityPaneHeight), typeof(GridLength), typeof(MainPage), new PropertyMetadata(new GridLength(160)));
@@ -306,7 +308,7 @@ public sealed partial class MainPage : Page
         var currentX = e.GetCurrentPoint(this).Position.X;
         var delta = currentX - _lastRightPaneResizeX;
         _lastRightPaneResizeX = currentX;
-        RightPaneWidth = ResizeGridLength(RightPaneWidth, -delta, 360, RightPaneHost.ActualWidth);
+        RightPaneWidth = ResizeGridLength(RightPaneWidth, -delta, MinimumRightPaneWidth, RightPaneHost.ActualWidth);
         e.Handled = true;
     }
 
