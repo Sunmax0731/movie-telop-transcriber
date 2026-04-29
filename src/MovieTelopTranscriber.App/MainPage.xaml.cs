@@ -641,6 +641,7 @@ public sealed partial class MainPage : Page
         }
 
         RefreshTimelineColumnWidths();
+        SyncTimelineColumnMenuItems();
         return true;
     }
 
@@ -704,11 +705,46 @@ public sealed partial class MainPage : Page
         TimelineFontSizeSeparatorWidth = ShouldShowTimelineSeparator(_showTimelineFontSizeColumn, _showTimelineConfidenceColumn)
             ? new GridLength(8)
             : new GridLength(0);
+
+        SyncTimelineColumnMenuItems();
     }
 
     private static bool ShouldShowTimelineSeparator(bool currentColumnVisible, params bool[] rightColumnsVisible)
     {
         return currentColumnVisible && rightColumnsVisible.Any(visible => visible);
+    }
+
+    private void SyncTimelineColumnMenuItems()
+    {
+        if (TimelineTimeColumnMenuItem is not null)
+        {
+            TimelineTimeColumnMenuItem.IsChecked = _showTimelineTimeColumn;
+        }
+
+        if (TimelineFrameColumnMenuItem is not null)
+        {
+            TimelineFrameColumnMenuItem.IsChecked = _showTimelineFrameColumn;
+        }
+
+        if (TimelineTextColumnMenuItem is not null)
+        {
+            TimelineTextColumnMenuItem.IsChecked = _showTimelineTextColumn;
+        }
+
+        if (TimelineDetailColumnMenuItem is not null)
+        {
+            TimelineDetailColumnMenuItem.IsChecked = _showTimelineDetailColumn;
+        }
+
+        if (TimelineFontSizeColumnMenuItem is not null)
+        {
+            TimelineFontSizeColumnMenuItem.IsChecked = _showTimelineFontSizeColumn;
+        }
+
+        if (TimelineConfidenceColumnMenuItem is not null)
+        {
+            TimelineConfidenceColumnMenuItem.IsChecked = _showTimelineConfidenceColumn;
+        }
     }
 
     private void UpdatePreviewImage()

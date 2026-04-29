@@ -11,11 +11,36 @@
     <Grid Padding="16" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <MenuBar>
+            <MenuBarItem Title="{x:Bind ViewModel.UiText.MenuFile, Mode=OneWay}">
+                <MenuFlyoutItem Command="{x:Bind ViewModel.SelectVideoCommand}" Text="{x:Bind ViewModel.UiText.MenuSelectVideo, Mode=OneWay}" />
+                <MenuFlyoutItem Command="{x:Bind ViewModel.StartAnalysisCommand}" Text="{x:Bind ViewModel.UiText.MenuStartExtraction, Mode=OneWay}" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem IsEnabled="False" Text="{x:Bind ViewModel.UiText.MenuOpenProjectPlanned, Mode=OneWay}" />
+                <MenuFlyoutItem IsEnabled="False" Text="{x:Bind ViewModel.UiText.MenuSaveProjectPlanned, Mode=OneWay}" />
+            </MenuBarItem>
+            <MenuBarItem Title="{x:Bind ViewModel.UiText.MenuSettings, Mode=OneWay}">
+                <MenuFlyoutItem Command="{x:Bind ViewModel.OpenSettingsOutputCommand}" Text="{x:Bind ViewModel.UiText.MenuOpenSettingsWindow, Mode=OneWay}" />
+            </MenuBarItem>
+            <MenuBarItem Title="{x:Bind ViewModel.UiText.MenuView, Mode=OneWay}">
+                <MenuFlyoutSubItem Text="{x:Bind ViewModel.UiText.MenuTimelineColumns, Mode=OneWay}">
+                    <ToggleMenuFlyoutItem x:Name="TimelineTimeColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="time" Text="{x:Bind ViewModel.UiText.TimelineColumnTime, Mode=OneWay}" />
+                    <ToggleMenuFlyoutItem x:Name="TimelineFrameColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="frame" Text="{x:Bind ViewModel.UiText.TimelineColumnFrame, Mode=OneWay}" />
+                    <ToggleMenuFlyoutItem x:Name="TimelineTextColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="text" Text="{x:Bind ViewModel.UiText.TimelineColumnText, Mode=OneWay}" />
+                    <ToggleMenuFlyoutItem x:Name="TimelineDetailColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="detail" Text="{x:Bind ViewModel.UiText.TimelineColumnDetail, Mode=OneWay}" />
+                    <ToggleMenuFlyoutItem x:Name="TimelineFontSizeColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="fontSize" Text="{x:Bind ViewModel.UiText.TimelineColumnFontSize, Mode=OneWay}" />
+                    <ToggleMenuFlyoutItem x:Name="TimelineConfidenceColumnMenuItem" Click="OnTimelineColumnVisibilityClicked" IsChecked="True" Tag="confidence" Text="{x:Bind ViewModel.UiText.TimelineColumnConfidence, Mode=OneWay}" />
+                </MenuFlyoutSubItem>
+            </MenuBarItem>
+        </MenuBar>
+
         <Border
+            Grid.Row="1"
             Padding="14"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -37,7 +62,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" ColumnSpacing="12">
+        <Grid Grid.Row="2" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="340" />
                 <ColumnDefinition Width="*" />
@@ -70,10 +95,6 @@
                                     Style="{StaticResource AppSecondaryTextStyle}"
                                     TextWrapping="WrapWholeWords" />
                             </StackPanel>
-                            <Button
-                                HorizontalAlignment="Stretch"
-                                Command="{x:Bind ViewModel.OpenSettingsOutputCommand}"
-                                Content="{x:Bind ViewModel.UiText.SettingsButton, Mode=OneWay}" />
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Spacing="10">
@@ -500,7 +521,7 @@
         </Grid>
 
         <InfoBar
-            Grid.Row="2"
+            Grid.Row="3"
             IsOpen="True"
             IsClosable="False"
             Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
