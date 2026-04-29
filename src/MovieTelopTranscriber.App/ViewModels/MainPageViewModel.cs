@@ -1735,46 +1735,39 @@ public partial class MainPageViewModel : ObservableObject
         {
             ReleaseLoadedProjectExtractionDirectory();
             var loadResult = await _projectBundleService.LoadAsync(projectFilePath);
+            var projectState = ProjectLoadSaveCoordinator.BuildLoadState(
+                projectFilePath,
+                loadResult,
+                LanguageOptions);
 
-            _currentProjectFilePath = projectFilePath;
-            _loadedProjectExtractionDirectory = loadResult.ExtractionDirectory;
-            _latestMetadata = loadResult.ExportPackage.SourceVideo;
-            _latestFrameExtractionResult = loadResult.FrameExtractionResult;
-            _latestFrameAnalyses = loadResult.FrameAnalyses;
-            _latestSegments = loadResult.ExportPackage.Segments.ToArray();
-            _latestFrameIntervalSeconds = loadResult.ExportPackage.ProcessingSettings.FrameIntervalSeconds;
+            _currentProjectFilePath = projectState.CurrentProjectFilePath;
+            _loadedProjectExtractionDirectory = projectState.LoadedProjectExtractionDirectory;
+            _latestMetadata = projectState.LatestMetadata;
+            _latestFrameExtractionResult = projectState.LatestFrameExtractionResult;
+            _latestFrameAnalyses = projectState.LatestFrameAnalyses;
+            _latestSegments = projectState.LatestSegments;
+            _latestFrameIntervalSeconds = projectState.LatestFrameIntervalSeconds;
             _timelineEdits.Clear();
-            _timelineEdits.AddRange(loadResult.ExportPackage.Edits);
+            _timelineEdits.AddRange(projectState.TimelineEdits);
             ClearPipelineFailure();
 
-            ApplyStoredUiState(MainPageUserSettingsCoordinator.ResolveProjectUserInterfaceSettings(
-                loadResult.Manifest.Ui,
-                LanguageOptions));
+            ApplyStoredUiState(projectState.UiState);
 
-            VideoPath = loadResult.Manifest.SourceVideoPath;
-            DurationText = FormatTimestamp(loadResult.ExportPackage.SourceVideo.DurationMs);
-            ResolutionText = $"{loadResult.ExportPackage.SourceVideo.Width} x {loadResult.ExportPackage.SourceVideo.Height}";
-            FpsText = $"{loadResult.ExportPackage.SourceVideo.Fps:F3}";
-            CodecText = loadResult.ExportPackage.SourceVideo.Codec;
-            WorkDirectoryText = loadResult.FrameExtractionResult.RunDirectory;
-            OcrEngineText = loadResult.ExportPackage.ProcessingSettings.OcrEngine;
-
-            var outputDirectory = Path.GetDirectoryName(Path.Combine(loadResult.ExtractionDirectory, loadResult.Manifest.ExportPackagePath)) ?? "-";
-            ExportDirectoryText = outputDirectory;
-            JsonOutputPathText = Path.Combine(loadResult.ExtractionDirectory, loadResult.Manifest.ExportPackagePath);
-            SegmentsCsvOutputPathText = Path.Combine(outputDirectory, "segments.csv");
-            FramesCsvOutputPathText = Path.Combine(outputDirectory, "frames.csv");
+            VideoPath = projectState.VideoPath;
+            DurationText = FormatTimestamp(projectState.LatestMetadata.DurationMs);
+            ResolutionText = $"{projectState.LatestMetadata.Width} x {projectState.LatestMetadata.Height}";
+            FpsText = $"{projectState.LatestMetadata.Fps:F3}";
+            CodecText = projectState.LatestMetadata.Codec;
+            WorkDirectoryText = projectState.WorkDirectoryText;
+            OcrEngineText = projectState.OcrEngineText;
+            ExportDirectoryText = projectState.ExportDirectoryText;
+            JsonOutputPathText = projectState.JsonOutputPathText;
+            SegmentsCsvOutputPathText = projectState.SegmentsCsvOutputPathText;
+            FramesCsvOutputPathText = projectState.FramesCsvOutputPathText;
             LogDirectoryText = "-";
             RunLogPathText = "-";
             RunSummaryPathText = "-";
-            _latestExport = new ExportWriteResult(
-                outputDirectory,
-                JsonOutputPathText,
-                SegmentsCsvOutputPathText,
-                FramesCsvOutputPathText,
-                Path.Combine(outputDirectory, "segments.srt"),
-                Path.Combine(outputDirectory, "segments.vtt"),
-                Path.Combine(outputDirectory, "segments.ass"));
+            _latestExport = projectState.LatestExport;
 
             TimelineSegments.Clear();
             ResultRows.Clear();
@@ -1786,12 +1779,11 @@ public partial class MainPageViewModel : ObservableObject
                 _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
                 _latestSegments.Count);
 
-            var sourceVideoExists = File.Exists(loadResult.Manifest.SourceVideoPath);
             PreviewState = "Project loaded";
-            ActivityMessage = sourceVideoExists
+            ActivityMessage = projectState.SourceVideoExists
                 ? "Project loaded. Timeline and preview were restored from the saved bundle."
                 : "Project loaded. Source video path is missing, but bundled frames and timeline were restored.";
-            StatusMessage = sourceVideoExists
+            StatusMessage = projectState.SourceVideoExists
                 ? $"Loaded project: {Path.GetFileName(projectFilePath)}"
                 : $"Loaded project with missing source video path: {Path.GetFileName(projectFilePath)}";
             ProgressDetailText = "Project loaded.";
@@ -1824,6 +1816,14 @@ public partial class MainPageViewModel : ObservableObject
 
         try
         {
+            var saveState = ProjectLoadSaveCoordinator.BuildSaveState(
+                BuildUserSettingsState(),
+                App.LaunchSettings.Ui?.MainWindow,
+                OcrEngineText,
+                _frameAnalysisService.EngineName,
+                SelectedTimelineSegment?.SegmentId,
+                SelectedTimelineSegment?.DetectionId);
+
             await _projectBundleService.SaveAsync(
                 projectFilePath,
                 _latestMetadata,
@@ -1831,28 +1831,11 @@ public partial class MainPageViewModel : ObservableObject
                 _latestFrameAnalyses,
                 _latestSegments,
                 _timelineEdits,
-                ParseFrameIntervalSeconds(),
-                OcrEngineText == "-" ? _frameAnalysisService.EngineName : OcrEngineText,
-                App.LaunchSettings.Ui?.MainWindow is null
-                    ? new UserInterfaceSettings
-                    {
-                        Language = SelectedLanguageOption.Code,
-                        FrameIntervalSeconds = ParseFrameIntervalSeconds(),
-                        OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText) ? null : OutputRootDirectoryText.Trim()
-                    }
-                    : new UserInterfaceSettings
-                    {
-                        Language = SelectedLanguageOption.Code,
-                        FrameIntervalSeconds = ParseFrameIntervalSeconds(),
-                        OutputRootDirectory = string.IsNullOrWhiteSpace(OutputRootDirectoryText) ? null : OutputRootDirectoryText.Trim(),
-                        MainWindow = new MainWindowLaunchSettings
-                        {
-                            Width = App.LaunchSettings.Ui.MainWindow.Width,
-                            Height = App.LaunchSettings.Ui.MainWindow.Height
-                        }
-                    },
-                SelectedTimelineSegment?.SegmentId,
-                SelectedTimelineSegment?.DetectionId);
+                saveState.FrameIntervalSeconds,
+                saveState.OcrEngine,
+                saveState.UiSettings,
+                saveState.SelectedSegmentId,
+                saveState.SelectedDetectionId);
 
             _currentProjectFilePath = projectFilePath;
             StatusMessage = $"Saved project: {projectFilePath}";
