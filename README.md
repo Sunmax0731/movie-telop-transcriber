@@ -166,7 +166,7 @@ dotnet build src\MovieTelopTranscriber.sln -c Debug -p:Platform=x64
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\release\New-ReleasePackage.ps1 `
-  -Version 0.1.0
+  -Version 0.1.1
 ```
 
 生成物は `dist/` 配下に作成されます。配布 zip にはアプリ本体、docs、最小サンプル、インストーラを含めます。Python runtime、PaddleOCR package、OCR モデル本体は同梱せず、インストーラまたは手動手順で取得します。
@@ -185,7 +185,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
-  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v0.1.0.zip `
+  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v0.1.1.zip `
   -Force
 ```
 
@@ -220,5 +220,5 @@ python tools\validation\evaluate_qcds_report.py `
 
 ### 現在の状態
 - 初期リリース `v0.1.0` は公開済み。
-- GitHub Release には `movie-telop-transcriber-win-x64-v0.1.0.zip` と checksum を配置済み。
+- インストーラ同梱版 `v0.1.1` をリリース対象として扱う。
 - リリース後の主な open Issue は、タイムライン結合 / 分割 UI とプレビュー同期の再設計である。
