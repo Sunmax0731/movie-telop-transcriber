@@ -30,7 +30,8 @@ if not "%EXITCODE%"=="0" (
 
 if defined INTERACTIVE (
   echo Installation completed.
-  echo Use "Movie Telop Transcriber.cmd" in the install folder or the Start menu shortcut to launch the app.
+  echo Use the "Movie Telop Transcriber.lnk" shortcut created in this directory,
+  echo "Movie Telop Transcriber.cmd" in the install folder, or the Start menu shortcut to launch the app.
   pause
 )
 

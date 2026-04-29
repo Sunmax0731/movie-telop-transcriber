@@ -64,9 +64,7 @@ function Remove-UserEnvironmentVariableIfOwned {
         $normalizedValue = [System.IO.Path]::GetFullPath($expandedValue)
         $normalizedRoot = [System.IO.Path]::GetFullPath($root).TrimEnd('\') + '\'
         if ($normalizedValue.StartsWith($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-            if ($PSCmdlet.ShouldProcess("User environment variable $Name", "Remove")) {
-                [Environment]::SetEnvironmentVariable($Name, $null, "User")
-            }
+            [Environment]::SetEnvironmentVariable($Name, $null, "User")
             return $true
         }
     }
@@ -87,18 +85,25 @@ function Stop-InstalledProcesses {
 
         if (-not [string]::IsNullOrWhiteSpace($processPath) -and
             [string]::Equals([System.IO.Path]::GetFullPath($processPath), $expected, [System.StringComparison]::OrdinalIgnoreCase)) {
-            if ($PSCmdlet.ShouldProcess("Process $($_.Id)", "Stop")) {
-                Stop-Process -Id $_.Id -Force
-            }
+            Stop-Process -Id $_.Id -Force
         }
     }
 }
 
+function Test-PathWithinRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Root
+    )
+
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path)
+    $normalizedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\') + '\'
+    return $normalizedPath.StartsWith($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Start-CleanupScript {
     param(
-        [string]$TargetInstallRoot,
-        [string]$ShortcutDirectory,
-        [string]$ShortcutPath
+        [string]$TargetInstallRoot
     )
 
     $cleanupScriptPath = Join-Path $env:TEMP ("movie-telop-transcriber-uninstall-" + [guid]::NewGuid().ToString("N") + ".cmd")
@@ -106,8 +111,6 @@ function Start-CleanupScript {
 @echo off
 setlocal
 set "TARGET_ROOT=$TargetInstallRoot"
-set "SHORTCUT_DIRECTORY=$ShortcutDirectory"
-set "SHORTCUT_PATH=$ShortcutPath"
 for /L %%I in (1,1,20) do (
   if exist "%TARGET_ROOT%" (
     rmdir /S /Q "%TARGET_ROOT%" >nul 2>nul
@@ -116,8 +119,6 @@ for /L %%I in (1,1,20) do (
   timeout /t 1 /nobreak >nul
 )
 :root_removed
-if exist "%SHORTCUT_PATH%" del /F /Q "%SHORTCUT_PATH%" >nul 2>nul
-if exist "%SHORTCUT_DIRECTORY%" rmdir /Q "%SHORTCUT_DIRECTORY%" >nul 2>nul
 del /F /Q "%~f0" >nul 2>nul
 "@
 
@@ -129,6 +130,8 @@ $manifest = Get-UninstallManifest -Path $manifestPath
 $ocrRuntimeRoot = if ($manifest -and $manifest.ocrRuntimeRoot) { [string]$manifest.ocrRuntimeRoot } else { $defaultOcrRuntimeRoot }
 $shortcutDirectory = if ($manifest -and $manifest.startMenuShortcutDirectory) { [string]$manifest.startMenuShortcutDirectory } else { $defaultShortcutDirectory }
 $shortcutPath = if ($manifest -and $manifest.startMenuShortcutPath) { [string]$manifest.startMenuShortcutPath } else { $defaultShortcutPath }
+$launchShortcutPath = if ($manifest -and $manifest.launchShortcutPath) { [string]$manifest.launchShortcutPath } else { $null }
+$removeOcrRuntimeRootOnUninstall = [bool]($manifest -and $manifest.removeOcrRuntimeRootOnUninstall)
 $createdModelDirectories = @()
 if ($manifest -and $manifest.createdModelDirectories) {
     $createdModelDirectories = @($manifest.createdModelDirectories | ForEach-Object { [string]$_ })
@@ -146,6 +149,8 @@ if ($WhatIfPreference) {
         OcrRuntimeRoot = $ocrRuntimeRoot
         ShortcutDirectory = $shortcutDirectory
         ShortcutPath = $shortcutPath
+        LaunchShortcutPath = $launchShortcutPath
+        RemoveOcrRuntimeRootOnUninstall = $removeOcrRuntimeRootOnUninstall
         CreatedModelDirectories = $createdModelDirectories
         RemoveSharedModelCache = [bool]$RemoveSharedModelCache
     }
@@ -159,50 +164,51 @@ foreach ($name in $legacyUserEnvironmentVariables) {
 }
 
 foreach ($name in $persistentEnvironmentVariables) {
-    if ($PSCmdlet.ShouldProcess("User environment variable $name", "Remove")) {
-        [Environment]::SetEnvironmentVariable($name, $null, "User")
-    }
+    [Environment]::SetEnvironmentVariable($name, $null, "User")
 }
 
 if ($createdModelDirectories.Count -gt 0) {
     foreach ($modelDirectory in $createdModelDirectories) {
         if (Test-Path -LiteralPath $modelDirectory -PathType Container) {
-            if ($PSCmdlet.ShouldProcess($modelDirectory, "Remove model directory")) {
-                Remove-Item -LiteralPath $modelDirectory -Recurse -Force
-            }
+            Remove-Item -LiteralPath $modelDirectory -Recurse -Force
         }
     }
 } elseif ($RemoveSharedModelCache -and $manifest -and $manifest.modelRoot) {
     @("PP-OCRv5_server_det", "PP-OCRv5_server_rec") | ForEach-Object {
         $modelDirectory = Join-Path ([string]$manifest.modelRoot) $_
         if (Test-Path -LiteralPath $modelDirectory -PathType Container) {
-            if ($PSCmdlet.ShouldProcess($modelDirectory, "Remove shared model directory")) {
-                Remove-Item -LiteralPath $modelDirectory -Recurse -Force
-            }
+            Remove-Item -LiteralPath $modelDirectory -Recurse -Force
         }
     }
 }
 
 if (Test-Path -LiteralPath $shortcutPath -PathType Leaf) {
-    if ($PSCmdlet.ShouldProcess($shortcutPath, "Remove shortcut")) {
-        Remove-Item -LiteralPath $shortcutPath -Force
-    }
+    Remove-Item -LiteralPath $shortcutPath -Force
+}
+
+if (-not [string]::IsNullOrWhiteSpace($launchShortcutPath) -and (Test-Path -LiteralPath $launchShortcutPath -PathType Leaf)) {
+    Remove-Item -LiteralPath $launchShortcutPath -Force
 }
 
 if (Test-Path -LiteralPath $shortcutDirectory -PathType Container) {
     $remaining = @(Get-ChildItem -LiteralPath $shortcutDirectory -Force -ErrorAction SilentlyContinue)
     if ($remaining.Count -eq 0) {
-        if ($PSCmdlet.ShouldProcess($shortcutDirectory, "Remove shortcut directory")) {
-            Remove-Item -LiteralPath $shortcutDirectory -Force
-        }
+        Remove-Item -LiteralPath $shortcutDirectory -Force
     }
 }
 
-Start-CleanupScript -TargetInstallRoot $InstallRoot -ShortcutDirectory $shortcutDirectory -ShortcutPath $shortcutPath
+if ($removeOcrRuntimeRootOnUninstall -and
+    (Test-Path -LiteralPath $ocrRuntimeRoot -PathType Container) -and
+    -not (Test-PathWithinRoot -Path $ocrRuntimeRoot -Root $InstallRoot)) {
+    Remove-Item -LiteralPath $ocrRuntimeRoot -Recurse -Force
+}
+
+Start-CleanupScript -TargetInstallRoot $InstallRoot
 
 [pscustomobject]@{
     InstallRoot = $InstallRoot
     OcrRuntimeRoot = $ocrRuntimeRoot
     ShortcutPath = $shortcutPath
+    LaunchShortcutPath = $launchShortcutPath
     RemovedModelDirectories = $createdModelDirectories
 }

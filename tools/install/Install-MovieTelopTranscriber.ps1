@@ -22,6 +22,7 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 $repository = "Sunmax0731/movie-telop-transcriber"
 $packageName = "movie-telop-transcriber-win-x64-v$Version"
+$installInvocationDirectory = [System.IO.Path]::GetFullPath((Get-Location).Path)
 if ([string]::IsNullOrWhiteSpace($ReleaseAssetUrl)) {
     $ReleaseAssetUrl = "https://github.com/$repository/releases/download/v$Version/$packageName.zip"
 }
@@ -52,11 +53,13 @@ $installManifestPath = Join-Path $InstallRoot "movie-telop-transcriber.installat
 $modelRoot = Join-Path $env:USERPROFILE ".paddlex\official_models"
 $startMenuShortcutDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Movie Telop Transcriber"
 $startMenuShortcutPath = Join-Path $startMenuShortcutDirectory "Movie Telop Transcriber.lnk"
+$launchShortcutPath = Join-Path $installInvocationDirectory "Movie Telop Transcriber.lnk"
 $knownModelNames = @(
     "PP-OCRv5_server_det",
     "PP-OCRv5_server_rec"
 )
 $createdModelDirectories = @()
+$removeOcrRuntimeRootOnUninstall = $false
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoWorkerPath = Join-Path $scriptRoot "..\ocr\paddle_ocr_worker.py"
 $installedWorkerPath = Join-Path $appDir "tools\ocr\paddle_ocr_worker.py"
@@ -184,6 +187,9 @@ function Write-InstallManifest {
         uninstallerCommandPath = $uninstallerCommandPath
         startMenuShortcutDirectory = $startMenuShortcutDirectory
         startMenuShortcutPath = $startMenuShortcutPath
+        installInvocationDirectory = $installInvocationDirectory
+        launchShortcutPath = $launchShortcutPath
+        removeOcrRuntimeRootOnUninstall = $removeOcrRuntimeRootOnUninstall
         modelRoot = $modelRoot
         createdModelDirectories = $createdModelDirectories
         legacyUserEnvironmentVariables = @(
@@ -198,16 +204,34 @@ function Write-InstallManifest {
     [System.IO.File]::WriteAllText($installManifestPath, $json, [System.Text.UTF8Encoding]::new($false))
 }
 
-function New-StartMenuShortcut {
-    New-Item -ItemType Directory -Path $startMenuShortcutDirectory -Force | Out-Null
+function New-ShellShortcut {
+    param(
+        [Parameter(Mandatory = $true)][string]$ShortcutPath,
+        [Parameter(Mandatory = $true)][string]$TargetPath,
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string]$IconLocation
+    )
+
+    $shortcutDirectory = Split-Path -Parent $ShortcutPath
+    if (-not [string]::IsNullOrWhiteSpace($shortcutDirectory)) {
+        New-Item -ItemType Directory -Path $shortcutDirectory -Force | Out-Null
+    }
 
     $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($startMenuShortcutPath)
-    $shortcut.TargetPath = $appExe
+    $shortcut = $shell.CreateShortcut($ShortcutPath)
+    $shortcut.TargetPath = $TargetPath
     $shortcut.Arguments = ""
-    $shortcut.WorkingDirectory = $appDir
-    $shortcut.IconLocation = "$appExe,0"
+    $shortcut.WorkingDirectory = $WorkingDirectory
+    $shortcut.IconLocation = $IconLocation
     $shortcut.Save()
+}
+
+function New-StartMenuShortcut {
+    New-ShellShortcut -ShortcutPath $startMenuShortcutPath -TargetPath $appExe -WorkingDirectory $appDir -IconLocation "$appExe,0"
+}
+
+function New-LaunchShortcut {
+    New-ShellShortcut -ShortcutPath $launchShortcutPath -TargetPath $appExe -WorkingDirectory $appDir -IconLocation "$appExe,0"
 }
 
 function Resolve-WorkerPath {
@@ -242,6 +266,7 @@ if ($WhatIfPreference) {
         UninstallerPath = $uninstallerPath
         UninstallerCommandPath = $uninstallerCommandPath
         InstallManifestPath = $installManifestPath
+        LaunchShortcutPath = $launchShortcutPath
     }
     return
 }
@@ -296,7 +321,9 @@ if (-not $SkipAppInstall) {
 }
 
 if (-not $SkipOcrSetup) {
+    $ocrRuntimeRootExisted = Test-Path -LiteralPath $OcrRuntimeRoot -PathType Container
     New-Item -ItemType Directory -Path $OcrRuntimeRoot -Force | Out-Null
+    $removeOcrRuntimeRootOnUninstall = -not $ocrRuntimeRootExisted
 
     if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
         Write-InstallLog "Creating Python virtual environment"
@@ -377,6 +404,11 @@ if ($PSCmdlet.ShouldProcess($installManifestPath, "Write install manifest")) {
     Write-InstallManifest
 }
 
+Write-InstallLog "Creating launch shortcut: $launchShortcutPath"
+if ($PSCmdlet.ShouldProcess($launchShortcutPath, "Create launch shortcut")) {
+    New-LaunchShortcut
+}
+
 if (-not $NoStartMenuShortcut) {
     Write-InstallLog "Creating Start Menu shortcut"
     if ($PSCmdlet.ShouldProcess("Start Menu", "Create shortcut")) {
@@ -401,6 +433,7 @@ if ($Launch) {
     UninstallerPath = $uninstallerPath
     UninstallerCommandPath = $uninstallerCommandPath
     InstallManifestPath = $installManifestPath
+    LaunchShortcutPath = $launchShortcutPath
     OcrRuntimeRoot = $OcrRuntimeRoot
     PaddleOcrPython = $venvPython
     ModelRoot = $modelRoot
