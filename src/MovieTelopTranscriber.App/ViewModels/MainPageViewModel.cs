@@ -1398,6 +1398,11 @@ public partial class MainPageViewModel : ObservableObject
         {
             var startedAt = DateTimeOffset.Now;
             var stopwatch = Stopwatch.StartNew();
+            var frameExtractionDurationMs = 0d;
+            var ocrDurationMs = 0d;
+            var segmentMergeDurationMs = 0d;
+            var exportWriteDurationMs = 0d;
+            var logWriteDurationMs = 0d;
             progressTickerCts = new CancellationTokenSource();
             progressTickerTask = RunProgressTickerAsync(progressTickerCts.Token);
             var intervalSeconds = startStage == AnalysisStartStage.FrameExtraction
@@ -1420,7 +1425,10 @@ public partial class MainPageViewModel : ObservableObject
                     ProgressValue = value * 0.6d;
                     SetTimedFrameProgress(UiText.ProgressFrameExtraction, value, expectedFrames, stopwatch);
                 });
+                var frameExtractionStopwatch = Stopwatch.StartNew();
                 result = await _videoProcessingService.ExtractFramesAsync(metadata, intervalSeconds, progress, outputRootDirectory);
+                frameExtractionStopwatch.Stop();
+                frameExtractionDurationMs = frameExtractionStopwatch.Elapsed.TotalMilliseconds;
                 _latestFrameExtractionResult = result;
             }
             else
@@ -1446,12 +1454,18 @@ public partial class MainPageViewModel : ObservableObject
                     ProgressValue = 60d + (value * 0.3d);
                     SetTimedFrameProgress(UiText.ProgressOcr, value, result.Frames.Count, stopwatch);
                 });
+                var ocrStopwatch = Stopwatch.StartNew();
                 _latestFrameAnalyses = await _frameAnalysisService.AnalyzeFramesAsync(result, ocrProgress);
+                ocrStopwatch.Stop();
+                ocrDurationMs = ocrStopwatch.Elapsed.TotalMilliseconds;
 
                 currentStage = "Attribute analysis";
                 _activeProgressFrameState = null;
                 ProgressDetailText = $"Attribute analysis: {_latestFrameAnalyses.Count} frames analyzed.";
+                var segmentMergeStopwatch = Stopwatch.StartNew();
                 _latestSegments = _segmentMerger.Merge(_latestFrameAnalyses, intervalSeconds);
+                segmentMergeStopwatch.Stop();
+                segmentMergeDurationMs = segmentMergeStopwatch.Elapsed.TotalMilliseconds;
                 RebuildSegmentDetectionMap(_latestSegments, _latestFrameAnalyses);
             }
 
@@ -1476,6 +1490,7 @@ public partial class MainPageViewModel : ObservableObject
             currentStage = "Output";
             ProgressDetailText = $"Output: writing JSON, CSV, and subtitles for {result.Frames.Count} frames.";
             stopwatch.Stop();
+            var exportStopwatch = Stopwatch.StartNew();
             _latestExport = await _exportPackageWriter.WriteAsync(
                 metadata,
                 result,
@@ -1487,6 +1502,8 @@ public partial class MainPageViewModel : ObservableObject
                 stopwatch.ElapsedMilliseconds,
                 warningCount,
                 errorCount);
+            exportStopwatch.Stop();
+            exportWriteDurationMs = exportStopwatch.Elapsed.TotalMilliseconds;
             ExportDirectoryText = _latestExport.OutputDirectory;
             JsonOutputPathText = _latestExport.JsonPath;
             SegmentsCsvOutputPathText = _latestExport.SegmentsCsvPath;
@@ -1494,10 +1511,19 @@ public partial class MainPageViewModel : ObservableObject
 
             currentStage = "Logging";
             ProgressDetailText = $"Logging: writing run summary for {result.Frames.Count} frames.";
+            var performanceSummary = BuildPerformanceSummary(
+                _latestFrameAnalyses,
+                frameExtractionDurationMs,
+                ocrDurationMs,
+                segmentMergeDurationMs,
+                exportWriteDurationMs,
+                logWriteDurationMs: 0d);
+            var logWriteStopwatch = Stopwatch.StartNew();
             var logWriteResult = await _runLogWriter.WriteSuccessAsync(
                 result,
                 metadata,
                 _latestExport,
+                _latestFrameAnalyses,
                 intervalSeconds,
                 OcrEngineText,
                 startedAt,
@@ -1506,7 +1532,10 @@ public partial class MainPageViewModel : ObservableObject
                 detectionCount,
                 _latestSegments.Count,
                 warningCount,
-                errorCount);
+                errorCount,
+                performanceSummary);
+            logWriteStopwatch.Stop();
+            logWriteDurationMs = logWriteStopwatch.Elapsed.TotalMilliseconds;
             LogDirectoryText = logWriteResult.LogsDirectory;
             RunLogPathText = logWriteResult.LogPath;
             RunSummaryPathText = logWriteResult.SummaryPath;
@@ -2470,6 +2499,40 @@ public partial class MainPageViewModel : ObservableObject
         SetDoubleEnvironment(PaddleMinTextSizeEnvironmentVariable, PaddleMinTextSizeText, 0.0d, 200.0d);
         SetEnvironment(PaddleUseTextlineOrientationEnvironmentVariable, PaddleUseTextlineOrientation ? "true" : "false");
         SetEnvironment(PaddleUseDocUnwarpingEnvironmentVariable, PaddleUseDocUnwarping ? "true" : "false");
+    }
+
+    private static RunPerformanceSummaryRecord BuildPerformanceSummary(
+        IReadOnlyList<FrameAnalysisResult> frameAnalyses,
+        double frameExtractionDurationMs,
+        double ocrDurationMs,
+        double segmentMergeDurationMs,
+        double exportWriteDurationMs,
+        double logWriteDurationMs)
+    {
+        var framePerformances = frameAnalyses.Select(analysis => analysis.Performance).ToArray();
+        var firstFrameMs = framePerformances.FirstOrDefault()?.TotalMs ?? 0d;
+        var averageFrameMs = framePerformances.Length == 0
+            ? 0d
+            : framePerformances.Average(performance => performance.TotalMs);
+        var maxFrameMs = framePerformances.Length == 0
+            ? 0d
+            : framePerformances.Max(performance => performance.TotalMs);
+
+        return new RunPerformanceSummaryRecord(
+            frameExtractionDurationMs,
+            ocrDurationMs,
+            segmentMergeDurationMs,
+            exportWriteDurationMs,
+            logWriteDurationMs,
+            framePerformances.Sum(performance => performance.RequestWriteMs),
+            framePerformances.Sum(performance => performance.WorkerInitializationMs),
+            framePerformances.Sum(performance => performance.WorkerExecutionMs),
+            framePerformances.Sum(performance => performance.ResponseReadMs),
+            framePerformances.Sum(performance => performance.AttributeAnalysisMs),
+            framePerformances.Sum(performance => performance.AttributeWriteMs),
+            firstFrameMs,
+            averageFrameMs,
+            maxFrameMs);
     }
 
     private string FormatPaddlePreprocessSummary()

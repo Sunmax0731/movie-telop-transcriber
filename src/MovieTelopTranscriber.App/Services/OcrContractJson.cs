@@ -14,6 +14,8 @@ internal static class OcrContractJson
 
     public static JsonTypeInfo<OcrWorkerResponse> OcrWorkerResponse => OcrJsonSerializerContext.Default.OcrWorkerResponse;
 
+    public static JsonTypeInfo<OcrFramePerformanceRecord[]> OcrFramePerformanceRecords => OcrJsonSerializerContext.Default.OcrFramePerformanceRecordArray;
+
     public static JsonTypeInfo<PaddleOcrWorkerAck> PaddleOcrWorkerAck => OcrJsonSerializerContext.Default.PaddleOcrWorkerAck;
 
     public static JsonTypeInfo<RunSummaryRecord> RunSummaryRecord => OcrJsonSerializerContext.Default.RunSummaryRecord;
@@ -27,13 +29,17 @@ internal static class OcrContractJson
 [JsonSerializable(typeof(ExportPackage))]
 [JsonSerializable(typeof(FrameExportRecord))]
 [JsonSerializable(typeof(OcrBoundingPoint))]
+[JsonSerializable(typeof(OcrFramePerformanceRecord))]
+[JsonSerializable(typeof(OcrFramePerformanceRecord[]))]
 [JsonSerializable(typeof(OcrDetectionRecord))]
+[JsonSerializable(typeof(OcrWorkerExecutionResult))]
 [JsonSerializable(typeof(OcrWorkerRequest))]
 [JsonSerializable(typeof(OcrWorkerResponse))]
 [JsonSerializable(typeof(PaddleOcrWorkerAck))]
 [JsonSerializable(typeof(ProcessingError))]
 [JsonSerializable(typeof(ProcessingSettingsRecord))]
 [JsonSerializable(typeof(RunMetadataRecord))]
+[JsonSerializable(typeof(RunPerformanceSummaryRecord))]
 [JsonSerializable(typeof(RunSummaryRecord))]
 [JsonSerializable(typeof(SegmentRecord))]
 [JsonSerializable(typeof(TelopAttributeRecord))]

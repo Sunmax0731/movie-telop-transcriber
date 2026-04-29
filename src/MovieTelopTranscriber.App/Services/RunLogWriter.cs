@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using MovieTelopTranscriber.App.Models;
 
 namespace MovieTelopTranscriber.App.Services;
@@ -10,6 +11,7 @@ public sealed class RunLogWriter
         FrameExtractionResult frameExtractionResult,
         VideoMetadata sourceVideo,
         ExportWriteResult exportWriteResult,
+        IReadOnlyList<FrameAnalysisResult> frameAnalyses,
         double frameIntervalSeconds,
         string ocrEngine,
         DateTimeOffset startedAt,
@@ -19,12 +21,24 @@ public sealed class RunLogWriter
         int segmentCount,
         int warningCount,
         int errorCount,
+        RunPerformanceSummaryRecord performance,
         CancellationToken cancellationToken = default)
     {
+        var logWriteStopwatch = Stopwatch.StartNew();
         var logsDirectory = Path.Combine(frameExtractionResult.RunDirectory, "logs");
         Directory.CreateDirectory(logsDirectory);
 
         var status = errorCount > 0 ? "warning" : "success";
+        var ocrPerformancePath = Path.Combine(logsDirectory, "ocr-performance.json");
+        await using (var stream = File.Create(ocrPerformancePath))
+        {
+            await JsonSerializer.SerializeAsync(
+                stream,
+                frameAnalyses.Select(analysis => analysis.Performance).ToArray(),
+                OcrContractJson.OcrFramePerformanceRecords,
+                cancellationToken);
+        }
+
         var summary = new RunSummaryRecord(
             frameExtractionResult.RunId,
             startedAt,
@@ -45,7 +59,9 @@ public sealed class RunLogWriter
             exportWriteResult.FramesCsvPath,
             exportWriteResult.SrtPath,
             exportWriteResult.VttPath,
-            exportWriteResult.AssPath);
+            exportWriteResult.AssPath,
+            ocrPerformancePath,
+            performance);
 
         var summaryPath = Path.Combine(logsDirectory, "summary.json");
         await using (var stream = File.Create(summaryPath))
@@ -55,6 +71,22 @@ public sealed class RunLogWriter
 
         var logPath = Path.Combine(logsDirectory, "run.log");
         await File.WriteAllTextAsync(logPath, BuildRunLog(summary), new UTF8Encoding(false), cancellationToken);
+        logWriteStopwatch.Stop();
+
+        var completedSummary = summary with
+        {
+            Performance = summary.Performance with
+            {
+                LogWriteMs = logWriteStopwatch.Elapsed.TotalMilliseconds
+            }
+        };
+
+        await using (var stream = File.Create(summaryPath))
+        {
+            await JsonSerializer.SerializeAsync(stream, completedSummary, OcrContractJson.RunSummaryRecord, cancellationToken);
+        }
+
+        await File.WriteAllTextAsync(logPath, BuildRunLog(completedSummary), new UTF8Encoding(false), cancellationToken);
 
         return new RunLogWriteResult(logsDirectory, logPath, summaryPath);
     }
@@ -82,6 +114,21 @@ public sealed class RunLogWriter
         builder.AppendLine($"srt_path={summary.SrtPath}");
         builder.AppendLine($"vtt_path={summary.VttPath}");
         builder.AppendLine($"ass_path={summary.AssPath}");
+        builder.AppendLine($"ocr_performance_path={summary.OcrPerformancePath}");
+        builder.AppendLine($"frame_extraction_ms={summary.Performance.FrameExtractionMs:F1}");
+        builder.AppendLine($"ocr_total_ms={summary.Performance.OcrTotalMs:F1}");
+        builder.AppendLine($"segment_merge_ms={summary.Performance.SegmentMergeMs:F1}");
+        builder.AppendLine($"export_write_ms={summary.Performance.ExportWriteMs:F1}");
+        builder.AppendLine($"log_write_ms={summary.Performance.LogWriteMs:F1}");
+        builder.AppendLine($"ocr_request_write_ms={summary.Performance.OcrRequestWriteMs:F1}");
+        builder.AppendLine($"ocr_worker_initialization_ms={summary.Performance.OcrWorkerInitializationMs:F1}");
+        builder.AppendLine($"ocr_worker_execution_ms={summary.Performance.OcrWorkerExecutionMs:F1}");
+        builder.AppendLine($"ocr_response_read_ms={summary.Performance.OcrResponseReadMs:F1}");
+        builder.AppendLine($"attribute_analysis_ms={summary.Performance.AttributeAnalysisMs:F1}");
+        builder.AppendLine($"attribute_write_ms={summary.Performance.AttributeWriteMs:F1}");
+        builder.AppendLine($"ocr_first_frame_ms={summary.Performance.OcrFirstFrameMs:F1}");
+        builder.AppendLine($"ocr_average_frame_ms={summary.Performance.OcrAverageFrameMs:F1}");
+        builder.AppendLine($"ocr_max_frame_ms={summary.Performance.OcrMaxFrameMs:F1}");
         return builder.ToString();
     }
 }

@@ -43,7 +43,7 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
 
     public string EngineName => "paddleocr";
 
-    public async Task<OcrWorkerResponse> RecognizeAsync(
+    public async Task<OcrWorkerExecutionResult> RecognizeAsync(
         OcrWorkerRequest request,
         string ocrDirectory,
         CancellationToken cancellationToken = default)
@@ -53,33 +53,44 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
         var requestPath = Path.Combine(ocrDirectory, $"{request.RequestId}.request.json");
         var responsePath = Path.Combine(ocrDirectory, $"{request.RequestId}.response.json");
 
+        var requestWriteStopwatch = Stopwatch.StartNew();
         await WriteJsonAsync(requestPath, request, cancellationToken);
+        requestWriteStopwatch.Stop();
 
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            var initializationStopwatch = Stopwatch.StartNew();
             var startFailure = EnsureWorkerStarted(request);
+            initializationStopwatch.Stop();
             if (startFailure is not null)
             {
-                await WriteJsonAsync(responsePath, startFailure, cancellationToken);
-                return startFailure;
+                await WriteJsonAsync(responsePath, startFailure.Response, cancellationToken);
+                return startFailure with
+                {
+                    RequestWriteMs = requestWriteStopwatch.Elapsed.TotalMilliseconds,
+                    WorkerInitializationMs = initializationStopwatch.Elapsed.TotalMilliseconds
+                };
             }
 
             var commandJson = CreateCommandJson(requestPath, responsePath);
+            var workerExecutionStopwatch = Stopwatch.StartNew();
             await _stdin!.WriteLineAsync(commandJson);
             await _stdin.FlushAsync();
 
             var ack = await ReadAckAsync(cancellationToken);
+            workerExecutionStopwatch.Stop();
             if (ack is null)
             {
                 ResetWorker();
-                var response = CreateErrorResponse(
+                var response = CreateFailureResult(
                     request,
                     "PADDLEOCR_WORKER_STOPPED",
                     "PaddleOCR worker stopped before returning a response.",
                     GetRecentErrorOutput(),
-                    true);
-                await WriteJsonAsync(responsePath, response, cancellationToken);
+                    true,
+                    workerExecutionStopwatch.Elapsed.TotalMilliseconds);
+                await WriteJsonAsync(responsePath, response.Response, cancellationToken);
                 return response;
             }
 
@@ -87,32 +98,50 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
             {
                 if (File.Exists(responsePath))
                 {
-                    return await ReadResponseAsync(responsePath, request, cancellationToken);
+                    var failedResponseReadStopwatch = Stopwatch.StartNew();
+                    var failedResponse = await ReadResponseAsync(responsePath, request, cancellationToken);
+                    failedResponseReadStopwatch.Stop();
+                    return new OcrWorkerExecutionResult(
+                        failedResponse,
+                        requestWriteStopwatch.Elapsed.TotalMilliseconds,
+                        initializationStopwatch.Elapsed.TotalMilliseconds,
+                        workerExecutionStopwatch.Elapsed.TotalMilliseconds,
+                        failedResponseReadStopwatch.Elapsed.TotalMilliseconds);
                 }
 
-                var response = CreateErrorResponse(
+                var response = CreateFailureResult(
                     request,
                     "PADDLEOCR_WORKER_FAILED",
                     "PaddleOCR worker returned an error.",
                     ack?.Message ?? GetRecentErrorOutput(),
-                    true);
-                await WriteJsonAsync(responsePath, response, cancellationToken);
+                    true,
+                    workerExecutionStopwatch.Elapsed.TotalMilliseconds);
+                await WriteJsonAsync(responsePath, response.Response, cancellationToken);
                 return response;
             }
 
             if (!File.Exists(responsePath))
             {
-                var response = CreateErrorResponse(
+                var response = CreateFailureResult(
                     request,
                     "PADDLEOCR_RESPONSE_NOT_FOUND",
                     "PaddleOCR worker completed without writing a response file.",
                     responsePath,
-                    true);
-                await WriteJsonAsync(responsePath, response, cancellationToken);
+                    true,
+                    workerExecutionStopwatch.Elapsed.TotalMilliseconds);
+                await WriteJsonAsync(responsePath, response.Response, cancellationToken);
                 return response;
             }
 
-            return await ReadResponseAsync(responsePath, request, cancellationToken);
+            var responseReadStopwatch = Stopwatch.StartNew();
+            var responseValue = await ReadResponseAsync(responsePath, request, cancellationToken);
+            responseReadStopwatch.Stop();
+            return new OcrWorkerExecutionResult(
+                responseValue,
+                requestWriteStopwatch.Elapsed.TotalMilliseconds,
+                initializationStopwatch.Elapsed.TotalMilliseconds,
+                workerExecutionStopwatch.Elapsed.TotalMilliseconds,
+                responseReadStopwatch.Elapsed.TotalMilliseconds);
         }
         finally
         {
@@ -173,7 +202,7 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
         }
     }
 
-    private OcrWorkerResponse? EnsureWorkerStarted(OcrWorkerRequest request)
+    private OcrWorkerExecutionResult? EnsureWorkerStarted(OcrWorkerRequest request)
     {
         var settingsSignature = CreateWorkerSettingsSignature();
         if (_process is { HasExited: false } && _stdin is not null && _stdout is not null)
@@ -191,12 +220,12 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
         var scriptPath = ResolveScriptPath();
         if (scriptPath is null)
         {
-            return CreateErrorResponse(
+            return ToFailureResult(CreateErrorResponse(
                 request,
                 "PADDLEOCR_SCRIPT_NOT_FOUND",
                 "PaddleOCR worker script was not found.",
                 $"Set {ScriptEnvironmentVariable} or copy tools/ocr/paddle_ocr_worker.py next to the app.",
-                true);
+                true));
         }
 
         var pythonPath = Environment.GetEnvironmentVariable(PythonEnvironmentVariable);
@@ -227,12 +256,12 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
             _process = Process.Start(startInfo);
             if (_process is null)
             {
-                return CreateErrorResponse(
+                return ToFailureResult(CreateErrorResponse(
                     request,
                     "PADDLEOCR_WORKER_START_FAILED",
                     "PaddleOCR worker process could not be started.",
                     pythonPath,
-                    true);
+                    true));
             }
 
             _stdin = _process.StandardInput;
@@ -244,12 +273,12 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
         {
             ResetWorker();
-            return CreateErrorResponse(
+            return ToFailureResult(CreateErrorResponse(
                 request,
                 "PADDLEOCR_WORKER_START_FAILED",
                 "PaddleOCR worker process could not be started.",
                 $"{pythonPath}: {ex.Message}",
-                true);
+                true));
         }
     }
 
@@ -379,6 +408,27 @@ public sealed class PaddleOcrWorkerClient : IOcrWorkerClient, IAsyncDisposable, 
                 ex.Message,
                 true);
         }
+    }
+
+    private static OcrWorkerExecutionResult CreateFailureResult(
+        OcrWorkerRequest request,
+        string code,
+        string message,
+        string? details,
+        bool recoverable,
+        double workerExecutionMs = 0d)
+    {
+        return new OcrWorkerExecutionResult(
+            CreateErrorResponse(request, code, message, details, recoverable),
+            0d,
+            0d,
+            workerExecutionMs,
+            0d);
+    }
+
+    private static OcrWorkerExecutionResult ToFailureResult(OcrWorkerResponse response)
+    {
+        return new OcrWorkerExecutionResult(response, 0d, 0d, 0d, 0d);
     }
 
     private static async Task WriteJsonAsync(string path, OcrWorkerRequest value, CancellationToken cancellationToken)

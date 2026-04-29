@@ -1,4 +1,5 @@
 using MovieTelopTranscriber.App.Models;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace MovieTelopTranscriber.App.Services;
@@ -51,10 +52,29 @@ public sealed class TelopFrameAnalysisService
                 "ja",
                 _ocrWorkerClient.EngineName);
 
-            var ocrResponse = await _ocrWorkerClient.RecognizeAsync(request, ocrDirectory, cancellationToken);
-            var attributeResult = _attributeAnalysisService.Analyze(ocrResponse, frame.ImagePath);
+            var frameStopwatch = Stopwatch.StartNew();
+            var ocrResult = await _ocrWorkerClient.RecognizeAsync(request, ocrDirectory, cancellationToken);
+
+            var attributeAnalysisStopwatch = Stopwatch.StartNew();
+            var attributeResult = _attributeAnalysisService.Analyze(ocrResult.Response, frame.ImagePath);
+            attributeAnalysisStopwatch.Stop();
+
+            var attributeWriteStopwatch = Stopwatch.StartNew();
             await WriteAttributeResultAsync(attributesDirectory, request.RequestId, attributeResult, cancellationToken);
-            results.Add(new FrameAnalysisResult(frame, ocrResponse, attributeResult));
+            attributeWriteStopwatch.Stop();
+
+            frameStopwatch.Stop();
+            var performance = new OcrFramePerformanceRecord(
+                frame.FrameIndex,
+                frame.TimestampMs,
+                ocrResult.RequestWriteMs,
+                ocrResult.WorkerInitializationMs,
+                ocrResult.WorkerExecutionMs,
+                ocrResult.ResponseReadMs,
+                attributeAnalysisStopwatch.Elapsed.TotalMilliseconds,
+                attributeWriteStopwatch.Elapsed.TotalMilliseconds,
+                frameStopwatch.Elapsed.TotalMilliseconds);
+            results.Add(new FrameAnalysisResult(frame, ocrResult.Response, attributeResult, performance));
 
             progress?.Report(((double)(i + 1) / frameExtractionResult.Frames.Count) * 100d);
         }
