@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "suite_id": "ocr-performance-benchmark-suite",
+  "generated_from": "test-data/basic_telop/sample_basic_telop.mp4",
+  "samples": [
+    {
+      "sample_id": "benchmark_short",
+      "category": "short",
+      "video_path": "test-data/basic_telop/sample_basic_telop.mp4",
+      "duration_seconds": 5,
+      "frame_interval_seconds": 1.0,
+      "redistributable": true,
+      "description": "既存の配布可能な短尺サンプル"
+    },
+    {
+      "sample_id": "benchmark_medium",
+      "category": "medium",
+      "video_path": "test-data/benchmark_suite/sample_basic_telop_60s.mp4",
+      "duration_seconds": 60,
+      "frame_interval_seconds": 1.0,
+      "redistributable": true,
+      "description": "短尺サンプルを 12 回連結した中尺サンプル",
+      "generated_from": "test-data/basic_telop/sample_basic_telop.mp4",
+      "repeat_count": 12
+    },
+    {
+      "sample_id": "benchmark_long",
+      "category": "long",
+      "video_path": "test-data/benchmark_suite/sample_basic_telop_180s.mp4",
+      "duration_seconds": 180,
+      "frame_interval_seconds": 1.0,
+      "redistributable": true,
+      "description": "短尺サンプルを 36 回連結した長尺サンプル",
+      "generated_from": "test-data/basic_telop/sample_basic_telop.mp4",
+      "repeat_count": 36
+    }
+  ]
+}
