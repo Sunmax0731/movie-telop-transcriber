@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using MovieTelopTranscriber.App.Models;
 using MovieTelopTranscriber.App.Services;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -37,13 +38,20 @@ public partial class App : Application
     public static nint WindowHandle =>
         WinRT.Interop.WindowNative.GetWindowHandle(Window);
 
+    public static AppLaunchSettings LaunchSettings { get; private set; } = new();
+
+    public static string? LaunchSettingsPath { get; private set; }
+
     /// <summary>
     /// Initializes the singleton application object.
     /// </summary>
     public App()
     {
         InitializeComponent();
-        AppLaunchSettingsLoader.Apply();
+        var loadResult = AppLaunchSettingsLoader.Load();
+        LaunchSettings = loadResult.Settings;
+        LaunchSettingsPath = loadResult.SettingsPath;
+        AppLaunchSettingsLoader.Apply(loadResult.Settings, loadResult.SettingsPath, loadResult.LoadError);
     }
 
     /// <summary>

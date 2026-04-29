@@ -168,6 +168,15 @@ function Write-AppLaunchSettings {
             contrast = 1.1
             sharpen = $true
         }
+        ui = [ordered]@{
+            language = "ja"
+            frameIntervalSeconds = 1.0
+            outputRootDirectory = ".\\work\\runs"
+            mainWindow = [ordered]@{
+                width = 1820
+                height = 1080
+            }
+        }
     }
 
     $json = $settingsObject | ConvertTo-Json -Depth 5

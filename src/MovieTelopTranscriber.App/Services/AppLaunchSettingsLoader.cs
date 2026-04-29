@@ -11,32 +11,33 @@ internal static class AppLaunchSettingsLoader
     private const string InstallManifestFileName = "movie-telop-transcriber.installation.json";
     private const string InstallerCommandFileName = "Install-MovieTelopTranscriber.cmd";
 
-    public static void Apply()
+    public static AppLaunchSettingsLoadResult Load()
     {
         var settingsPath = FindSettingsPath();
         if (settingsPath is null)
         {
-            return;
+            return new AppLaunchSettingsLoadResult(null, new AppLaunchSettings(), null);
         }
 
-        AppLaunchSettings? settings;
         try
         {
             using var stream = File.OpenRead(settingsPath);
             using var document = JsonDocument.Parse(stream);
-            settings = ParseSettings(document.RootElement);
+            return new AppLaunchSettingsLoadResult(settingsPath, ParseSettings(document.RootElement), null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
+            return new AppLaunchSettingsLoadResult(settingsPath, new AppLaunchSettings(), ex.Message);
+        }
+    }
+
+    public static void Apply(AppLaunchSettings settings, string? settingsPath, string? loadError)
+    {
+        if (!string.IsNullOrWhiteSpace(loadError) && !string.IsNullOrWhiteSpace(settingsPath))
+        {
             Environment.SetEnvironmentVariable(
                 "MOVIE_TELOP_LAUNCH_SETTINGS_LOAD_ERROR",
-                $"{settingsPath}: {ex.Message}");
-            return;
-        }
-
-        if (settings is null)
-        {
-            return;
+                $"{settingsPath}: {loadError}");
         }
 
         SetString("MOVIE_TELOP_OCR_ENGINE", settings.OcrEngine);
@@ -65,7 +66,152 @@ internal static class AppLaunchSettingsLoader
         SetDouble("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE", settings.PaddleOcr.MinTextSize);
     }
 
-    private static void SetPath(string environmentVariable, string? value, string settingsPath)
+    public static void Save(AppLaunchSettings settings, string? preferredSettingsPath = null)
+    {
+        var settingsPath = ResolveWritableSettingsPath(preferredSettingsPath);
+        var settingsDirectory = Path.GetDirectoryName(settingsPath);
+        if (!string.IsNullOrWhiteSpace(settingsDirectory))
+        {
+            Directory.CreateDirectory(settingsDirectory);
+        }
+
+        var normalized = NormalizeForSave(settings, settingsPath);
+        var json = JsonSerializer.Serialize(normalized, AppSettingsJsonContext.Default.AppLaunchSettings);
+
+        File.WriteAllText(settingsPath, json);
+    }
+
+    public static string? FindSettingsPath()
+    {
+        var baseSettingsPath = Path.Combine(AppContext.BaseDirectory, SettingsFileName);
+        if (File.Exists(baseSettingsPath))
+        {
+            return baseSettingsPath;
+        }
+
+        var baseDirectory = new DirectoryInfo(AppContext.BaseDirectory);
+        if (!string.Equals(baseDirectory.Name, "app", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var packageRoot = baseDirectory.Parent;
+        if (packageRoot is null)
+        {
+            return null;
+        }
+
+        var installerCommandPath = Path.Combine(packageRoot.FullName, InstallerCommandFileName);
+        if (!File.Exists(installerCommandPath))
+        {
+            return null;
+        }
+
+        var siblingInstallRoot = Path.Combine(packageRoot.FullName, InstallRootName);
+        var siblingManifestPath = Path.Combine(siblingInstallRoot, InstallManifestFileName);
+        var siblingSettingsPath = Path.Combine(siblingInstallRoot, "app", SettingsFileName);
+        if (File.Exists(siblingManifestPath) && File.Exists(siblingSettingsPath))
+        {
+            return siblingSettingsPath;
+        }
+
+        return null;
+    }
+
+    private static string ResolveWritableSettingsPath(string? preferredSettingsPath)
+    {
+        if (!string.IsNullOrWhiteSpace(preferredSettingsPath))
+        {
+            return Path.GetFullPath(preferredSettingsPath);
+        }
+
+        var discovered = FindSettingsPath();
+        if (!string.IsNullOrWhiteSpace(discovered))
+        {
+            return discovered;
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, SettingsFileName);
+    }
+
+    private static AppLaunchSettings NormalizeForSave(AppLaunchSettings settings, string settingsPath)
+    {
+        return new AppLaunchSettings
+        {
+            OcrEngine = NormalizeString(settings.OcrEngine),
+            OcrWorkerPath = NormalizeRelativePath(settings.OcrWorkerPath, settingsPath),
+            PaddleOcr = settings.PaddleOcr is null
+                ? null
+                : new PaddleOcrLaunchSettings
+                {
+                    PythonPath = NormalizeRelativePath(settings.PaddleOcr.PythonPath, settingsPath),
+                    ScriptPath = NormalizeRelativePath(settings.PaddleOcr.ScriptPath, settingsPath),
+                    Device = NormalizeString(settings.PaddleOcr.Device),
+                    Language = NormalizeString(settings.PaddleOcr.Language),
+                    MinScore = settings.PaddleOcr.MinScore,
+                    NormalizeSmallKana = settings.PaddleOcr.NormalizeSmallKana,
+                    Preprocess = settings.PaddleOcr.Preprocess,
+                    Contrast = settings.PaddleOcr.Contrast,
+                    Sharpen = settings.PaddleOcr.Sharpen,
+                    TextDetThresh = settings.PaddleOcr.TextDetThresh,
+                    TextDetBoxThresh = settings.PaddleOcr.TextDetBoxThresh,
+                    TextDetUnclipRatio = settings.PaddleOcr.TextDetUnclipRatio,
+                    TextDetLimitSideLen = settings.PaddleOcr.TextDetLimitSideLen,
+                    UseTextlineOrientation = settings.PaddleOcr.UseTextlineOrientation,
+                    UseDocUnwarping = settings.PaddleOcr.UseDocUnwarping,
+                    MinTextSize = settings.PaddleOcr.MinTextSize
+                },
+            Ui = settings.Ui is null
+                ? null
+                : new UserInterfaceSettings
+                {
+                    Language = NormalizeString(settings.Ui.Language),
+                    FrameIntervalSeconds = settings.Ui.FrameIntervalSeconds,
+                    OutputRootDirectory = NormalizeRelativePath(settings.Ui.OutputRootDirectory, settingsPath),
+                    MainWindow = settings.Ui.MainWindow is null
+                        ? null
+                        : new MainWindowLaunchSettings
+                        {
+                            Width = settings.Ui.MainWindow.Width,
+                            Height = settings.Ui.MainWindow.Height
+                        }
+                }
+        };
+    }
+
+    private static string? NormalizeRelativePath(string? value, string settingsPath)
+    {
+        var normalized = NormalizeString(value);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        var expanded = Environment.ExpandEnvironmentVariables(normalized);
+        if (!Path.IsPathRooted(expanded))
+        {
+            return normalized;
+        }
+
+        var settingsDirectory = Path.GetDirectoryName(settingsPath);
+        if (string.IsNullOrWhiteSpace(settingsDirectory))
+        {
+            return Path.GetFullPath(expanded);
+        }
+
+        var fullPath = Path.GetFullPath(expanded);
+        var relativePath = Path.GetRelativePath(settingsDirectory, fullPath);
+        return relativePath.StartsWith("..", StringComparison.Ordinal)
+            ? fullPath
+            : relativePath;
+    }
+
+    private static string? NormalizeString(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static void SetPath(string environmentVariable, string? value, string? settingsPath)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -120,44 +266,7 @@ internal static class AppLaunchSettingsLoader
             value.Value.ToString(CultureInfo.InvariantCulture));
     }
 
-    private static string? FindSettingsPath()
-    {
-        var baseSettingsPath = Path.Combine(AppContext.BaseDirectory, SettingsFileName);
-        if (File.Exists(baseSettingsPath))
-        {
-            return baseSettingsPath;
-        }
-
-        var baseDirectory = new DirectoryInfo(AppContext.BaseDirectory);
-        if (!string.Equals(baseDirectory.Name, "app", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var packageRoot = baseDirectory.Parent;
-        if (packageRoot is null)
-        {
-            return null;
-        }
-
-        var installerCommandPath = Path.Combine(packageRoot.FullName, InstallerCommandFileName);
-        if (!File.Exists(installerCommandPath))
-        {
-            return null;
-        }
-
-        var siblingInstallRoot = Path.Combine(packageRoot.FullName, InstallRootName);
-        var siblingManifestPath = Path.Combine(siblingInstallRoot, InstallManifestFileName);
-        var siblingSettingsPath = Path.Combine(siblingInstallRoot, "app", SettingsFileName);
-        if (File.Exists(siblingManifestPath) && File.Exists(siblingSettingsPath))
-        {
-            return siblingSettingsPath;
-        }
-
-        return null;
-    }
-
-    private static string ResolvePath(string value, string settingsPath)
+    private static string ResolvePath(string value, string? settingsPath)
     {
         var expanded = Environment.ExpandEnvironmentVariables(value);
         if (Path.IsPathRooted(expanded))
@@ -165,7 +274,12 @@ internal static class AppLaunchSettingsLoader
             return Path.GetFullPath(expanded);
         }
 
-        var settingsDirectory = Path.GetDirectoryName(settingsPath) ?? AppContext.BaseDirectory;
+        var settingsDirectory = Path.GetDirectoryName(settingsPath ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(settingsDirectory))
+        {
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, expanded));
+        }
+
         return Path.GetFullPath(Path.Combine(settingsDirectory, expanded));
     }
 
@@ -194,6 +308,21 @@ internal static class AppLaunchSettingsLoader
                     UseTextlineOrientation = ReadBool(paddle, "useTextlineOrientation"),
                     UseDocUnwarping = ReadBool(paddle, "useDocUnwarping"),
                     MinTextSize = ReadDouble(paddle, "minTextSize")
+                }
+                : null,
+            Ui = ReadObject(root, "ui") is { } ui
+                ? new UserInterfaceSettings
+                {
+                    Language = ReadString(ui, "language"),
+                    FrameIntervalSeconds = ReadDouble(ui, "frameIntervalSeconds"),
+                    OutputRootDirectory = ReadString(ui, "outputRootDirectory"),
+                    MainWindow = ReadObject(ui, "mainWindow") is { } mainWindow
+                        ? new MainWindowLaunchSettings
+                        {
+                            Width = ReadInt(mainWindow, "width"),
+                            Height = ReadInt(mainWindow, "height")
+                        }
+                        : null
                 }
                 : null
         };
@@ -273,3 +402,8 @@ internal static class AppLaunchSettingsLoader
         return false;
     }
 }
+
+internal sealed record AppLaunchSettingsLoadResult(
+    string? SettingsPath,
+    AppLaunchSettings Settings,
+    string? LoadError);
