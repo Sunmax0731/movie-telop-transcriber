@@ -237,4 +237,6 @@ python tools\validation\evaluate_qcds_report.py `
 ### 現在の状態
 - 初期リリース `v0.1.0` は公開済み。
 - インストーラ同梱版 `v0.1.4` を最新 release として扱う。
+- release は実装 Issue の完了とは別の完了単位として扱う。version 更新、配布物作成、GitHub Release 公開を行う場合は、release 専用 Issue を起票してから進める。
+- open Issue が 0 件でも、そのまま release しない。今回の release をどの Issue で完了扱いにするかを先に確定する。
 - リリース後の主な open Issue は、タイムライン結合 / 分割 UI とプレビュー同期の再設計である。
