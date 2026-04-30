@@ -178,6 +178,7 @@ Get-ChildItem -LiteralPath (Join-Path $packageRoot "app") -Recurse -Filter "*.pd
 Write-ReleaseAppSettings
 
 Copy-RepoFile -Source "README.md" -Destination "docs\README.md"
+Copy-RepoFile -Source "docs\templates\release_package_start_here.md" -Destination "START_HERE.md"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.ps1" -Destination "Install-MovieTelopTranscriber.ps1"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.cmd" -Destination "Install-MovieTelopTranscriber.cmd"
 Copy-RepoFile -Source "tools\install\Test-MovieTelopTranscriberOcrReadiness.ps1" -Destination "Test-MovieTelopTranscriberOcrReadiness.ps1"
@@ -208,6 +209,7 @@ $requiredPackageFiles = @(
     "app\MovieTelopTranscriber.App.runtimeconfig.json",
     "app\movie-telop-transcriber.settings.json",
     "app\tools\ocr\paddle_ocr_worker.py",
+    "START_HERE.md",
     "Install-MovieTelopTranscriber.ps1",
     "Install-MovieTelopTranscriber.cmd",
     "Test-MovieTelopTranscriberOcrReadiness.ps1",

@@ -41,6 +41,7 @@
 
 `Install-MovieTelopTranscriber.cmd` は内部で PowerShell インストーラを呼び出し、実行したディレクトリ配下に `MovieTelopTranscriber` フォルダを作成します。その中へアプリ本体、PaddleOCR 用 Python 仮想環境、Python package、OCR モデル、起動設定ファイルをまとめて配置します。
 導入後は同じフォルダに `Test-MovieTelopTranscriberOcrReadiness.ps1` も配置され、installer 自身も最後に OCR readiness を確認します。
+配布 zip を開いたら、最初に `START_HERE.md` を見る前提にしています。
 
 標準配布方式は `Release build を含む zip + installer` です。`dotnet publish --self-contained true` の出力は 2026-04-30 の再検証でも `0xC000027B` で終了したため、配布経路には使っていません。
 
