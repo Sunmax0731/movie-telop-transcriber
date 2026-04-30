@@ -273,6 +273,17 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 OCR runtime やモデル取得を省略してアプリ配置だけ確認する場合は、`-SkipOcrSetup -SkipModelDownload` を指定します。
 
+### release smoke
+release 前の最小確認を 1 本で流す場合:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\validation\Test-ReleaseSmoke.ps1 `
+  -Version 1.0.0
+```
+
+この script は Release build、test、release package 作成、installer 実行、OCR readiness、canonical な QCDS / readiness レポートの存在確認を順に実施し、結果を `temp/release-smoke/v<version>/release-smoke-summary.json` に保存します。
+
 ### QCDS 評価
 QCDS 評価の仕様は [docs/spec/06_QCDS評価仕様.md](docs/spec/06_QCDS評価仕様.md) にあります。評価スクリプトは、正解データと `segments.json` を比較し、文字列一致、欠落、余計な検出、時刻誤差、処理時間、エラー件数をレポート化します。
 
