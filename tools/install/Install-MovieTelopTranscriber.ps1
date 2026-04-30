@@ -1,6 +1,6 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$Version = "0.1.4",
+    [string]$Version = "1.0.0",
     [string]$InstallRoot,
     [string]$OcrRuntimeRoot,
     [string]$DownloadRoot = (Join-Path $env:TEMP "movie-telop-transcriber-install"),

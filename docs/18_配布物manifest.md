@@ -5,16 +5,16 @@
 
 ## 2. 対象バージョン
 - 最新基準:
-  `v0.1.4`
+  `v1.0.0`
 - 詳細検証:
-  [test-results/2026-04-30_v0.1.4_release.md](test-results/2026-04-30_v0.1.4_release.md)
+  [test-results/2026-04-30_v1.0.0_release.md](test-results/2026-04-30_v1.0.0_release.md)
 
 ## 3. asset 一覧
 
 | asset | 用途 | 利用者が直接使うか |
 | --- | --- | --- |
-| `movie-telop-transcriber-win-x64-v0.1.4.zip` | アプリ本体、同梱 docs、サンプル、installer をまとめた配布物 | はい |
-| `movie-telop-transcriber-win-x64-v0.1.4.zip.sha256` | zip の整合確認 | 必要に応じて |
+| `movie-telop-transcriber-win-x64-v1.0.0.zip` | アプリ本体、同梱 docs、サンプル、installer をまとめた配布物 | はい |
+| `movie-telop-transcriber-win-x64-v1.0.0.zip.sha256` | zip の整合確認 | 必要に応じて |
 | `Install-MovieTelopTranscriber.ps1` | PowerShell から導入する代替入口 | 必要に応じて |
 | `Install-MovieTelopTranscriber.ps1.sha256` | installer script の整合確認 | 必要に応じて |
 
@@ -45,7 +45,7 @@
 1. asset 一覧が揃っていることを確認する
 2. checksum を記録する
 3. `docs/12_導入手順書.md` と `docs/13_リリースノート.md` の導線が最新であることを確認する
-4. [test-results/2026-04-30_v0.1.4_release.md](test-results/2026-04-30_v0.1.4_release.md) 相当の検証が最新状態であることを確認する
+4. [test-results/2026-04-30_v1.0.0_release.md](test-results/2026-04-30_v1.0.0_release.md) 相当の検証が最新状態であることを確認する
 
 ## 8. 関連文書
 - [11_配布構成と同梱物.md](11_配布構成と同梱物.md)

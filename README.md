@@ -235,7 +235,7 @@ python -m py_compile `
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\release\New-ReleasePackage.ps1 `
-  -Version 0.1.4
+  -Version 1.0.0
 ```
 
 生成物は `dist/` 配下に作成されます。配布 zip にはアプリ本体、docs、最小サンプル、インストーラを含めます。Python runtime、PaddleOCR package、OCR モデル本体は同梱せず、インストーラまたは手動手順で取得します。
@@ -254,7 +254,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
-  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v0.1.4.zip `
+  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v1.0.0.zip `
   -Force
 ```
 
@@ -297,9 +297,9 @@ python tools\validation\evaluate_qcds_report.py `
 
 ### 現在の状態
 - 初期リリース `v0.1.0` は公開済み。
-- インストーラ同梱版 `v0.1.4` を最新 release として扱う。
-- 成果物評価改善の親 Issue は `#182`、個別 Issue は `#183` から `#186`。
-- QCDS 再評価後の改善親 Issue は `#176`、個別 Issue は `#177` から `#181`。
+- 正式版 `v1.0.0` を最新 release として扱う。
+- 優先改善の親 Issue は `#202`、個別 Issue は `#203` から `#206`。
+- 加点改善の親 Issue は `#199`、個別 Issue は `#207` から `#210`。
 - release は実装 Issue の完了とは別の完了単位として扱う。version 更新、配布物作成、GitHub Release 公開を行う場合は、release 専用 Issue を起票してから進める。
 - open Issue が 0 件でも、そのまま release しない。今回の release をどの Issue で完了扱いにするかを先に確定する。
-- 現在の主な open Issue は、QCDS 再評価後の改善バックログと成果物評価改善バックログである。
+- 現在の主な open Issue は、S評価到達に向けた優先改善バックログと加点改善バックログである。
