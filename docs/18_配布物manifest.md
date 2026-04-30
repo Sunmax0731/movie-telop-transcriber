@@ -17,6 +17,7 @@
 | `movie-telop-transcriber-win-x64-v1.1.0.zip.sha256` | zip の整合確認 | はい |
 | `Install-MovieTelopTranscriber.ps1` | PowerShell から導入する代替入口 | はい |
 | `Install-MovieTelopTranscriber.ps1.sha256` | installer script の整合確認 | はい |
+| `START_HERE.md` | zip 展開直後の最短導線 | zip 内に同梱 |
 
 ## 4. zip に含めるもの
 - WinUI 3 アプリの Release build 一式
