@@ -4,7 +4,7 @@
 
 目的は、動画編集や字幕確認で必要になる「どの時刻に、どのテロップが、どの位置に出ていたか」を後から追跡できる形で残すことです。初期リリースでは WinUI 3 の画面から動画を選択し、フレーム抽出、PaddleOCR による認識、タイムライン確認、SRT / VTT / ASS / CSV / JSON 出力までを扱います。
 
-![movie-telop-transcriber overview](docs/images/app-overview-summary.svg)
+![movie-telop-transcriber overview](docs/images/app-overview-summary.png)
 
 ## 利用者向け
 
