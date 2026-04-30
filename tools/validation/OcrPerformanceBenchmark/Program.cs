@@ -251,6 +251,7 @@ static RunPerformanceSummaryRecord BuildPerformanceSummary(
 
     return new RunPerformanceSummaryRecord(
         warmupResult.Status,
+        1,
         frameExtractionDurationMs,
         ocrDurationMs,
         segmentMergeDurationMs,

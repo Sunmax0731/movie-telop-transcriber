@@ -86,6 +86,7 @@ def main() -> int:
         missing=evaluation["missing"],
         extras=evaluation["extras"],
         previous_metrics=previous_metrics,
+        report_date=derive_report_date(summary),
     )
 
     if args.output:
@@ -311,6 +312,13 @@ def parse_datetime(value: Any) -> datetime | None:
         return None
 
 
+def derive_report_date(summary: dict[str, Any]) -> str:
+    started_at = parse_datetime(summary.get("started_at"))
+    completed_at = parse_datetime(summary.get("completed_at"))
+    reference = completed_at or started_at or datetime.now()
+    return reference.strftime("%Y-%m-%d")
+
+
 def first_number(*values: Any) -> float:
     for value in values:
         if value is None:
@@ -338,6 +346,7 @@ def build_report(
     missing: list[dict[str, Any]],
     extras: list[dict[str, Any]],
     previous_metrics: dict[str, Any] | None,
+    report_date: str,
 ) -> str:
     metric_rows = [
         ("認識文字列完全一致率", "text_exact_rate", "{:.1%}"),
@@ -355,7 +364,7 @@ def build_report(
         "",
         "## 1. 文書情報",
         "- 対象 Issue: `#90`",
-        "- 実施日: 2026-04-29",
+        f"- 実施日: {report_date}",
         f"- 代表動画 ID: `{sample_id}`",
         f"- OCR エンジン: `{metrics.get('ocr_engine') or '-'}`",
         f"- Run ID: `{metrics.get('run_id') or '-'}`",
