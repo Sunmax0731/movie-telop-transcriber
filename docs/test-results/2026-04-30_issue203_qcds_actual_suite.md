@@ -59,4 +59,4 @@ python tools\validation\evaluate_qcds_report.py `
 ## 5. 補足
 - `tools/validation/OcrPerformanceBenchmark` は `RunPerformanceSummaryRecord` の `OcrWorkerCount` 追加に追従していなかったため、今回の実行前に修正した。
 - 今回の追加で、`basic_telop` 以外の synthetic 代表動画も actual OCR run で参照できるようになった。
-- 残る QCDS の代表性ギャップは、権利確認済みの実動画 canonical 拡張であり、後続の `#209` で扱う。
+- 残る QCDS の代表性ギャップは、権利確認済みの実動画 canonical 拡張であり、後続の `#210` で扱う。
