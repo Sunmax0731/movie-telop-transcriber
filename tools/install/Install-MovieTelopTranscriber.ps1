@@ -1,13 +1,13 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$Version = "1.2.0",
+    [string]$Version = "1.2.1",
     [string]$InstallRoot,
     [string]$OcrRuntimeRoot,
     [string]$DownloadRoot = (Join-Path $env:TEMP "movie-telop-transcriber-install"),
     [string]$PackageZipPath,
     [string]$ReleaseAssetUrl,
     [string]$PythonCommand = "py",
-    [string[]]$PythonArguments = @("-3.10"),
+    [string[]]$PythonArguments = @(),
     [switch]$SkipAppInstall,
     [switch]$SkipOcrSetup,
     [switch]$SkipModelDownload,
@@ -64,6 +64,10 @@ $removeOcrRuntimeRootOnUninstall = $false
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoWorkerPath = Join-Path $scriptRoot "..\ocr\paddle_ocr_worker.py"
 $installedWorkerPath = Join-Path $appDir "tools\ocr\paddle_ocr_worker.py"
+$preferredPyLauncherVersions = @("-3.13", "-3.12", "-3.11", "-3.10")
+$supportedPythonVersionLabel = "3.10-3.13"
+$paddlePaddlePackage = "paddlepaddle==3.2.2"
+$paddleOcrPackage = "paddleocr==3.5.0"
 
 function Write-InstallLog {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -82,6 +86,186 @@ function Invoke-CheckedCommand {
     if ($LASTEXITCODE -ne 0) {
         throw ("Command failed with exit code {0}: {1}" -f $LASTEXITCODE, $FilePath)
     }
+}
+
+function Format-CommandInvocation {
+    param(
+        [Parameter(Mandatory = $true)][string]$Command,
+        [string[]]$Arguments = @()
+    )
+
+    if ($Arguments.Count -eq 0) {
+        return $Command
+    }
+
+    return "{0} {1}" -f $Command, ($Arguments -join " ")
+}
+
+function Test-SupportedPythonVersion {
+    param([Parameter(Mandatory = $true)][string]$VersionText)
+
+    try {
+        $version = [Version]$VersionText
+        return $version.Major -eq 3 -and $version.Minor -ge 10 -and $version.Minor -le 13
+    }
+    catch {
+        return $false
+    }
+}
+
+function Get-PythonInterpreterInfo {
+    param(
+        [Parameter(Mandatory = $true)][string]$Command,
+        [string[]]$Arguments = @()
+    )
+
+    $probeCode = @'
+import json
+import platform
+import sys
+
+print(json.dumps({
+    'python_path': sys.executable,
+    'python_version': platform.python_version(),
+    'architecture': platform.architecture()[0],
+    'machine': platform.machine(),
+}, ensure_ascii=False))
+'@
+
+    try {
+        $probeOutput = & $Command @Arguments "-c" $probeCode 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    catch {
+        return [pscustomobject]@{
+            Success = $false
+            Error = $_.Exception.Message
+            Command = $Command
+            Arguments = $Arguments
+        }
+    }
+
+    if ($exitCode -ne 0) {
+        return [pscustomobject]@{
+            Success = $false
+            Error = (($probeOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine).Trim()
+            Command = $Command
+            Arguments = $Arguments
+        }
+    }
+
+    $probeLines = @($probeOutput | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($probeLines.Count -eq 0) {
+        return [pscustomobject]@{
+            Success = $false
+            Error = "Python probe returned no output."
+            Command = $Command
+            Arguments = $Arguments
+        }
+    }
+
+    try {
+        $probe = $probeLines[-1] | ConvertFrom-Json
+    }
+    catch {
+        return [pscustomobject]@{
+            Success = $false
+            Error = ("Python probe did not return valid JSON. Output: {0}" -f (($probeLines -join " | ").Trim()))
+            Command = $Command
+            Arguments = $Arguments
+        }
+    }
+
+    return [pscustomobject]@{
+        Success = $true
+        Command = $Command
+        Arguments = $Arguments
+        PythonPath = [string]$probe.python_path
+        PythonVersion = [string]$probe.python_version
+        Architecture = [string]$probe.architecture
+        Machine = [string]$probe.machine
+    }
+}
+
+function Resolve-PythonInvocation {
+    param(
+        [Parameter(Mandatory = $true)][string]$RequestedCommand,
+        [string[]]$RequestedArguments = @()
+    )
+
+    $requestedSpec = Format-CommandInvocation -Command $RequestedCommand -Arguments $RequestedArguments
+    $candidates = New-Object System.Collections.Generic.List[object]
+    $attemptNotes = New-Object System.Collections.Generic.List[string]
+    $isAutoPySelection = $RequestedCommand -eq "py" -and $RequestedArguments.Count -eq 0
+
+    if ($isAutoPySelection) {
+        foreach ($pythonArgument in $preferredPyLauncherVersions) {
+            $candidates.Add([pscustomobject]@{
+                Command = "py"
+                Arguments = @($pythonArgument)
+                Source = "py-launcher"
+            })
+        }
+
+        foreach ($fallbackCommand in @("python", "python3")) {
+            $candidates.Add([pscustomobject]@{
+                Command = $fallbackCommand
+                Arguments = @()
+                Source = "path-fallback"
+            })
+        }
+    } else {
+        $candidates.Add([pscustomobject]@{
+            Command = $RequestedCommand
+            Arguments = $RequestedArguments
+            Source = "explicit"
+        })
+    }
+
+    foreach ($candidate in $candidates) {
+        $commandExists = Get-Command -Name $candidate.Command -ErrorAction SilentlyContinue
+        if (-not $commandExists) {
+            $attemptNotes.Add(("Missing command: {0}" -f (Format-CommandInvocation -Command $candidate.Command -Arguments $candidate.Arguments)))
+            continue
+        }
+
+        $info = Get-PythonInterpreterInfo -Command $candidate.Command -Arguments $candidate.Arguments
+        if (-not $info.Success) {
+            $attemptNotes.Add(("Probe failed for {0}: {1}" -f (Format-CommandInvocation -Command $candidate.Command -Arguments $candidate.Arguments), $info.Error))
+            continue
+        }
+
+        if (-not (Test-SupportedPythonVersion -VersionText $info.PythonVersion)) {
+            $attemptNotes.Add(("Unsupported Python version {0} for {1}" -f $info.PythonVersion, (Format-CommandInvocation -Command $candidate.Command -Arguments $candidate.Arguments)))
+            continue
+        }
+
+        if ($info.Architecture -ne "64bit") {
+            $attemptNotes.Add(("Unsupported Python architecture {0} for {1}" -f $info.Architecture, (Format-CommandInvocation -Command $candidate.Command -Arguments $candidate.Arguments)))
+            continue
+        }
+
+        if ($candidate.Source -eq "path-fallback") {
+            Write-Warning ("Python launcher 'py' was not available. Falling back to '{0}' ({1})." -f $candidate.Command, $info.PythonVersion)
+        }
+
+        return [pscustomobject]@{
+            Command = $candidate.Command
+            Arguments = $candidate.Arguments
+            PythonPath = $info.PythonPath
+            PythonVersion = $info.PythonVersion
+            Architecture = $info.Architecture
+            Machine = $info.Machine
+        }
+    }
+
+    $detail = if ($attemptNotes.Count -gt 0) {
+        $attemptNotes -join " / "
+    } else {
+        "No Python candidates were available."
+    }
+
+    throw ("No supported Python interpreter was found for the installer. Supported versions: {0} (64-bit). Requested invocation: {1}. Details: {2}. Re-run with -PythonCommand <python.exe path> and optional -PythonArguments if you want to force a specific interpreter." -f $supportedPythonVersionLabel, $requestedSpec, $detail)
 }
 
 function Assert-InstallChildPath {
@@ -329,6 +513,12 @@ if ($WhatIfPreference) {
 Write-InstallLog "InstallRoot: $InstallRoot"
 Write-InstallLog "OcrRuntimeRoot: $OcrRuntimeRoot"
 
+$resolvedPython = Resolve-PythonInvocation -RequestedCommand $PythonCommand -RequestedArguments $PythonArguments
+$PythonCommand = $resolvedPython.Command
+$PythonArguments = @($resolvedPython.Arguments)
+Write-InstallLog ("Python invocation: {0}" -f (Format-CommandInvocation -Command $PythonCommand -Arguments $PythonArguments))
+Write-InstallLog ("Python interpreter: {0} ({1}, {2})" -f $resolvedPython.PythonPath, $resolvedPython.PythonVersion, $resolvedPython.Architecture)
+
 if (-not $SkipAppInstall) {
     if ((Test-Path -LiteralPath $appDir) -and -not $Force) {
         throw "App is already installed at $appDir. Re-run with -Force to replace app/docs/samples."
@@ -396,8 +586,8 @@ if (-not $SkipOcrSetup) {
 
     if ($PSCmdlet.ShouldProcess($venvPython, "Install PaddleOCR runtime packages")) {
         Invoke-CheckedCommand -FilePath $venvPython -Arguments @("-m", "pip", "install", "--upgrade", "pip")
-        Invoke-CheckedCommand -FilePath $venvPython -Arguments @("-m", "pip", "install", "paddlepaddle==3.2.0", "-i", "https://www.paddlepaddle.org.cn/packages/stable/cpu/")
-        Invoke-CheckedCommand -FilePath $venvPython -Arguments @("-m", "pip", "install", "paddleocr==3.5.0")
+        Invoke-CheckedCommand -FilePath $venvPython -Arguments @("-m", "pip", "install", $paddlePaddlePackage)
+        Invoke-CheckedCommand -FilePath $venvPython -Arguments @("-m", "pip", "install", $paddleOcrPackage)
     }
 
     if (-not $SkipModelDownload) {

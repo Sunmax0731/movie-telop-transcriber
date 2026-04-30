@@ -23,7 +23,7 @@
 ```powershell
 python -m venv temp\ocr-eval\.venv
 temp\ocr-eval\.venv\Scripts\python.exe -m pip install --upgrade pip
-temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddlepaddle==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddlepaddle==3.2.2
 temp\ocr-eval\.venv\Scripts\python.exe -m pip install paddleocr
 ```
 

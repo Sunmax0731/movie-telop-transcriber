@@ -578,8 +578,8 @@ public sealed partial class MainPage : Page
             .AppendLine("- PaddleOCR worker script (tools/ocr/paddle_ocr_worker.py)")
             .AppendLine()
             .AppendLine("OCR runtime の詳細")
-            .AppendLine("- CPU: PaddlePaddle 3.2.0 + PaddleOCR 3.5.0")
-            .AppendLine("- GPU: PaddlePaddle GPU 3.2.2 + PaddleOCR 3.5.0");
+            .AppendLine("- CPU: PaddlePaddle 3.2.2 + PaddleOCR 3.5.0")
+            .AppendLine("- Python: 3.10-3.13 (64-bit) を想定");
 
         if (!string.IsNullOrWhiteSpace(pythonPath))
         {
