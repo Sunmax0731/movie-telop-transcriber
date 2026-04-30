@@ -54,6 +54,7 @@ $modelRoot = Join-Path $env:USERPROFILE ".paddlex\official_models"
 $startMenuShortcutDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Movie Telop Transcriber"
 $startMenuShortcutPath = Join-Path $startMenuShortcutDirectory "Movie Telop Transcriber.lnk"
 $launchShortcutPath = Join-Path $installInvocationDirectory "Movie Telop Transcriber.lnk"
+$readinessScriptPath = Join-Path $InstallRoot "Test-MovieTelopTranscriberOcrReadiness.ps1"
 $knownModelNames = @(
     "PP-OCRv5_server_det",
     "PP-OCRv5_server_rec"
@@ -151,6 +152,49 @@ exit /b %EXITCODE%
 "@
 
     [System.IO.File]::WriteAllText($launcherCommandPath, $launcherCommandContent, [System.Text.ASCIIEncoding]::new())
+}
+
+function Ensure-ReadinessScript {
+    $sourceCandidates = @(
+        (Join-Path $InstallRoot "Test-MovieTelopTranscriberOcrReadiness.ps1"),
+        (Join-Path $scriptRoot "Test-MovieTelopTranscriberOcrReadiness.ps1")
+    ) | Select-Object -Unique
+
+    foreach ($candidate in $sourceCandidates) {
+        if ((Test-Path -LiteralPath $candidate -PathType Leaf) -and -not [System.StringComparer]::OrdinalIgnoreCase.Equals($candidate, $readinessScriptPath)) {
+            Copy-Item -LiteralPath $candidate -Destination $readinessScriptPath -Force
+            return
+        }
+    }
+}
+
+function Invoke-OcrReadinessCheck {
+    if (-not (Test-Path -LiteralPath $readinessScriptPath -PathType Leaf)) {
+        Write-Warning "OCR readiness script was not found. Skip readiness check."
+        return [pscustomobject]@{
+            Status = "missing"
+            Detail = "Readiness script was not found."
+        }
+    }
+
+    Write-InstallLog "Running OCR readiness check"
+    $readinessJson = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $readinessScriptPath -InstallRoot $InstallRoot -AppSettingsPath $appSettingsPath -InstallManifestPath $installManifestPath -AsJson
+    $readinessExitCode = $LASTEXITCODE
+    $readiness = ($readinessJson | Out-String) | ConvertFrom-Json
+
+    switch ($readinessExitCode) {
+        0 {
+            Write-InstallLog "OCR readiness: ready"
+        }
+        2 {
+            Write-Warning ("OCR readiness: warning - {0}" -f (($readiness.missingModels | ForEach-Object { $_ }) -join ", "))
+        }
+        default {
+            throw ("OCR readiness check failed: {0}" -f (($readiness.checks | Where-Object { $_.status -eq "error" } | ForEach-Object { $_.detail }) -join " / "))
+        }
+    }
+
+    return $readiness
 }
 
 function Write-AppLaunchSettings {
@@ -273,6 +317,7 @@ if ($WhatIfPreference) {
         LauncherPath = $launcherPath
         LauncherCommandPath = $launcherCommandPath
         AppSettingsPath = $appSettingsPath
+        OcrReadinessScriptPath = $readinessScriptPath
         UninstallerPath = $uninstallerPath
         UninstallerCommandPath = $uninstallerCommandPath
         InstallManifestPath = $installManifestPath
@@ -409,6 +454,11 @@ if ($PSCmdlet.ShouldProcess($appSettingsPath, "Write app launch settings")) {
     Write-AppLaunchSettings
 }
 
+Write-InstallLog "Preparing OCR readiness script: $readinessScriptPath"
+if ($PSCmdlet.ShouldProcess($readinessScriptPath, "Prepare OCR readiness script")) {
+    Ensure-ReadinessScript
+}
+
 Write-InstallLog "Writing install manifest: $installManifestPath"
 if ($PSCmdlet.ShouldProcess($installManifestPath, "Write install manifest")) {
     Write-InstallManifest
@@ -433,11 +483,15 @@ if ($Launch) {
     }
 }
 
+$ocrReadiness = Invoke-OcrReadinessCheck
+
 [pscustomobject]@{
     Version = $Version
     InstallRoot = $InstallRoot
     AppExe = $appExe
     AppSettingsPath = $appSettingsPath
+    OcrReadinessScriptPath = $readinessScriptPath
+    OcrReadinessStatus = $ocrReadiness.status
     LauncherPath = $launcherPath
     LauncherCommandPath = $launcherCommandPath
     UninstallerPath = $uninstallerPath
