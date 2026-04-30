@@ -61,8 +61,7 @@ public partial class MainPageViewModel : ObservableObject
     private readonly DispatcherQueue? _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private ProgressFrameState? _activeProgressFrameState;
     private int _manualEditSequence;
-    private Task<OcrWorkerWarmupResult>? _pendingOcrWarmupTask;
-    private string? _pendingOcrWarmupSettingsSignature;
+    private MainPageOcrWarmupState _ocrWarmupState = MainPageOcrWarmupState.Empty;
     private bool _settingsPersistenceReady;
     private string? _currentProjectFilePath;
     private string? _loadedProjectExtractionDirectory;
@@ -1379,7 +1378,7 @@ public partial class MainPageViewModel : ObservableObject
             EnsureBackgroundOcrWarmupStarted();
             PreviewState = "Ready";
             StatusMessage = $"Loaded {metadata.FileName}";
-            ActivityMessage = _pendingOcrWarmupTask is null
+            ActivityMessage = _ocrWarmupState.PendingTask is null
                 ? "Metadata loaded. You can now run frame extraction."
                 : "Metadata loaded. OCR warmup is running in background.";
             ProgressDetailText = "Metadata loaded.";
@@ -1443,45 +1442,22 @@ public partial class MainPageViewModel : ObservableObject
 
     private void EnsureBackgroundOcrWarmupStarted()
     {
-        if (!string.Equals(_frameAnalysisService.EngineName, "paddleocr", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var signature = CreateOcrWarmupSettingsSignature();
-        if (_pendingOcrWarmupTask is not null
-            && string.Equals(_pendingOcrWarmupSettingsSignature, signature, StringComparison.Ordinal)
-            && !_pendingOcrWarmupTask.IsCanceled
-            && !_pendingOcrWarmupTask.IsFaulted)
-        {
-            return;
-        }
-
-        _pendingOcrWarmupSettingsSignature = signature;
-        _pendingOcrWarmupTask = RunOcrWarmupWithIsolatedDirectoryAsync(CancellationToken.None);
+        _ocrWarmupState = MainPageOcrWarmupCoordinator.EnsureStarted(
+            _ocrWarmupState,
+            BuildOcrWarmupSettings(),
+            RunOcrWarmupWithIsolatedDirectoryAsync);
     }
 
     private async Task<OcrWorkerWarmupResult> ResolveOcrWarmupAsync(CancellationToken cancellationToken = default)
     {
-        if (!string.Equals(_frameAnalysisService.EngineName, "paddleocr", StringComparison.OrdinalIgnoreCase))
-        {
-            return OcrWorkerWarmupResult.Skipped;
-        }
-
-        EnsureBackgroundOcrWarmupStarted();
-        if (_pendingOcrWarmupTask is null)
-        {
-            return OcrWorkerWarmupResult.Skipped;
-        }
-
-        if (!_pendingOcrWarmupTask.IsCompleted)
-        {
-            ProgressDetailText = "OCR warmup: preparing worker.";
-        }
-
-        var result = await _pendingOcrWarmupTask.WaitAsync(cancellationToken);
-        _pendingOcrWarmupTask = null;
-        return result;
+        var resolution = await MainPageOcrWarmupCoordinator.ResolveAsync(
+            _ocrWarmupState,
+            BuildOcrWarmupSettings(),
+            () => ProgressDetailText = "OCR warmup: preparing worker.",
+            RunOcrWarmupWithIsolatedDirectoryAsync,
+            cancellationToken);
+        _ocrWarmupState = resolution.State;
+        return resolution.Result;
     }
 
     private async Task<OcrWorkerWarmupResult> RunOcrWarmupWithIsolatedDirectoryAsync(CancellationToken cancellationToken)
@@ -1526,32 +1502,28 @@ public partial class MainPageViewModel : ObservableObject
         }
     }
 
-    private string CreateOcrWarmupSettingsSignature()
+    private MainPageOcrWarmupSettings BuildOcrWarmupSettings()
     {
-        return string.Join(
-            "\n",
-            new[]
-            {
-                _frameAnalysisService.EngineName,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SCRIPT") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_LANG") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_SCORE") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PREPROCESS") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_UPSCALE") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_CONTRAST") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SHARPEN") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION") ?? string.Empty,
-                Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING") ?? string.Empty,
-                Environment.GetEnvironmentVariable(MainPageUserSettingsCoordinator.PaddleWorkerCountEnvironmentVariable) ?? string.Empty
-            });
+        return new MainPageOcrWarmupSettings(
+            _frameAnalysisService.EngineName,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PYTHON") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SCRIPT") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_DEVICE") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_LANG") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_SCORE") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_NORMALIZE_SMALL_KANA") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_PREPROCESS") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_UPSCALE") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_CONTRAST") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_SHARPEN") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_THRESH") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_BOX_THRESH") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_UNCLIP_RATIO") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_TEXT_DET_LIMIT_SIDE_LEN") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_MIN_TEXT_SIZE") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_TEXTLINE_ORIENTATION") ?? string.Empty,
+            Environment.GetEnvironmentVariable("MOVIE_TELOP_PADDLEOCR_USE_DOC_UNWARPING") ?? string.Empty,
+            Environment.GetEnvironmentVariable(MainPageUserSettingsCoordinator.PaddleWorkerCountEnvironmentVariable) ?? string.Empty);
     }
 
     private void RefreshInfoCards(VideoMetadata? metadata, int frameCount, int detectionCount, int segmentCount)
