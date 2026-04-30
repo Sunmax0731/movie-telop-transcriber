@@ -1,53 +1,48 @@
 # 配布物 manifest
 
 ## 1. 目的
-利用者と release 判定者が、公開 asset の構成、含めるもの、含めないもの、導入前の確認項目を一目で把握できるようにする。
+この文書は release asset の構成、zip に含めるもの、含めないもの、公開前の確認項目を一箇所で管理するための manifest である。
 
-## 2. 対象バージョン
-- 最新版:
+## 2. 対象 version
+- 最新公開 release:
   `v1.2.0`
-- 検証レポート:
-  [test-results/2026-04-30_v1.2.0_release.md](test-results/2026-04-30_v1.2.0_release.md)
+- 次回 release 対象:
+  `v1.2.1`
 
-## 3. asset 一覧
-
+## 3. v1.2.1 asset 一覧
 | asset | 用途 | 公開対象 |
 | --- | --- | --- |
-| `movie-telop-transcriber-win-x64-v1.2.0.zip` | アプリ本体、同梱 docs、サンプル、installer をまとめた配布物 | はい |
-| `movie-telop-transcriber-win-x64-v1.2.0.zip.sha256` | zip の整合確認 | はい |
-| `Install-MovieTelopTranscriber.ps1` | PowerShell から導入する代替入口 | はい |
+| `movie-telop-transcriber-win-x64-v1.2.1.zip` | アプリ本体、同梱 docs、samples、installer をまとめた配布物 | はい |
+| `movie-telop-transcriber-win-x64-v1.2.1.zip.sha256` | zip の整合確認 | はい |
+| `Install-MovieTelopTranscriber.ps1` | PowerShell から直接実行する installer script | はい |
 | `Install-MovieTelopTranscriber.ps1.sha256` | installer script の整合確認 | はい |
-| `START_HERE.md` | zip 展開直後の最短導線 | zip 内に同梱 |
+| `START_HERE.md` | zip 展開直後の導入案内 | zip 内に同梱 |
 
 ## 4. zip に含めるもの
 - WinUI 3 アプリの Release build 一式
 - `tools/ocr/paddle_ocr_worker.py`
 - installer / uninstaller
-- 導入用 docs
-- 最新サンプル
+- 導入手順と release 関連 docs
+- samples
 
 ## 5. zip に含めないもの
 - Python runtime
 - PaddlePaddle / PaddleOCR の Python package
 - PaddleOCR モデル本体
 
-これらは installer または手動導入で取得する。`self-contained publish` は 2026-04-30 時点で起動失敗の既知制約があるため、現在の標準配布には含めない。
+これらは installer または手動導入で構築する。`self-contained publish` は標準配布経路ではないため、現行 release asset には含めない。
 
-## 6. 導入前の最小確認項目
-1. zip を展開する
-2. `Install-MovieTelopTranscriber.cmd` または `Install-MovieTelopTranscriber.ps1` を使って導入する
-3. `MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` が存在することを確認する
-4. 導入後に OCR readiness が `ready` になることを確認する
-5. 代表サンプルで 1 本 `解析` を実行する
-6. `segments.json` と `segments.srt` が出力されることを確認する
+## 6. 公開前の確認項目
+1. zip 展開後に `Install-MovieTelopTranscriber.cmd` または `Install-MovieTelopTranscriber.ps1` で導入できる
+2. `MovieTelopTranscriber\app\MovieTelopTranscriber.App.exe` が起動する
+3. OCR readiness が `ready` になる
+4. `segments.json` と `segments.srt` を出力できる
+5. Python 3.12 と Python 3.13 の両方で installer 完走を確認する
+6. `docs/12_導入手順書.md`、`docs/13_リリースノート.md`、関連 test-results が最新状態である
 
-## 7. release 判定前の最小確認項目
-1. asset 一覧が揃っていることを確認する
-2. checksum を検証する
-3. `docs/12_導入手順書.md` と `docs/13_リリースノート.md` が最新版であることを確認する
-4. [test-results/2026-04-30_v1.2.0_release.md](test-results/2026-04-30_v1.2.0_release.md) 相当の検証が最新状態であることを確認する
-
-## 8. 関連文書
+## 7. 関連文書
 - [11_配布構成と同梱物.md](11_配布構成と同梱物.md)
 - [12_導入手順書.md](12_導入手順書.md)
 - [13_リリースノート.md](13_リリースノート.md)
+- [test-results/2026-04-30_issue213_store_python312_313_installer.md](test-results/2026-04-30_issue213_store_python312_313_installer.md)
+- [test-results/2026-04-30_v1.2.1_release.md](test-results/2026-04-30_v1.2.1_release.md)
