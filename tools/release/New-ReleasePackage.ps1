@@ -31,6 +31,40 @@ $installerAssetPath = Join-Path $OutputRoot "Install-MovieTelopTranscriber.ps1"
 $installerChecksumPath = "$installerAssetPath.sha256"
 $packageTimestampUtc = [DateTimeOffset]::Parse("2026-04-29T00:00:00Z").UtcDateTime
 
+function Remove-DirectoryIfExists {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    try {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+    }
+    catch {
+        Start-Sleep -Milliseconds 200
+        if (Test-Path -LiteralPath $Path) {
+            Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue |
+                ForEach-Object {
+                    if ($_.PSIsContainer) {
+                        return
+                    }
+
+                    try {
+                        $_.IsReadOnly = $false
+                    }
+                    catch {
+                    }
+                }
+
+            [System.IO.Directory]::Delete($Path, $true)
+        }
+    }
+}
+
 function Write-ReleaseAppSettings {
     $settingsPath = Join-Path $packageRoot "app\movie-telop-transcriber.settings.json"
     $settingsObject = [ordered]@{
@@ -123,7 +157,7 @@ if (-not (Test-Path -LiteralPath $appExe -PathType Leaf)) {
 
 New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
 if (Test-Path -LiteralPath $packageRoot) {
-    Remove-Item -LiteralPath $packageRoot -Recurse -Force
+    Remove-DirectoryIfExists -Path $packageRoot
 }
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
