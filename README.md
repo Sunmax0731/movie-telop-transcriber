@@ -248,7 +248,7 @@ python -m py_compile `
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\release\New-ReleasePackage.ps1 `
-  -Version 1.0.0
+  -Version 1.1.0
 ```
 
 生成物は `dist/` 配下に作成されます。配布 zip にはアプリ本体、docs、最小サンプル、インストーラを含めます。Python runtime、PaddleOCR package、OCR モデル本体は同梱せず、インストーラまたは手動手順で取得します。
@@ -267,7 +267,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\install\Install-MovieTelopTranscriber.ps1 `
-  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v1.0.0.zip `
+  -PackageZipPath .\dist\movie-telop-transcriber-win-x64-v1.1.0.zip `
   -Force
 ```
 
@@ -279,7 +279,7 @@ release 前の最小確認を 1 本で流す場合:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\validation\Test-ReleaseSmoke.ps1 `
-  -Version 1.0.0
+  -Version 1.1.0
 ```
 
 この script は Release build、test、release package 作成、installer 実行、OCR readiness、canonical な QCDS / readiness レポートの存在確認を順に実施し、結果を `temp/release-smoke/v<version>/release-smoke-summary.json` に保存します。
@@ -321,7 +321,7 @@ python tools\validation\evaluate_qcds_report.py `
 
 ### 現在の状態
 - 初期リリース `v0.1.0` は公開済み。
-- 正式版 `v1.0.0` を最新 release として扱う。
+- 優先改善完了版 `v1.1.0` を最新 release として扱う。
 - 優先改善の親 Issue は `#202`、個別 Issue は `#203` から `#206`。
 - 加点改善の親 Issue は `#199`、個別 Issue は `#207` から `#210`。
 - release は実装 Issue の完了とは別の完了単位として扱う。version 更新、配布物作成、GitHub Release 公開を行う場合は、release 専用 Issue を起票してから進める。
