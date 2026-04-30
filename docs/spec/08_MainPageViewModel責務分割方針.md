@@ -49,6 +49,7 @@
 2026-04-30 追記:
 - `ProjectLoadSaveCoordinator` を追加し、保存入力の組み立てと読込結果の UI 反映用スナップショット生成を `MainPageViewModel` から切り出した
 - `PreviewSelectionCoordinator` を追加し、timeline row / result row / preview frame の選択同期、選択キー比較、preview 対象 frame の解決を `MainPageViewModel` から切り出した
+- `MainPageTimelineEditCoordinator` を追加し、テキスト編集、削除、結合、分割、detection id 維持、edit log 更新を `MainPageViewModel` から切り出した
 
 ## 6. 完了条件との対応
 - 責務分割方針の文書化:

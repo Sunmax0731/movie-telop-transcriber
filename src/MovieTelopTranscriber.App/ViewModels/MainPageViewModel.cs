@@ -742,7 +742,9 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        DeleteTimelineSegment(SelectedTimelineSegment);
+        var currentIndex = TimelineSegments.IndexOf(SelectedTimelineSegment);
+        var outcome = MainPageTimelineEditCoordinator.Delete(BuildTimelineEditState(), SelectedTimelineSegment);
+        ApplyTimelineEditOutcome(outcome, currentIndex);
     }
 
     [RelayCommand]
@@ -761,13 +763,20 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        if (!CanMergeTimelineSegments(SelectedTimelineSegment, next, out var mergeStatusMessage))
+        if (!MainPageTimelineEditCoordinator.CanMergeTimelineSegments(SelectedTimelineSegment, next, out var mergeStatusMessage))
         {
             StatusMessage = mergeStatusMessage;
             return;
         }
 
-        MergeTimelineSegments(SelectedTimelineSegment, next);
+        var outcome = MainPageTimelineEditCoordinator.Merge(BuildTimelineEditState(), SelectedTimelineSegment, next);
+        if (!outcome.Changed)
+        {
+            StatusMessage = outcome.StatusMessage;
+            return;
+        }
+
+        ApplyTimelineEditOutcome(outcome);
     }
 
     [RelayCommand]
@@ -779,19 +788,26 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        if (IsLikelyTimecodeText(SelectedTimelineSegment.Text))
+        if (MainPageTimelineEditCoordinator.IsLikelyTimecodeText(SelectedTimelineSegment.Text))
         {
             StatusMessage = "Timecode-like rows cannot be split as telop text.";
             return;
         }
 
-        if (!TrySplitText(SelectedTimelineSegment.Text, out var firstText, out var secondText))
+        if (!MainPageTimelineEditCoordinator.TrySplitText(SelectedTimelineSegment.Text, out var firstText, out var secondText))
         {
             StatusMessage = "Split requires a line break or whitespace in the selected text.";
             return;
         }
 
-        SplitTimelineSegment(SelectedTimelineSegment, firstText, secondText);
+        var outcome = MainPageTimelineEditCoordinator.Split(BuildTimelineEditState(), SelectedTimelineSegment, firstText, secondText);
+        if (!outcome.Changed)
+        {
+            StatusMessage = outcome.StatusMessage;
+            return;
+        }
+
+        ApplyTimelineEditOutcome(outcome);
     }
 
     public void CommitTimelineTextEdit(TimelineSegment? segment)
@@ -801,29 +817,18 @@ public partial class MainPageViewModel : ObservableObject
             return;
         }
 
-        var newText = segment.Text.Trim();
-        if (string.IsNullOrWhiteSpace(newText))
+        var outcome = MainPageTimelineEditCoordinator.UpdateText(
+            BuildTimelineEditState(),
+            segment,
+            segment.Text);
+        if (!outcome.Changed)
         {
             segment.IsEditing = false;
-            StatusMessage = "Telop text was not changed because it was empty.";
+            StatusMessage = outcome.StatusMessage;
             return;
         }
 
-        var originalText = ResolveCurrentText(segment) ?? segment.Text;
-        if (string.Equals(originalText, newText, StringComparison.Ordinal))
-        {
-            segment.IsEditing = false;
-            StatusMessage = "Telop text was not changed.";
-            return;
-        }
-
-        ApplyTimelineTextChange(segment, newText);
-        AddEditRecord("edit", segment, null, originalText, newText, "timeline text edit");
-        segment.Text = newText;
-        segment.IsEditing = false;
-        OnPropertyChanged(nameof(SelectedSegmentSummary));
-        UpdatePreviewFromTimelineSelection(segment);
-        StatusMessage = "Edited telop text. Use Export only to write the updated output files.";
+        ApplyTimelineEditOutcome(outcome);
     }
 
     public bool AdvancePreviewFrame()
@@ -857,59 +862,37 @@ public partial class MainPageViewModel : ObservableObject
         ApplyPreviewSelectionState(selectionState);
     }
 
-    private void ApplyTimelineTextChange(TimelineSegment segment, string newText)
+    private MainPageTimelineEditState BuildTimelineEditState()
     {
-        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        var detectionIds = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var pair in _segmentDetectionIds)
         {
-            _latestSegments = _latestSegments
-                .Select(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal)
-                    ? item with { Text = newText }
-                    : item)
-                .ToArray();
+            detectionIds[pair.Key] = pair.Value.ToArray();
         }
 
-        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
-        {
-            _latestFrameAnalyses = _latestFrameAnalyses
-                .Select(analysis => ReplaceDetectionText(analysis, segment.DetectionId, newText))
-                .ToArray();
-        }
-
-        PreserveSegmentDetectionIds(segment);
-        ReplaceMatchingResultRow(segment, row => row with { Text = newText });
+        return new MainPageTimelineEditState(
+            _latestFrameAnalyses,
+            _latestSegments,
+            _timelineEdits.ToArray(),
+            detectionIds,
+            _manualEditSequence);
     }
 
-    private void DeleteTimelineSegment(TimelineSegment segment)
+    private void ApplyTimelineEditOutcome(MainPageTimelineEditOutcome outcome, int? preferredIndex = null)
     {
-        var currentIndex = TimelineSegments.IndexOf(segment);
-
-        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
+        _latestFrameAnalyses = outcome.State.LatestFrameAnalyses;
+        _latestSegments = outcome.State.LatestSegments;
+        _timelineEdits.Clear();
+        _timelineEdits.AddRange(outcome.State.TimelineEdits);
+        _segmentDetectionIds.Clear();
+        foreach (var pair in outcome.State.SegmentDetectionIds)
         {
-            _latestSegments = _latestSegments
-                .Where(item => !string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal))
-                .ToArray();
-            _segmentDetectionIds.Remove(segment.SegmentId);
+            _segmentDetectionIds[pair.Key] = pair.Value;
         }
 
-        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
-        {
-            _latestFrameAnalyses = _latestFrameAnalyses
-                .Select(analysis => RemoveDetection(analysis, segment.DetectionId))
-                .ToArray();
-        }
-
-        RemoveMatchingResultRow(segment);
-        TimelineSegments.Remove(segment);
-
-        var nextIndex = Math.Clamp(currentIndex, 0, Math.Max(0, TimelineSegments.Count - 1));
-        SelectedTimelineSegment = TimelineSegments.Count == 0 ? null : TimelineSegments[nextIndex];
-        RefreshInfoCards(
-            _latestMetadata,
-            _latestFrameExtractionResult?.Frames.Count ?? 0,
-            _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
-            _latestSegments.Count);
-        AddEditRecord("delete", segment, null, segment.Text, null, "timeline row delete");
-        StatusMessage = "Deleted selected telop. Use Export only to write the updated output files.";
+        _manualEditSequence = outcome.State.ManualEditSequence;
+        RebuildTimelineAndResults(outcome.PreferredSegmentId, outcome.PreferredDetectionId, preferredIndex);
+        StatusMessage = outcome.StatusMessage;
     }
 
     private TimelineSegment? FindNextEditableTimelineSegment(TimelineSegment segment)
@@ -925,506 +908,35 @@ public partial class MainPageViewModel : ObservableObject
             .FirstOrDefault(row => row.CanEdit);
     }
 
-    private static bool CanMergeTimelineSegments(
-        TimelineSegment first,
-        TimelineSegment second,
-        out string statusMessage)
-    {
-        if (IsLikelyTimecodeText(first.Text) || IsLikelyTimecodeText(second.Text))
-        {
-            statusMessage = "Timecode-like rows cannot be merged with telop text rows.";
-            return false;
-        }
-
-        if (!string.Equals(first.Category, second.Category, StringComparison.Ordinal)
-            || !string.Equals(first.DisplayAttributeLabel, second.DisplayAttributeLabel, StringComparison.Ordinal))
-        {
-            statusMessage = "Merge requires the selected row and next row to have the same display attributes.";
-            return false;
-        }
-
-        statusMessage = string.Empty;
-        return true;
-    }
-
-    private void MergeTimelineSegments(TimelineSegment first, TimelineSegment second)
-    {
-        var mergedText = NormalizeMergedText(first.Text, second.Text);
-        if (!string.IsNullOrWhiteSpace(first.SegmentId) && !string.IsNullOrWhiteSpace(second.SegmentId))
-        {
-            var firstSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, first.SegmentId, StringComparison.Ordinal));
-            var secondSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, second.SegmentId, StringComparison.Ordinal));
-            if (firstSegment is null || secondSegment is null)
-            {
-                StatusMessage = "Could not find selected segments to merge.";
-                return;
-            }
-
-            var mergedSegment = firstSegment with
-            {
-                EndTimestampMs = Math.Max(firstSegment.EndTimestampMs, secondSegment.EndTimestampMs),
-                Text = mergedText,
-                TextType = string.Equals(firstSegment.TextType, secondSegment.TextType, StringComparison.Ordinal)
-                    ? firstSegment.TextType
-                    : "edited",
-                Confidence = AverageConfidence(firstSegment.Confidence, secondSegment.Confidence),
-                SourceFrameCount = firstSegment.SourceFrameCount + secondSegment.SourceFrameCount
-            };
-            _latestSegments = _latestSegments
-                .Select(item => string.Equals(item.SegmentId, firstSegment.SegmentId, StringComparison.Ordinal) ? mergedSegment : item)
-                .Where(item => !string.Equals(item.SegmentId, secondSegment.SegmentId, StringComparison.Ordinal))
-                .ToArray();
-            _segmentDetectionIds[firstSegment.SegmentId] = MergeDetectionIds(first, second);
-            _segmentDetectionIds.Remove(secondSegment.SegmentId);
-        }
-
-        if (string.IsNullOrWhiteSpace(first.SegmentId) && !string.IsNullOrWhiteSpace(first.DetectionId))
-        {
-            _latestFrameAnalyses = _latestFrameAnalyses
-                .Select(analysis => ReplaceDetectionText(analysis, first.DetectionId, mergedText))
-                .ToArray();
-        }
-
-        if (string.IsNullOrWhiteSpace(second.SegmentId) && !string.IsNullOrWhiteSpace(second.DetectionId))
-        {
-            _latestFrameAnalyses = _latestFrameAnalyses
-                .Select(analysis => RemoveDetection(analysis, second.DetectionId))
-                .ToArray();
-        }
-
-        AddEditRecord("merge", first, second, $"{first.Text.Trim()} | {second.Text.Trim()}", mergedText, "merged selected row with next row");
-        RebuildTimelineAndResults(first.SegmentId, first.DetectionId);
-        StatusMessage = "Merged selected telop with the next row. Use Export only to write the updated output files.";
-    }
-
-    private void SplitTimelineSegment(TimelineSegment segment, string firstText, string secondText)
-    {
-        string? secondSegmentId = null;
-        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
-        {
-            var sourceSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal));
-            if (sourceSegment is null)
-            {
-                StatusMessage = "Could not find selected segment to split.";
-                return;
-            }
-
-            var midpointMs = sourceSegment.StartTimestampMs + ((sourceSegment.EndTimestampMs - sourceSegment.StartTimestampMs) / 2);
-            secondSegmentId = CreateManualId(sourceSegment.SegmentId, "split");
-            var firstSegment = sourceSegment with
-            {
-                EndTimestampMs = midpointMs,
-                Text = firstText,
-                SourceFrameCount = Math.Max(1, sourceSegment.SourceFrameCount / 2)
-            };
-            var secondSegment = sourceSegment with
-            {
-                SegmentId = secondSegmentId,
-                StartTimestampMs = midpointMs,
-                Text = secondText,
-                SourceFrameCount = Math.Max(1, sourceSegment.SourceFrameCount - firstSegment.SourceFrameCount)
-            };
-
-            var updatedSegments = new List<SegmentRecord>();
-            foreach (var item in _latestSegments)
-            {
-                if (string.Equals(item.SegmentId, sourceSegment.SegmentId, StringComparison.Ordinal))
-                {
-                    updatedSegments.Add(firstSegment);
-                    updatedSegments.Add(secondSegment);
-                }
-                else
-                {
-                    updatedSegments.Add(item);
-                }
-            }
-
-            _latestSegments = updatedSegments;
-            var splitDetectionIds = SplitSegmentDetectionIds(segment, firstText, secondText);
-            _segmentDetectionIds[sourceSegment.SegmentId] = splitDetectionIds.FirstIds;
-            _segmentDetectionIds[secondSegmentId] = splitDetectionIds.SecondIds;
-        }
-
-        if (string.IsNullOrWhiteSpace(segment.SegmentId) && !string.IsNullOrWhiteSpace(segment.DetectionId))
-        {
-            var secondDetectionId = CreateManualId(segment.DetectionId, "split");
-            _latestFrameAnalyses = _latestFrameAnalyses
-                .Select(analysis => SplitDetection(analysis, segment.DetectionId, secondDetectionId, firstText, secondText))
-                .ToArray();
-        }
-
-        AddEditRecord("split", segment, null, segment.Text, $"{firstText} | {secondText}", "split selected row into two rows");
-        RebuildTimelineAndResults(segment.SegmentId, segment.DetectionId);
-        StatusMessage = "Split selected telop. Use Export only to write the updated output files.";
-    }
-
-    private void RebuildTimelineAndResults(string? preferredSegmentId, string? preferredDetectionId)
+    private void RebuildTimelineAndResults(string? preferredSegmentId, string? preferredDetectionId, int? preferredIndex = null)
     {
         TimelineSegments.Clear();
         ResultRows.Clear();
         PopulateTimelineAndResults(_latestFrameAnalyses, _latestSegments);
 
-        var nextSelection = PreviewSelectionCoordinator.FindTimelineSelection(
-            TimelineSegments,
-            preferredSegmentId,
-            preferredDetectionId);
+        TimelineSegment? nextSelection;
+        if (!string.IsNullOrWhiteSpace(preferredSegmentId) || !string.IsNullOrWhiteSpace(preferredDetectionId))
+        {
+            nextSelection = PreviewSelectionCoordinator.FindTimelineSelection(
+                TimelineSegments,
+                preferredSegmentId,
+                preferredDetectionId);
+        }
+        else if (preferredIndex is not null && TimelineSegments.Count > 0)
+        {
+            nextSelection = TimelineSegments[Math.Clamp(preferredIndex.Value, 0, TimelineSegments.Count - 1)];
+        }
+        else
+        {
+            nextSelection = TimelineSegments.FirstOrDefault();
+        }
+
         SelectedTimelineSegment = nextSelection;
         RefreshInfoCards(
             _latestMetadata,
             _latestFrameExtractionResult?.Frames.Count ?? 0,
             _latestFrameAnalyses.Sum(analysis => analysis.Attributes.Detections.Count),
             _latestSegments.Count);
-    }
-
-    private string? ResolveCurrentText(TimelineSegment segment)
-    {
-        if (!string.IsNullOrWhiteSpace(segment.SegmentId))
-        {
-            var sourceSegment = _latestSegments.FirstOrDefault(item => string.Equals(item.SegmentId, segment.SegmentId, StringComparison.Ordinal));
-            if (sourceSegment is not null)
-            {
-                return sourceSegment.Text;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(segment.DetectionId))
-        {
-            return _latestFrameAnalyses
-                .SelectMany(analysis => analysis.Ocr.Detections)
-                .FirstOrDefault(detection => string.Equals(detection.DetectionId, segment.DetectionId, StringComparison.Ordinal))
-                ?.Text;
-        }
-
-        return null;
-    }
-
-    private void AddEditRecord(
-        string operation,
-        TimelineSegment target,
-        TimelineSegment? related,
-        string? originalText,
-        string? updatedText,
-        string notes)
-    {
-        _timelineEdits.Add(new EditOperationRecord(
-            operation,
-            target.SegmentId ?? target.DetectionId ?? target.RangeLabel,
-            related?.SegmentId ?? related?.DetectionId,
-            target.DetectionId,
-            originalText,
-            updatedText,
-            target.TimestampMs,
-            null,
-            DateTimeOffset.Now,
-            notes));
-    }
-
-    private void PreserveSegmentDetectionIds(TimelineSegment segment)
-    {
-        if (string.IsNullOrWhiteSpace(segment.SegmentId))
-        {
-            return;
-        }
-
-        var detectionIds = ResolveTimelineSegmentDetectionIds(segment);
-        if (detectionIds.Count > 0)
-        {
-            _segmentDetectionIds[segment.SegmentId] = detectionIds;
-        }
-    }
-
-    private IReadOnlyList<string> MergeDetectionIds(TimelineSegment first, TimelineSegment second)
-    {
-        return NormalizeDetectionIds(ResolveTimelineSegmentDetectionIds(first).Concat(ResolveTimelineSegmentDetectionIds(second)));
-    }
-
-    private (IReadOnlyList<string> FirstIds, IReadOnlyList<string> SecondIds) SplitSegmentDetectionIds(
-        TimelineSegment segment,
-        string firstText,
-        string secondText)
-    {
-        var sourceIds = ResolveTimelineSegmentDetectionIds(segment);
-        if (sourceIds.Count == 0)
-        {
-            return (Array.Empty<string>(), Array.Empty<string>());
-        }
-
-        var firstIds = new List<string>();
-        var secondIds = new List<string>();
-        foreach (var detectionId in sourceIds)
-        {
-            var detectionText = ResolveDetectionText(detectionId);
-            if (detectionText is null)
-            {
-                firstIds.Add(detectionId);
-                secondIds.Add(detectionId);
-                continue;
-            }
-
-            var belongsToFirst = DetectionTextIsRelatedToSelectedSegment(detectionText, firstText);
-            var belongsToSecond = DetectionTextIsRelatedToSelectedSegment(detectionText, secondText);
-            if (belongsToFirst)
-            {
-                firstIds.Add(detectionId);
-            }
-
-            if (belongsToSecond)
-            {
-                secondIds.Add(detectionId);
-            }
-        }
-
-        return (
-            firstIds.Count == 0 ? sourceIds : NormalizeDetectionIds(firstIds),
-            secondIds.Count == 0 ? sourceIds : NormalizeDetectionIds(secondIds));
-    }
-
-    private IReadOnlyList<string> ResolveTimelineSegmentDetectionIds(TimelineSegment segment)
-    {
-        var detectionIds = NormalizeDetectionIds(segment.DetectionIds);
-        if (detectionIds.Count > 0)
-        {
-            return detectionIds;
-        }
-
-        if (!string.IsNullOrWhiteSpace(segment.SegmentId)
-            && _segmentDetectionIds.TryGetValue(segment.SegmentId, out var mappedIds)
-            && mappedIds.Count > 0)
-        {
-            return mappedIds;
-        }
-
-        return string.IsNullOrWhiteSpace(segment.DetectionId)
-            ? Array.Empty<string>()
-            : [segment.DetectionId];
-    }
-
-    private string? ResolveDetectionText(string detectionId)
-    {
-        return _latestFrameAnalyses
-            .SelectMany(analysis => analysis.Ocr.Detections)
-            .FirstOrDefault(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
-            ?.Text;
-    }
-
-    private static IReadOnlyList<string> NormalizeDetectionIds(IEnumerable<string> detectionIds)
-    {
-        return detectionIds
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private void ReplaceMatchingResultRow(TimelineSegment segment, Func<ResultRow, ResultRow> replace)
-    {
-        var index = FindMatchingResultRowIndex(segment);
-        if (index >= 0)
-        {
-            ResultRows[index] = replace(ResultRows[index]);
-        }
-    }
-
-    private void RemoveMatchingResultRow(TimelineSegment segment)
-    {
-        var index = FindMatchingResultRowIndex(segment);
-        if (index >= 0)
-        {
-            ResultRows.RemoveAt(index);
-        }
-    }
-
-    private int FindMatchingResultRowIndex(TimelineSegment segment)
-    {
-        for (var i = 0; i < ResultRows.Count; i++)
-        {
-            var row = ResultRows[i];
-            if (PreviewSelectionCoordinator.SelectionKeysMatch(
-                segment.FrameIndex,
-                segment.TimestampMs,
-                segment.SegmentId,
-                segment.DetectionId,
-                row.FrameIndex,
-                row.TimestampMs,
-                row.SegmentId,
-                row.DetectionId))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private static string NormalizeMergedText(string first, string second)
-    {
-        return string.Join(
-            " ",
-            new[] { first.Trim(), second.Trim() }
-                .Where(value => !string.IsNullOrWhiteSpace(value)));
-    }
-
-    private static double? AverageConfidence(double? first, double? second)
-    {
-        return (first, second) switch
-        {
-            ({ } left, { } right) => (left + right) / 2d,
-            ({ } left, null) => left,
-            (null, { } right) => right,
-            _ => null
-        };
-    }
-
-    private string CreateManualId(string baseId, string operation)
-    {
-        _manualEditSequence++;
-        return $"{baseId}-{operation}-{_manualEditSequence:D3}";
-    }
-
-    private static bool TrySplitText(string text, out string firstText, out string secondText)
-    {
-        var trimmed = text.Trim();
-        var lines = trimmed
-            .Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .ToArray();
-        if (lines.Length >= 2)
-        {
-            firstText = lines[0];
-            secondText = string.Join(" ", lines.Skip(1));
-            return true;
-        }
-
-        var words = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (words.Length >= 2)
-        {
-            var splitIndex = Math.Max(1, words.Length / 2);
-            firstText = string.Join(' ', words.Take(splitIndex));
-            secondText = string.Join(' ', words.Skip(splitIndex));
-            return !string.IsNullOrWhiteSpace(firstText) && !string.IsNullOrWhiteSpace(secondText);
-        }
-
-        firstText = string.Empty;
-        secondText = string.Empty;
-        return false;
-    }
-
-    private static bool IsLikelyTimecodeText(string text)
-    {
-        var normalized = text.Trim();
-        if (normalized.Length < 2 || !normalized.EndsWith("s", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return double.TryParse(
-            normalized[..^1],
-            NumberStyles.AllowDecimalPoint,
-            CultureInfo.InvariantCulture,
-            out _);
-    }
-
-    private static FrameAnalysisResult ReplaceDetectionText(
-        FrameAnalysisResult analysis,
-        string detectionId,
-        string newText)
-    {
-        var ocrDetections = analysis.Ocr.Detections
-            .Select(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal)
-                ? detection with { Text = newText }
-                : detection)
-            .ToArray();
-        var attributeDetections = analysis.Attributes.Detections
-            .Select(detection => string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal)
-                ? detection with { Text = newText }
-                : detection)
-            .ToArray();
-
-        return analysis with
-        {
-            Ocr = analysis.Ocr with { Detections = ocrDetections },
-            Attributes = analysis.Attributes with { Detections = attributeDetections }
-        };
-    }
-
-    private static FrameAnalysisResult SplitDetection(
-        FrameAnalysisResult analysis,
-        string detectionId,
-        string secondDetectionId,
-        string firstText,
-        string secondText)
-    {
-        var ocrDetections = SplitDetectionRecords(
-            analysis.Ocr.Detections,
-            detectionId,
-            secondDetectionId,
-            firstText,
-            secondText,
-            detection => detection with { Text = firstText },
-            detection => detection with { DetectionId = secondDetectionId, Text = secondText });
-        var attributeDetections = SplitDetectionRecords(
-            analysis.Attributes.Detections,
-            detectionId,
-            secondDetectionId,
-            firstText,
-            secondText,
-            detection => detection with { Text = firstText },
-            detection => detection with { DetectionId = secondDetectionId, Text = secondText });
-
-        return analysis with
-        {
-            Ocr = analysis.Ocr with { Detections = ocrDetections },
-            Attributes = analysis.Attributes with { Detections = attributeDetections }
-        };
-    }
-
-    private static IReadOnlyList<TDetection> SplitDetectionRecords<TDetection>(
-        IReadOnlyList<TDetection> detections,
-        string detectionId,
-        string secondDetectionId,
-        string firstText,
-        string secondText,
-        Func<TDetection, TDetection> createFirst,
-        Func<TDetection, TDetection> createSecond)
-        where TDetection : notnull
-    {
-        var updated = new List<TDetection>();
-        foreach (var detection in detections)
-        {
-            var id = detection switch
-            {
-                OcrDetectionRecord ocr => ocr.DetectionId,
-                TelopAttributeRecord attribute => attribute.DetectionId,
-                _ => string.Empty
-            };
-
-            if (string.Equals(id, detectionId, StringComparison.Ordinal))
-            {
-                updated.Add(createFirst(detection));
-                updated.Add(createSecond(detection));
-            }
-            else
-            {
-                updated.Add(detection);
-            }
-        }
-
-        return updated;
-    }
-
-    private static FrameAnalysisResult RemoveDetection(FrameAnalysisResult analysis, string detectionId)
-    {
-        var ocrDetections = analysis.Ocr.Detections
-            .Where(detection => !string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
-            .ToArray();
-        var attributeDetections = analysis.Attributes.Detections
-            .Where(detection => !string.Equals(detection.DetectionId, detectionId, StringComparison.Ordinal))
-            .ToArray();
-
-        return analysis with
-        {
-            Ocr = analysis.Ocr with { Detections = ocrDetections },
-            Attributes = analysis.Attributes with { Detections = attributeDetections }
-        };
     }
 
     private async Task RunAnalysisAsync(AnalysisStartStage startStage)
