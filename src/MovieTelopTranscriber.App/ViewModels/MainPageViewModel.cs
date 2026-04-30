@@ -31,9 +31,8 @@ public partial class MainPageViewModel : ObservableObject
     private readonly OpenCvVideoProcessingService _videoProcessingService = new();
     private readonly TelopFrameAnalysisService _frameAnalysisService = new();
     private readonly TelopSegmentMerger _segmentMerger = new();
-    private readonly ExportPackageWriter _exportPackageWriter = new();
     private readonly ProjectBundleService _projectBundleService = new();
-    private readonly RunLogWriter _runLogWriter = new();
+    private readonly MainPageAnalysisOutputCoordinator _analysisOutputCoordinator = new();
     private static readonly LanguageOption[] SupportedLanguageOptions =
     [
         new("ja", "日本語"),
@@ -1096,20 +1095,28 @@ public partial class MainPageViewModel : ObservableObject
             currentStage = "Output";
             ProgressDetailText = $"Output: writing JSON, CSV, and subtitles for {result.Frames.Count} frames.";
             stopwatch.Stop();
-            var exportStopwatch = Stopwatch.StartNew();
-            _latestExport = await _exportPackageWriter.WriteAsync(
-                metadata,
-                result,
-                _latestFrameAnalyses,
-                _latestSegments,
-                _timelineEdits,
-                intervalSeconds,
-                OcrEngineText,
-                stopwatch.ElapsedMilliseconds,
-                warningCount,
-                errorCount);
-            exportStopwatch.Stop();
-            exportWriteDurationMs = exportStopwatch.Elapsed.TotalMilliseconds;
+            var outputOutcome = await _analysisOutputCoordinator.WriteAsync(
+                new MainPageAnalysisOutputRequest(
+                    metadata,
+                    result,
+                    _latestFrameAnalyses,
+                    _latestSegments,
+                    _timelineEdits,
+                    intervalSeconds,
+                    OcrEngineText,
+                    ResolveEffectivePaddleWorkerCount(OcrEngineText),
+                    startedAt,
+                    frameExtractionDurationMs,
+                    warmupResult,
+                    ocrDurationMs,
+                    segmentMergeDurationMs));
+            _latestExport = outputOutcome.Export;
+            exportWriteDurationMs = outputOutcome.PerformanceSummary.ExportWriteMs;
+            logWriteDurationMs = outputOutcome.PerformanceSummary.LogWriteMs;
+            detectionCount = outputOutcome.DetectionCount;
+            warningCount = outputOutcome.WarningCount;
+            errorCount = outputOutcome.ErrorCount;
+            firstOcrError = outputOutcome.FirstOcrError;
             ExportDirectoryText = _latestExport.OutputDirectory;
             JsonOutputPathText = _latestExport.JsonPath;
             SegmentsCsvOutputPathText = _latestExport.SegmentsCsvPath;
@@ -1117,34 +1124,7 @@ public partial class MainPageViewModel : ObservableObject
 
             currentStage = "Logging";
             ProgressDetailText = $"Logging: writing run summary for {result.Frames.Count} frames.";
-            var performanceSummary = BuildPerformanceSummary(
-                OcrEngineText,
-                ResolveEffectivePaddleWorkerCount(OcrEngineText),
-                warmupResult,
-                _latestFrameAnalyses,
-                frameExtractionDurationMs,
-                ocrDurationMs,
-                segmentMergeDurationMs,
-                exportWriteDurationMs,
-                logWriteDurationMs: 0d);
-            var logWriteStopwatch = Stopwatch.StartNew();
-            var logWriteResult = await _runLogWriter.WriteSuccessAsync(
-                result,
-                metadata,
-                _latestExport,
-                _latestFrameAnalyses,
-                intervalSeconds,
-                OcrEngineText,
-                startedAt,
-                DateTimeOffset.Now,
-                result.Frames.Count,
-                detectionCount,
-                _latestSegments.Count,
-                warningCount,
-                errorCount,
-                performanceSummary);
-            logWriteStopwatch.Stop();
-            logWriteDurationMs = logWriteStopwatch.Elapsed.TotalMilliseconds;
+            var logWriteResult = outputOutcome.LogWriteResult;
             LogDirectoryText = logWriteResult.LogsDirectory;
             RunLogPathText = logWriteResult.LogPath;
             RunSummaryPathText = logWriteResult.SummaryPath;
@@ -2267,49 +2247,6 @@ public partial class MainPageViewModel : ObservableObject
     private void ApplyPaddleOcrEnvironment()
     {
         MainPageUserSettingsCoordinator.ApplyPaddleOcrEnvironment(BuildUserSettingsState());
-    }
-
-    private static RunPerformanceSummaryRecord BuildPerformanceSummary(
-        string ocrEngine,
-        int ocrWorkerCount,
-        OcrWorkerWarmupResult warmupResult,
-        IReadOnlyList<FrameAnalysisResult> frameAnalyses,
-        double frameExtractionDurationMs,
-        double ocrDurationMs,
-        double segmentMergeDurationMs,
-        double exportWriteDurationMs,
-        double logWriteDurationMs)
-    {
-        var framePerformances = frameAnalyses.Select(analysis => analysis.Performance).ToArray();
-        var firstFrameMs = framePerformances.FirstOrDefault()?.TotalMs ?? 0d;
-        var averageFrameMs = framePerformances.Length == 0
-            ? 0d
-            : framePerformances.Average(performance => performance.TotalMs);
-        var maxFrameMs = framePerformances.Length == 0
-            ? 0d
-            : framePerformances.Max(performance => performance.TotalMs);
-
-        return new RunPerformanceSummaryRecord(
-            warmupResult.Status,
-            string.Equals(ocrEngine, "paddleocr", StringComparison.OrdinalIgnoreCase) ? ocrWorkerCount : 1,
-            frameExtractionDurationMs,
-            ocrDurationMs,
-            segmentMergeDurationMs,
-            exportWriteDurationMs,
-            logWriteDurationMs,
-            warmupResult.TotalMs,
-            framePerformances.Count(performance => performance.OcrExecuted),
-            framePerformances.Count(performance => !performance.OcrExecuted),
-            framePerformances.Sum(performance => performance.SelectionMs),
-            framePerformances.Sum(performance => performance.RequestWriteMs),
-            framePerformances.Sum(performance => performance.WorkerInitializationMs),
-            framePerformances.Sum(performance => performance.WorkerExecutionMs),
-            framePerformances.Sum(performance => performance.ResponseReadMs),
-            framePerformances.Sum(performance => performance.AttributeAnalysisMs),
-            framePerformances.Sum(performance => performance.AttributeWriteMs),
-            firstFrameMs,
-            averageFrameMs,
-            maxFrameMs);
     }
 
     private string FormatPaddlePreprocessSummary()

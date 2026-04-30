@@ -51,6 +51,7 @@
 - `PreviewSelectionCoordinator` を追加し、timeline row / result row / preview frame の選択同期、選択キー比較、preview 対象 frame の解決を `MainPageViewModel` から切り出した
 - `MainPageTimelineEditCoordinator` を追加し、テキスト編集、削除、結合、分割、detection id 維持、edit log 更新を `MainPageViewModel` から切り出した
 - `MainPageOcrWarmupCoordinator` を追加し、OCR warmup の保留 task 管理、設定署名比較、待機中メッセージ更新を `MainPageViewModel` から切り出した
+- `MainPageAnalysisOutputCoordinator` を追加し、検出/警告/エラー件数集計、export 書き出し、performance summary 生成、run log 書き込みを `MainPageViewModel` から切り出した
 
 ## 6. 完了条件との対応
 - 責務分割方針の文書化:
