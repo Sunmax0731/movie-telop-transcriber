@@ -51,6 +51,7 @@ $reportPath = Join-Path $smokeRoot "release-smoke-summary.json"
 $canonicalPaths = @(
     (Join-Path $repoRoot "docs\test-results\2026-04-29_qcds_basic_telop_rerun_033541_report.md"),
     (Join-Path $repoRoot "docs\test-results\2026-04-30_issue203_qcds_actual_suite.md"),
+    (Join-Path $repoRoot "docs\test-results\2026-04-30_issue210_real_video_canonical_workflow.md"),
     (Join-Path $repoRoot "docs\test-results\2026-04-30_issue207_ocr_readiness.md")
 )
 

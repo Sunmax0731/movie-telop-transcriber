@@ -63,8 +63,10 @@ UI/UX と OCR 改善の成果を主観だけで判断せず、代表動画セッ
 | 種別 | パス |
 | --- | --- |
 | 評価スクリプト | `tools/validation/evaluate_qcds_report.py` |
+| 実動画系 canonical 生成 | `tools/validation/New-RealVideoQcdsCanonical.ps1` |
 | fixture run 生成 | `tools/validation/create_qcds_fixture_run.py` |
 | レポートテンプレート | `docs/templates/qcds_evaluation_report_template.md` |
+| 実動画系 metadata テンプレート | `docs/templates/qcds_real_video_metadata_template.json` |
 | 初期代表レポート | `docs/test-results/2026-04-29_qcds_basic_telop_report.md` |
 | 機械可読メトリクス | `docs/test-results/2026-04-29_qcds_basic_telop_metrics.json` |
 | 追加 sample 群 | `test-data/qcds_suite/` |
@@ -73,5 +75,6 @@ UI/UX と OCR 改善の成果を主観だけで判断せず、代表動画セッ
 - 代表動画ごとに 1 レポートを作成する。
 - 同じ動画で設定や実装を変えた場合は、前回メトリクス JSON を `--previous-metrics` に指定して差分を残す。
 - 実動画の権利や容量に制約がある場合、動画ファイルはコミットせず、レポートにメタ情報、Run ID、評価コマンドを残す。
+- 実動画 binary を repo に含めない場合でも、`New-RealVideoQcdsCanonical.ps1` に metadata JSON、`segments.json`、`summary.json`、ground truth を渡し、report / metrics / canonical note をまとめて残す。
 - synthetic sample を追加した場合は、ground truth から生成した fixture baseline report と、actual OCR run の report を区別して記録する。
 - QCDS 指標が悪化した場合は、原因が OCR、セグメント統合、属性解析、GUI 操作のどこにあるかを切り分けて Issue 化する。

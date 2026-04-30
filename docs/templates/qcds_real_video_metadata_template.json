@@ -1,0 +1,25 @@
+{
+  "issueNumber": 210,
+  "sampleId": "real_video_local_sample",
+  "sampleKind": "real-video-canonical",
+  "captureDate": "2026-04-30",
+  "video": {
+    "fileName": "local_rights_cleared_sample.mp4",
+    "duration": "00:00:12.000",
+    "width": 1920,
+    "height": 1080,
+    "frameIntervalSeconds": 1.0,
+    "rightsStatus": "権利確認済み・repo 未同梱",
+    "sourceSummary": "ローカル保持の実動画または同等 canonical の概要を記録する"
+  },
+  "paths": {
+    "groundTruth": "test-data\\basic_telop\\ground_truth.json",
+    "segments": "work\\runs\\20260429_033541_3031\\output\\segments.json",
+    "summary": "work\\runs\\20260429_033541_3031\\logs\\summary.json",
+    "previousMetrics": "docs\\test-results\\2026-04-29_qcds_basic_telop_rerun_033541_metrics.json"
+  },
+  "notes": [
+    "sampleKind を real-video-equivalent にすると、rights-cleared 実動画の代替 canonical として扱える。",
+    "repo に動画 binary を含めない場合でも、fileName、Run ID、評価コマンド、ground truth の所在を残す。"
+  ]
+}

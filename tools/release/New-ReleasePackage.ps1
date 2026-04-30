@@ -197,6 +197,9 @@ Copy-RepoFileMatch -Directory "docs\spec" -Filter "04_*.md" -DestinationDirector
 Copy-RepoFileMatch -Directory "docs\spec" -Filter "06_QCDS*.md" -DestinationDirectory "docs\spec"
 Copy-RepoFileMatch -Directory "docs\spec" -Filter "07_*.md" -DestinationDirectory "docs\spec"
 Copy-RepoFile -Source "docs\templates\qcds_evaluation_report_template.md" -Destination "docs\templates\qcds_evaluation_report_template.md"
+Copy-RepoFile -Source "docs\templates\qcds_real_video_metadata_template.json" -Destination "docs\templates\qcds_real_video_metadata_template.json"
+Copy-RepoFile -Source "tools\validation\evaluate_qcds_report.py" -Destination "tools\validation\evaluate_qcds_report.py"
+Copy-RepoFile -Source "tools\validation\New-RealVideoQcdsCanonical.ps1" -Destination "tools\validation\New-RealVideoQcdsCanonical.ps1"
 
 Copy-RepoFile -Source "test-data\basic_telop\README.md" -Destination "samples\basic_telop\README.md"
 Copy-RepoFile -Source "test-data\basic_telop\sample_basic_telop.mp4" -Destination "samples\basic_telop\sample_basic_telop.mp4"
