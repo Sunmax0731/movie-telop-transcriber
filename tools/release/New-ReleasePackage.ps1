@@ -146,6 +146,7 @@ Write-ReleaseAppSettings
 Copy-RepoFile -Source "README.md" -Destination "docs\README.md"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.ps1" -Destination "Install-MovieTelopTranscriber.ps1"
 Copy-RepoFile -Source "tools\install\Install-MovieTelopTranscriber.cmd" -Destination "Install-MovieTelopTranscriber.cmd"
+Copy-RepoFile -Source "tools\install\Test-MovieTelopTranscriberOcrReadiness.ps1" -Destination "Test-MovieTelopTranscriberOcrReadiness.ps1"
 Copy-RepoFile -Source "tools\install\Uninstall-MovieTelopTranscriber.ps1" -Destination "Uninstall-MovieTelopTranscriber.ps1"
 Copy-RepoFile -Source "tools\install\Uninstall-MovieTelopTranscriber.cmd" -Destination "Uninstall-MovieTelopTranscriber.cmd"
 Copy-RepoFileMatch -Directory "docs" -Filter "08_*.md" -DestinationDirectory "docs"
@@ -175,6 +176,7 @@ $requiredPackageFiles = @(
     "app\tools\ocr\paddle_ocr_worker.py",
     "Install-MovieTelopTranscriber.ps1",
     "Install-MovieTelopTranscriber.cmd",
+    "Test-MovieTelopTranscriberOcrReadiness.ps1",
     "Uninstall-MovieTelopTranscriber.ps1",
     "Uninstall-MovieTelopTranscriber.cmd",
     "docs\README.md",
